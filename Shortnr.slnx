@@ -1,0 +1,5 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Shortnr.Data/Shortnr.Data.csproj" />
+  </Folder>
+</Solution>
