@@ -4,7 +4,7 @@ URL shortener with a dashboard. .NET minimal APIs, HTMX frontend, EF Core + SQLi
 
 ## Project state
 
-Brand new — no code, no config, no dependencies yet. `src/` is empty. `.git/` exists (main, zero commits, no remotes).
+First commit made — `src/Shortnr.Data` (EF Core + SQLite, entity, context, migration) and `src/Shortnr.Web` (ASP.NET Core minimal API with HTMX + Pico CSS) exist and build.
 
 ## Planned architecture
 
@@ -23,5 +23,6 @@ Brand new — no code, no config, no dependencies yet. `src/` is empty. `.git/` 
 ## Dev commands (discovered so far)
 
 - **Build**: `dotnet build` (from repo root)
+- **Run**: `dotnet run --project src\Shortnr.Web\Shortnr.Web.csproj`
 - **Add migration**: `dotnet ef migrations add <Name> --project src\Shortnr.Data\Shortnr.Data.csproj`
 - **Remove migration**: `dotnet ef migrations remove --project src\Shortnr.Data\Shortnr.Data.csproj`

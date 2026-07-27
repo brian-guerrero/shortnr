@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Shortnr.Data/Shortnr.Data.csproj" />
+    <Project Path="src/Shortnr.Web/Shortnr.Web.csproj" />
   </Folder>
 </Solution>
