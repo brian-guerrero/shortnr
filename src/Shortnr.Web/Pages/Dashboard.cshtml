@@ -43,6 +43,36 @@
 .sortable th[data-sort="asc"]::after { content: '\25B2'; }
 .sortable th[data-sort="desc"]::after { content: '\25BC'; }
 </style>
+<script>
+document.addEventListener('click', e => {
+    const th = e.target.closest('.sortable th');
+    if (!th) return;
+    const table = th.closest('.sortable');
+    const tbody = table?.querySelector('tbody');
+    if (!tbody) return;
+    const headers = table.querySelectorAll('thead th');
+    const colIdx = Array.from(headers).indexOf(th);
+    if (colIdx < 0) return;
+
+    const isAsc = th.dataset.sort === 'asc';
+    headers.forEach(h => h.dataset.sort = '');
+    th.dataset.sort = isAsc ? 'desc' : 'asc';
+
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    rows.sort((a, b) => {
+        const aText = a.children[colIdx]?.textContent.trim() || '';
+        const bText = b.children[colIdx]?.textContent.trim() || '';
+        const aNum = parseFloat(aText.replace(/[,%]/g, ''));
+        const bNum = parseFloat(bText.replace(/[,%]/g, ''));
+        const cmp = !isNaN(aNum) && !isNaN(bNum)
+            ? aNum - bNum
+            : aText.localeCompare(bText, undefined, { numeric: true, sensitivity: 'base' });
+        return isAsc ? -cmp : cmp;
+    });
+
+    rows.forEach(row => tbody.appendChild(row));
+});
+</script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@@4/dist/chart.umd.min.js"></script>
 <script>
 function chartComponent() {
