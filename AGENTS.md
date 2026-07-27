@@ -19,8 +19,8 @@ Both build and run. No tests yet.
 
 ## Architecture & conventions
 
-- **Razor partials for HTMX responses** — PageModel handlers that respond to HTMX requests must return `PartialViewResult` with a `.cshtml` partial from `Pages/Shared/`. Never build HTML inline in C# code (no raw strings, no `Content()` with HTML). Full-page responses use `Page()` with layout; partial HTMX responses use `PartialViewResult` without layout.
-- **HTMX header check** — use `Request.Headers["HX-Request"].Count > 0` to decide full page vs partial. On the page itself, set `Layout = null` for HX-Request; on POST handlers, return `PartialViewResult`.
+- **Razor partials for HTMX responses** — PageModel handlers that respond to HTMX requests must use the `Partial()` helper (returns `PartialViewResult`) with a `.cshtml` partial from `Pages/Shared/`. Never build HTML inline in C# code (no raw strings, no `Content()` with HTML). Never manually construct `PartialViewResult` or assign a different model type to `ViewData.Model` — use `return Partial("Shared/_PartialName", model)` instead. Full-page responses use `Page()` with layout.
+- **HTMX header check** — use `Request.Headers["HX-Request"].Count > 0` to decide full page vs partial. On POST handlers, use `Partial()` to return the partial. For multiple partial targets on the same page (e.g., dashboard metrics + search), branch on `Request.Headers["HX-Target"].FirstOrDefault()` (the `id` of the target element being swapped) instead of using query parameters to differentiate partials. This keeps URLs clean and avoids polluting `OnGet` with routing query params.
 - **Click tracking** — async via `Channel<string>` + `ClickBatchProcessor` background service (`Services/ClickBatchProcessor.cs`). Redirect endpoint writes to the channel and returns immediately; the processor batch-updates SQLite.
 - **DbContext** injected into handlers via DI. `IDesignTimeDbContextFactory<AppDbContext>` in `Shortnr.Data` for `dotnet ef` CLI.
 - **Migrations are additive** — never delete a committed migration.
