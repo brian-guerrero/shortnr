@@ -1,11 +1,15 @@
+using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
+using Shortnr.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorPages();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddSingleton(Channel.CreateUnbounded<string>());
+builder.Services.AddHostedService<ClickBatchProcessor>();
 
 var app = builder.Build();
 
@@ -20,13 +24,12 @@ app.UseRouting();
 
 app.MapRazorPages();
 
-app.MapGet("/{shortCode}", async (string shortCode, AppDbContext db) =>
+app.MapGet("/{shortCode}", async (string shortCode, AppDbContext db, Channel<string> clickChannel) =>
 {
     var link = await db.ShortenedUrls.FirstOrDefaultAsync(l => l.ShortCode == shortCode);
     if (link is null) return Results.NotFound();
 
-    link.ClickCount++;
-    await db.SaveChangesAsync();
+    clickChannel.Writer.TryWrite(shortCode);
 
     return Results.Redirect(link.LongUrl);
 });
