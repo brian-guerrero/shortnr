@@ -49,12 +49,7 @@ public class IndexModel : PageModel
 
         var baseUrl = $"{Request.Scheme}://{Request.Host}/{shortCode}";
         var model = new PostResultViewModel { ShortUrl = baseUrl, RecentLinks = recentLinks };
-        ViewData.Model = model;
-        return new PartialViewResult
-        {
-            ViewName = "Shared/_PostResult",
-            ViewData = ViewData
-        };
+        return Partial("Shared/_PostResult", model);
     }
 
     private static string GenerateShortCode()
