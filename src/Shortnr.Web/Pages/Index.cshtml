@@ -1,6 +1,7 @@
-@model DashboardViewModel
+﻿@page
+@model IndexModel
 @{
-    Layout = Context.Request.Headers["HX-Request"].Count == 0 ? "Shared/_Layout" : null;
+    Layout = Model.IsHtmxRequest ? null : "_Layout";
 }
 <article>
     <header><h1>shortnr</h1></header>
