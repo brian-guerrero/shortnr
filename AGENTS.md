@@ -6,7 +6,7 @@ URL shortener with a dashboard. .NET minimal APIs, HTMX frontend, EF Core + SQLi
 
 Two projects under `src/`:
 - **Shortnr.Data** — class library: entities, `AppDbContext`, EF Core migrations (SQLite)
-- **Shortnr.Web** — ASP.NET Core minimal API (`Program.cs`), serves raw HTML via `Results.Content(html, "text/html")`
+- **Shortnr.Web** — ASP.NET Core Razor Pages (`Pages/`), plus minimal API endpoints for redirect and JSON
 
 Both build and run. No tests yet.
 
@@ -19,12 +19,14 @@ Both build and run. No tests yet.
 
 ## Architecture & conventions
 
-- **Razor partials preferred over raw strings** — even though the app is minimal API, use `AddRazorPages` / `AddControllersWithViews` and return `PartialView()` for HTMX responses. Check request headers (`X-Requested-With: XMLHttpRequest` or `HX-Request`) to decide full page vs partial. The current code uses `Results.Content()` as a placeholder; migrate to `.cshtml` partials when adding new UI.
-- **DbContext** injected directly into minimal API handlers via DI. `IDesignTimeDbContextFactory<AppDbContext>` exists for `dotnet ef` CLI commands.
+- **Razor partials for HTMX responses** — PageModel handlers that respond to HTMX requests must return `PartialViewResult` with a `.cshtml` partial from `Pages/Shared/`. Never build HTML inline in C# code (no raw strings, no `Content()` with HTML). Full-page responses use `Page()` with layout; partial HTMX responses use `PartialViewResult` without layout.
+- **HTMX header check** — use `Request.Headers["HX-Request"].Count > 0` to decide full page vs partial. On the page itself, set `Layout = null` for HX-Request; on POST handlers, return `PartialViewResult`.
+- **Click tracking** — async via `Channel<string>` + `ClickBatchProcessor` background service (`Services/ClickBatchProcessor.cs`). Redirect endpoint writes to the channel and returns immediately; the processor batch-updates SQLite.
+- **DbContext** injected into handlers via DI. `IDesignTimeDbContextFactory<AppDbContext>` in `Shortnr.Data` for `dotnet ef` CLI.
 - **Migrations are additive** — never delete a committed migration.
-- **SQLite** — database is created/updated automatically via `db.Database.Migrate()` in `Program.cs` startup (`src/Shortnr.Web/Program.cs:12-16`). Connection string in `appsettings.json` → `ConnectionStrings:DefaultConnection`.
-- **SQLite DB files** (`.db`) are gitignored.
-- **Short code**: 6 alphanumeric chars generated server-side via `Random.Shared`. Unique index enforced at DB level.
+- **SQLite** — database auto-created/updated via `db.Database.Migrate()` at startup (`Program.cs`). Connection string in `appsettings.json` → `ConnectionStrings:DefaultConnection`. DB files (`.db`, `.db-shm`, `.db-wal`) gitignored.
+- **Short code**: 6 alphanumeric chars, generated server-side via `Random.Shared`. DB unique index.
 - **Solution format**: `.slnx` (new .NET 10 XML-based format).
-- **HTMX**: Pico CSS v2 from CDN, htmx v2 from CDN. Keep interactions stateless (no session, no ViewState).
-- **Provider swap**: DbContext is provider-agnostic; switching to PostgreSQL later means changing only the connection string + `UseSqlite()` → `UseNpgsql()`.
+- **HTMX**: Pico CSS v2 from CDN, htmx v2 from CDN. Stateless server interactions.
+- **Alpine.js + Chart.js**: loaded only on the Dashboard page (`/dashboard`). Dashboard polls `/api/metrics` every 5s. Search queries `/api/links?search=...`.
+- **Provider swap**: DbContext is provider-agnostic; switching to PostgreSQL = change connection string + `UseSqlite()` → `UseNpgsql()`.

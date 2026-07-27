@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
 using Shortnr.Data.Entities;
+using Shortnr.Web.Models;
 
 namespace Shortnr.Web.Pages;
 
@@ -47,31 +48,13 @@ public class IndexModel : PageModel
             .ToListAsync();
 
         var baseUrl = $"{Request.Scheme}://{Request.Host}/{shortCode}";
-        var rows = string.Concat(recentLinks.Select(l => $"""
-                    <tr>
-                        <td><a href="/{l.ShortCode}" target="_blank">/{l.ShortCode}</a></td>
-                        <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{l.LongUrl}</td>
-                        <td>{l.ClickCount}</td>
-                    </tr>
-"""));
-        var html = $"""
-<ins style="display:block; margin-top: 1rem;">
-    <strong>Short URL:</strong>
-    <a href="{baseUrl}" target="_blank">{baseUrl}</a>
-</ins>
-<section id="recent" hx-swap-oob="true">
-    <h2>Recent links</h2>
-    <table>
-        <thead>
-            <tr><th>Short URL</th><th>Original</th><th>Clicks</th></tr>
-        </thead>
-        <tbody>
-{rows}
-        </tbody>
-    </table>
-</section>
-""";
-        return Content(html, "text/html");
+        var model = new PostResultViewModel { ShortUrl = baseUrl, RecentLinks = recentLinks };
+        ViewData.Model = model;
+        return new PartialViewResult
+        {
+            ViewName = "Shared/_PostResult",
+            ViewData = ViewData
+        };
     }
 
     private static string GenerateShortCode()

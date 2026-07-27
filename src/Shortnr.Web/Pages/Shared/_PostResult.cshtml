@@ -1,0 +1,23 @@
+@model Shortnr.Web.Models.PostResultViewModel
+<ins style="display:block; margin-top: 1rem;">
+    <strong>Short URL:</strong>
+    <a href="@Model.ShortUrl" target="_blank">@Model.ShortUrl</a>
+</ins>
+<section id="recent" hx-swap-oob="true">
+    <h2>Recent links</h2>
+    <table>
+        <thead>
+            <tr><th>Short URL</th><th>Original</th><th>Clicks</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var link in Model.RecentLinks)
+            {
+                <tr>
+                    <td><a href="/@link.ShortCode" target="_blank">/@link.ShortCode</a></td>
+                    <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">@link.LongUrl</td>
+                    <td>@link.ClickCount</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</section>
