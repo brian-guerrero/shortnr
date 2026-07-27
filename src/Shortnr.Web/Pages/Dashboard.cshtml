@@ -1,0 +1,107 @@
+@page
+@model DashboardModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+<div x-data="dashboard()" x-init="init()">
+    <hgroup>
+        <h1>Dashboard</h1>
+        <p>Real-time metrics for your shortened links.</p>
+    </hgroup>
+
+    <div class="grid">
+        <article>
+            <header>Total Links</header>
+            <h2 x-text="metrics.totalLinks">0</h2>
+        </article>
+        <article>
+            <header>Total Clicks</header>
+            <h2 x-text="metrics.totalClicks">0</h2>
+        </article>
+    </div>
+
+    <article>
+        <header><h3>Top Links</h3></header>
+        <canvas id="topChart" height="100"></canvas>
+    </article>
+
+    <article>
+        <header><h3>Search Links</h3></header>
+        <input type="search" x-model="search" @@input.debounce="doSearch" placeholder="Search by URL or short code...">
+        <table>
+            <thead>
+                <tr><th>Short URL</th><th>Original</th><th>Clicks</th><th>Created</th></tr>
+            </thead>
+            <tbody>
+                <template x-for="link in searchResults" :key="link.shortCode">
+                    <tr>
+                        <td><a x-bind:href="'/' + link.shortCode" target="_blank" x-text="'/' + link.shortCode"></a></td>
+                        <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" x-text="link.longUrl"></td>
+                        <td x-text="link.clickCount"></td>
+                        <td x-text="new Date(link.createdAtUtc).toLocaleDateString()"></td>
+                    </tr>
+                </template>
+                <tr x-show="searchResults.length === 0">
+                    <td colspan="4" style="text-align: center;">No results</td>
+                </tr>
+            </tbody>
+        </table>
+    </article>
+</div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@@4"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@@3"></script>
+<script>
+function dashboard() {
+    return {
+        metrics: { totalLinks: 0, totalClicks: 0, topLinks: [] },
+        search: '',
+        searchResults: [],
+        chart: null,
+        async init() {
+            await this.loadMetrics();
+            setInterval(() => this.loadMetrics(), 5000);
+        },
+        async loadMetrics() {
+            const resp = await fetch('/api/metrics');
+            this.metrics = await resp.json();
+            this.$nextTick(() => this.renderChart());
+        },
+        async doSearch() {
+            if (!this.search) { this.searchResults = []; return; }
+            const resp = await fetch(`/api/links?search=${encodeURIComponent(this.search)}`);
+            this.searchResults = await resp.json();
+        },
+        renderChart() {
+            const canvas = document.getElementById('topChart');
+            if (!canvas) return;
+            const labels = this.metrics.topLinks.map(l => l.shortCode);
+            const data = this.metrics.topLinks.map(l => l.clickCount);
+            if (this.chart) { this.chart.destroy(); }
+            this.chart = new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Clicks',
+                        data,
+                        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { beginAtZero: true, ticks: { precision: 0 } }
+                    }
+                }
+            });
+        }
+    };
+}
+</script>
+}

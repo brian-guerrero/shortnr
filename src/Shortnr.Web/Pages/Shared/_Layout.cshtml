@@ -8,8 +8,18 @@
     <script src="https://unpkg.com/htmx.org@@2"></script>
 </head>
 <body>
-    <main class="container" style="max-width: 640px; padding-top: 4rem;">
+    <nav class="container" style="max-width: 960px; padding-top: 1rem;">
+        <ul>
+            <li><strong><a href="/" style="--pico-text-decoration: none;">shortnr</a></strong></li>
+        </ul>
+        <ul>
+            <li><a href="/dashboard">Dashboard</a></li>
+        </ul>
+    </nav>
+    <main class="container" style="max-width: 960px; padding-top: 1rem;">
         @RenderBody()
     </main>
+
+    @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

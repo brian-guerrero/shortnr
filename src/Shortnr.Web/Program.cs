@@ -24,6 +24,35 @@ app.UseRouting();
 
 app.MapRazorPages();
 
+app.MapGet("/api/metrics", async (AppDbContext db) =>
+{
+    var totalLinks = await db.ShortenedUrls.CountAsync();
+    var totalClicks = await db.ShortenedUrls.SumAsync(l => (long?)l.ClickCount) ?? 0;
+    var topLinks = await db.ShortenedUrls
+        .OrderByDescending(l => l.ClickCount)
+        .Take(10)
+        .Select(l => new { l.ShortCode, l.LongUrl, l.ClickCount })
+        .ToListAsync();
+
+    return Results.Json(new { totalLinks, totalClicks, topLinks });
+});
+
+app.MapGet("/api/links", async (string? search, AppDbContext db) =>
+{
+    var query = db.ShortenedUrls.AsQueryable();
+    if (!string.IsNullOrWhiteSpace(search))
+    {
+        query = query.Where(l => l.LongUrl.Contains(search) || l.ShortCode.Contains(search));
+    }
+    var results = await query
+        .OrderByDescending(l => l.CreatedAtUtc)
+        .Take(50)
+        .Select(l => new { l.ShortCode, l.LongUrl, l.ClickCount, l.CreatedAtUtc })
+        .ToListAsync();
+
+    return Results.Json(results);
+});
+
 app.MapGet("/{shortCode}", async (string shortCode, AppDbContext db, Channel<string> clickChannel) =>
 {
     var link = await db.ShortenedUrls.FirstOrDefaultAsync(l => l.ShortCode == shortCode);
