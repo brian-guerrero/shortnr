@@ -16,7 +16,7 @@ public class DashboardModel : PageModel
         _db = db;
     }
 
-    public async Task<IActionResult> OnGet(string? search)
+    public async Task<IActionResult> OnGet(string? search, string? linkSort, string? linkDir, string? clickSort, string? clickDir)
     {
         if (Request.Headers["HX-Request"].Count > 0)
         {
@@ -36,24 +36,45 @@ public class DashboardModel : PageModel
 
             if (target == "recent-clicks")
             {
-                var clicks = await _db.ClickEvents
-                    .OrderByDescending(e => e.ClickedAtUtc)
-                    .Take(20)
-                    .Include(e => e.ShortenedUrl)
-                    .ToListAsync();
+                var query = _db.ClickEvents.Include(e => e.ShortenedUrl).AsQueryable();
+                query = (clickSort, clickDir == "desc") switch
+                {
+                    ("shortCode", false) => query.OrderBy(e => e.ShortenedUrl.ShortCode),
+                    ("shortCode", true) => query.OrderByDescending(e => e.ShortenedUrl.ShortCode),
+                    ("ipAddress", false) => query.OrderBy(e => e.IpAddress),
+                    ("ipAddress", true) => query.OrderByDescending(e => e.IpAddress),
+                    ("referer", false) => query.OrderBy(e => e.Referer),
+                    ("referer", true) => query.OrderByDescending(e => e.Referer),
+                    ("userAgent", false) => query.OrderBy(e => e.UserAgent),
+                    ("userAgent", true) => query.OrderByDescending(e => e.UserAgent),
+                    ("clickedAtUtc", false) => query.OrderBy(e => e.ClickedAtUtc),
+                    ("clickedAtUtc", true) => query.OrderByDescending(e => e.ClickedAtUtc),
+                    _ => query.OrderByDescending(e => e.ClickedAtUtc)
+                };
+                var clicks = await query.Take(20).ToListAsync();
 
                 return Partial("Shared/_RecentClicks", clicks);
             }
 
-            var query = _db.ShortenedUrls.AsQueryable();
+            var linkQuery = _db.ShortenedUrls.AsQueryable();
             if (!string.IsNullOrWhiteSpace(search))
             {
-                query = query.Where(l => l.LongUrl.ToLower().Contains(search.ToLower()) || l.ShortCode.ToLower().Contains(search.ToLower()));
+                var lower = search.ToLower();
+                linkQuery = linkQuery.Where(l => l.LongUrl.ToLower().Contains(lower) || l.ShortCode.ToLower().Contains(lower));
             }
-            var results = await query
-                .OrderByDescending(l => l.CreatedAtUtc)
-                .Take(50)
-                .ToListAsync();
+            linkQuery = (linkSort, linkDir == "desc") switch
+            {
+                ("shortCode", false) => linkQuery.OrderBy(l => l.ShortCode),
+                ("shortCode", true) => linkQuery.OrderByDescending(l => l.ShortCode),
+                ("longUrl", false) => linkQuery.OrderBy(l => l.LongUrl),
+                ("longUrl", true) => linkQuery.OrderByDescending(l => l.LongUrl),
+                ("clickCount", false) => linkQuery.OrderBy(l => l.ClickCount),
+                ("clickCount", true) => linkQuery.OrderByDescending(l => l.ClickCount),
+                ("createdAtUtc", false) => linkQuery.OrderBy(l => l.CreatedAtUtc),
+                ("createdAtUtc", true) => linkQuery.OrderByDescending(l => l.CreatedAtUtc),
+                _ => linkQuery.OrderByDescending(l => l.CreatedAtUtc)
+            };
+            var results = await linkQuery.Take(50).ToListAsync();
 
             return Partial("Shared/_SearchResults", results);
         }
