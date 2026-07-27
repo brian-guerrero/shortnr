@@ -1,11 +1,17 @@
 using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
 using Shortnr.Data.Entities;
+using Shortnr.Web.Models;
+using Shortnr.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddRazorPages();
+builder.Services.AddControllersWithViews();
+builder.Services.AddScoped<ViewRenderService>();
 
 var app = builder.Build();
 
@@ -17,57 +23,19 @@ using (var scope = app.Services.CreateScope())
 
 app.UseHttpsRedirection();
 
-app.MapGet("/", async (AppDbContext db) =>
+app.MapGet("/", async (ViewRenderService renderer, AppDbContext db, HttpRequest request) =>
 {
     var links = await db.ShortenedUrls.OrderByDescending(l => l.CreatedAtUtc).Take(10).ToListAsync();
-    var html = $"""
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>shortnr</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
-    <script src="https://unpkg.com/htmx.org@2"></script>
-</head>
-<body>
-    <main class="container" style="max-width: 640px; padding-top: 4rem;">
-        <article>
-            <header><h1>shortnr</h1></header>
-            <form hx-post="/" hx-target="#result" hx-swap="innerHTML">
-                <label for="url">Enter a long URL</label>
-                <input type="url" name="url" id="url" placeholder="https://example.com/very/long/path" required>
-                <button type="submit">Shorten</button>
-            </form>
-            <div id="result"></div>
-        </article>
-
-        <section id="recent">
-            <h2>Recent links</h2>
-            <table>
-                <thead>
-                    <tr><th>Short URL</th><th>Original</th><th>Clicks</th></tr>
-                </thead>
-                <tbody>
-                    {string.Concat(links.Select(l => $"""
-                    <tr>
-                        <td><a href="/{l.ShortCode}" target="_blank">/{l.ShortCode}</a></td>
-                        <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{l.LongUrl}</td>
-                        <td>{l.ClickCount}</td>
-                    </tr>
-                    """))}
-                </tbody>
-            </table>
-        </section>
-    </main>
-</body>
-</html>
-""";
+    var model = new DashboardViewModel { RecentLinks = links };
+    var isHtmx = request.Headers["HX-Request"].Count > 0;
+    var html = await renderer.RenderViewAsync("Index", model, isHtmx);
     return Results.Content(html, "text/html");
 });
 
-app.MapPost("/", async (string url, AppDbContext db, HttpRequest request) =>
+app.MapPost("/", async (HttpRequest request, AppDbContext db, ViewRenderService renderer) =>
 {
+    var url = request.Form["url"].FirstOrDefault() ?? "";
+
     var shortCode = GenerateShortCode();
     var shortened = new ShortenedUrl
     {
@@ -78,13 +46,8 @@ app.MapPost("/", async (string url, AppDbContext db, HttpRequest request) =>
     db.ShortenedUrls.Add(shortened);
     await db.SaveChangesAsync();
 
-    var baseUrl = $"{request.Scheme}://{request.Host}";
-    var html = $"""
-<ins style="display:block; margin-top: 1rem;">
-    <strong>Short URL:</strong>
-    <a href="{baseUrl}/{shortCode}" target="_blank">{baseUrl}/{shortCode}</a>
-</ins>
-""";
+    var baseUrl = $"{request.Scheme}://{request.Host}/{shortCode}";
+    var html = await renderer.RenderViewAsync("Shared/_ShortResult", baseUrl, isPartial: true);
     return Results.Content(html, "text/html");
 });
 
