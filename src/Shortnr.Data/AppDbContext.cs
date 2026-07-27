@@ -6,6 +6,7 @@ namespace Shortnr.Data;
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
     public DbSet<ShortenedUrl> ShortenedUrls => Set<ShortenedUrl>();
+    public DbSet<ClickEvent> ClickEvents => Set<ClickEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -16,6 +17,19 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.ShortCode).IsRequired().HasMaxLength(64);
             entity.HasIndex(e => e.ShortCode).IsUnique();
             entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
+        });
+
+        modelBuilder.Entity<ClickEvent>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.IpAddress).HasMaxLength(64);
+            entity.Property(e => e.UserAgent).HasMaxLength(512);
+            entity.Property(e => e.Referer).HasMaxLength(2048);
+            entity.Property(e => e.ClickedAtUtc).HasDefaultValueSql("datetime('now')");
+
+            entity.HasOne(e => e.ShortenedUrl)
+                .WithMany(s => s.ClickEvents)
+                .HasForeignKey(e => e.ShortenedUrlId);
         });
     }
 }
