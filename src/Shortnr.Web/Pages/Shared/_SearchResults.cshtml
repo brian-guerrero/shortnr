@@ -1,0 +1,24 @@
+@model List<ShortenedUrl>
+@if (Model.Count == 0)
+{
+    <p style="text-align: center;">No results</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr><th>Short URL</th><th>Original</th><th>Clicks</th><th>Created</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var link in Model)
+            {
+                <tr>
+                    <td><a href="/@link.ShortCode" target="_blank">/@link.ShortCode</a></td>
+                    <td style="max-width: 300px; word-break: break-all;">@link.LongUrl</td>
+                    <td>@link.ClickCount</td>
+                    <td>@link.CreatedAtUtc.ToLocalTime().ToString("g")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
