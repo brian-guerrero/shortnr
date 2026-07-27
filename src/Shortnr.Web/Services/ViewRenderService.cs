@@ -28,15 +28,12 @@ public class ViewRenderService
         var httpContext = new DefaultHttpContext { RequestServices = _serviceProvider };
         var actionContext = new ActionContext(httpContext, new RouteData(), new ActionDescriptor());
 
-        var viewResult = _viewEngine.GetView("~/Pages/", viewName, !isPartial);
-        if (!viewResult.Success)
-        {
-            viewResult = _viewEngine.FindView(actionContext, viewName, !isPartial);
-        }
+        var viewPath = viewName.StartsWith("~/") ? viewName : $"~/Pages/{viewName}.cshtml";
+        var viewResult = _viewEngine.GetView(null, viewPath, !isPartial);
 
         if (!viewResult.Success)
         {
-            throw new InvalidOperationException($"View '{viewName}' not found. Searched: {string.Join(", ", viewResult.SearchedLocations)}");
+            throw new InvalidOperationException($"View '{viewPath}' not found. Searched: {string.Join(", ", viewResult.SearchedLocations)}");
         }
 
         var view = viewResult.View;
