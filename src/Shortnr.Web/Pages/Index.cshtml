@@ -6,6 +6,7 @@
 <article>
     <header><h1>shortnr</h1></header>
     <form hx-post="/" hx-target="#result" hx-swap="innerHTML">
+        @Html.AntiForgeryToken()
         <label for="url">Enter a long URL</label>
         <input type="url" name="url" id="url" placeholder="https://example.com/very/long/path" required>
         <button type="submit">Shorten</button>
