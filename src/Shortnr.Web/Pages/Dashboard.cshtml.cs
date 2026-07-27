@@ -34,6 +34,17 @@ public class DashboardModel : PageModel
                 });
             }
 
+            if (target == "recent-clicks")
+            {
+                var clicks = await _db.ClickEvents
+                    .OrderByDescending(e => e.ClickedAtUtc)
+                    .Take(20)
+                    .Include(e => e.ShortenedUrl)
+                    .ToListAsync();
+
+                return Partial("Shared/_RecentClicks", clicks);
+            }
+
             var query = _db.ShortenedUrls.AsQueryable();
             if (!string.IsNullOrWhiteSpace(search))
             {

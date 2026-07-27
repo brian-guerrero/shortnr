@@ -29,7 +29,20 @@
     </div>
 </article>
 
+<article>
+    <header><h3>Recent Clicks</h3></header>
+    <div id="recent-clicks" hx-get="/dashboard" hx-trigger="load, every 5s" hx-swap="innerHTML">
+        <article aria-busy="true"><p>Loading clicks...</p></article>
+    </div>
+</article>
+
 @section Scripts {
+<style>
+.sortable th { cursor: pointer; user-select: none; }
+.sortable th::after { content: ''; margin-left: 0.3em; }
+.sortable th[data-sort="asc"]::after { content: '\25B2'; }
+.sortable th[data-sort="desc"]::after { content: '\25BC'; }
+</style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@@4/dist/chart.umd.min.js"></script>
 <script>
 function chartComponent() {

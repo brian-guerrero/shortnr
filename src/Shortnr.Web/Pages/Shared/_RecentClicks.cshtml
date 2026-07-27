@@ -1,0 +1,25 @@
+@model List<ClickEvent>
+@if (Model.Count == 0)
+{
+    <p style="text-align: center;">No clicks yet</p>
+}
+else
+{
+    <table class="sortable">
+        <thead>
+            <tr><th>Short URL</th><th>IP</th><th>Referer</th><th>User Agent</th><th>Time</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var click in Model)
+            {
+                <tr>
+                    <td><a href="/@click.ShortenedUrl.ShortCode" target="_blank">/@click.ShortenedUrl.ShortCode</a></td>
+                    <td>@click.IpAddress</td>
+                    <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="@click.Referer">@click.Referer</td>
+                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="@click.UserAgent">@click.UserAgent</td>
+                    <td>@click.ClickedAtUtc.ToLocalTime().ToString("g")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

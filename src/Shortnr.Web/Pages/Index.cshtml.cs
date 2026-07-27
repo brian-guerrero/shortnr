@@ -32,6 +32,17 @@ public class IndexModel : PageModel
     {
         var url = Request.Form["url"].FirstOrDefault() ?? "";
 
+        var existing = await _db.ShortenedUrls.FirstOrDefaultAsync(l => l.LongUrl == url);
+        if (existing is not null)
+        {
+            var baseUrl = $"{Request.Scheme}://{Request.Host}/{existing.ShortCode}";
+            var recentLinks = await _db.ShortenedUrls
+                .OrderByDescending(l => l.CreatedAtUtc)
+                .Take(10)
+                .ToListAsync();
+            return Partial("Shared/_PostResult", new PostResultViewModel { ShortUrl = baseUrl, RecentLinks = recentLinks });
+        }
+
         var shortCode = GenerateShortCode();
         var shortened = new ShortenedUrl
         {
@@ -42,14 +53,13 @@ public class IndexModel : PageModel
         _db.ShortenedUrls.Add(shortened);
         await _db.SaveChangesAsync();
 
-        var recentLinks = await _db.ShortenedUrls
+        var recentLinks2 = await _db.ShortenedUrls
             .OrderByDescending(l => l.CreatedAtUtc)
             .Take(10)
             .ToListAsync();
 
-        var baseUrl = $"{Request.Scheme}://{Request.Host}/{shortCode}";
-        var model = new PostResultViewModel { ShortUrl = baseUrl, RecentLinks = recentLinks };
-        return Partial("Shared/_PostResult", model);
+        var baseUrl2 = $"{Request.Scheme}://{Request.Host}/{shortCode}";
+        return Partial("Shared/_PostResult", new PostResultViewModel { ShortUrl = baseUrl2, RecentLinks = recentLinks2 });
     }
 
     private static string GenerateShortCode()
