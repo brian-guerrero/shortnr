@@ -1,41 +1,38 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
 using Shortnr.Data.Entities;
 using Shortnr.Web.Models;
+using Shortnr.Web.Services;
 
 namespace Shortnr.Web.Pages;
 
 public class DashboardModel : PageModel
 {
     private readonly AppDbContext _db;
-    private readonly IConfiguration _config;
+    private readonly UserIdentityService _identity;
 
-    public DashboardModel(AppDbContext db, IConfiguration config)
+    public DashboardModel(AppDbContext db, UserIdentityService identity)
     {
         _db = db;
-        _config = config;
+        _identity = identity;
     }
 
     public async Task<IActionResult> OnGet(string? search, string? linkSort, string? linkDir, string? clickSort, string? clickDir)
     {
-        var authEnabled = _config.GetValue<bool>("Authentication:Enabled", defaultValue: true);
-
         // When auth is on, require a signed-in user. HTMX partial requests get a 401
         // rather than a redirect so the browser isn't transparently swapped to the login page.
-        if (authEnabled && User.Identity?.IsAuthenticated != true)
+        if (_identity.IsAuthEnabled && User.Identity?.IsAuthenticated != true)
         {
             if (Request.Headers["HX-Request"].Count > 0)
                 return Unauthorized();
 
-            return RedirectToPage("/Index", new { returnUrl = "/dashboard" });
+            return RedirectToPage("/Index");
         }
 
-        // Resolve the current user's DB row id so we can scope every query.
-        // Null means auth is disabled — show all records.
-        var ownerUserId = authEnabled ? await ResolveOwnerUserIdAsync() : null;
+        // Null when auth is disabled — queries run unfiltered.
+        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
 
         if (Request.Headers["HX-Request"].Count > 0)
         {
@@ -77,9 +74,8 @@ public class DashboardModel : PageModel
                     ("clickedAtUtc", true) => query.OrderByDescending(e => e.ClickedAtUtc),
                     _ => query.OrderByDescending(e => e.ClickedAtUtc)
                 };
-                var clicks = await query.Take(20).ToListAsync();
 
-                return Partial("Shared/_RecentClicks", clicks);
+                return Partial("Shared/_RecentClicks", await query.Take(20).ToListAsync());
             }
 
             // Search / link list
@@ -104,24 +100,10 @@ public class DashboardModel : PageModel
                 ("createdAtUtc", true) => linkQ.OrderByDescending(l => l.CreatedAtUtc),
                 _ => linkQ.OrderByDescending(l => l.CreatedAtUtc)
             };
-            var results = await linkQ.Take(50).ToListAsync();
 
-            return Partial("Shared/_SearchResults", results);
+            return Partial("Shared/_SearchResults", await linkQ.Take(50).ToListAsync());
         }
 
         return Page();
-    }
-
-    // Mirrors IndexModel.ResolveOwnerUserIdAsync — looks up the Users row by OIDC
-    // (Issuer, Subject). Returns null if the row hasn't been provisioned yet (narrow
-    // race on first login) or if the principal carries no subject claim.
-    private async Task<long?> ResolveOwnerUserIdAsync()
-    {
-        var subject = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
-        if (subject is null) return null;
-
-        var issuer = _config["Authentication:Oidc:Authority"] ?? string.Empty;
-        var owner = await _db.Users.FirstOrDefaultAsync(u => u.Issuer == issuer && u.Subject == subject);
-        return owner?.Id;
     }
 }

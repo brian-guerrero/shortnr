@@ -26,7 +26,10 @@
             <li><strong><a href="/" style="--pico-text-decoration: none;">shortnr</a></strong></li>
         </ul>
         <ul>
-            <li><a href="/dashboard">Dashboard</a></li>
+            @if (!authEnabled || User.Identity?.IsAuthenticated == true)
+            {
+                <li><a href="/dashboard">Dashboard</a></li>
+            }
             @if (authEnabled)
             {
                 if (User.Identity?.IsAuthenticated == true)
