@@ -105,16 +105,14 @@ Always reference the local paths (not CDN URLs):
 
 ## Dockerfile
 
-The Dockerfile installs the LibMan CLI and runs `libman restore` in the build stage so the container image is fully self-contained:
+The Dockerfile does **not** install the LibMan CLI tool. `dotnet publish` triggers `Microsoft.Web.LibraryManager.Build` automatically, which restores `wwwroot/lib/` during the build stage — the same mechanism used locally:
 
 ```dockerfile
-RUN dotnet tool install -g Microsoft.Web.LibraryManager.Cli
-ENV PATH="$PATH:/root/.dotnet/tools"
-COPY src/Shortnr.Web/libman.json Shortnr.Web/
-RUN cd Shortnr.Web && libman restore
+# dotnet publish triggers Microsoft.Web.LibraryManager.Build which runs libman restore
+RUN dotnet publish Shortnr.Web/Shortnr.Web.csproj -c Release -o /app/publish
 ```
 
-Because `Microsoft.Web.LibraryManager.Build` is a NuGet package, `dotnet build` in the Dockerfile would also trigger restore automatically — the explicit `libman restore` step is kept for clarity and to separate the download from the compile step for better layer caching.
+No `dotnet tool install`, no `libman restore` step, no PATH manipulation needed.
 
 ## .gitignore
 
