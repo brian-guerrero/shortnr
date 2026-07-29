@@ -7,7 +7,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 // same URL during local dev (no split issuer/internal-URL problem to work around).
 var dex = builder.AddContainer("dex", "dexidp/dex", "v2.39.1")
     .WithBindMount("../../dex/config.yaml", "/etc/dex/config.yaml", isReadOnly: true)
-    .WithArgs("serve", "/etc/dex/config.yaml")
+    .WithArgs("dex", "serve", "/etc/dex/config.yaml")
     .WithHttpEndpoint(port: 5556, targetPort: 5556, name: "http")
     .WithLifetime(ContainerLifetime.Persistent);
 
