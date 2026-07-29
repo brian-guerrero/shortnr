@@ -26,6 +26,13 @@ app.UseRouting();
 
 app.MapRazorPages();
 
+app.MapGet("/api/qr/{shortCode}", (string shortCode, HttpContext ctx, QrService qr) =>
+{
+    var shortUrl = $"{ctx.Request.Scheme}://{ctx.Request.Host}/{shortCode}";
+    var png = qr.GeneratePng(shortUrl);
+    return Results.File(png, contentType: "image/png", fileDownloadName: $"qr-{shortCode}.png");
+});
+
 app.MapGet("/api/metrics", async (AppDbContext db) =>
 {
     var totalLinks = await db.ShortenedUrls.CountAsync();

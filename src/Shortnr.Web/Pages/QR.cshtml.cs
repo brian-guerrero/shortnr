@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Shortnr.Web.Models;
 using Shortnr.Web.Services;
 
 namespace Shortnr.Web.Pages;
@@ -19,6 +20,6 @@ public class QRModel : PageModel
 
         var shortUrl = $"{Request.Scheme}://{Request.Host}/{shortCode}";
         var dataUri = _qr.GenerateDataUri(shortUrl);
-        return Partial("Shared/_QrCode", dataUri);
+        return Partial("Shared/_QrCode", new QrCodeViewModel(dataUri, shortCode));
     }
 }

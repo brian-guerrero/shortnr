@@ -1,5 +1,12 @@
-@model string
-<img src="@Model"
-     alt="QR code"
-     width="160" height="160"
-     style="image-rendering: pixelated; display: block; margin-top: 0.5rem;">
+@model Shortnr.Web.Models.QrCodeViewModel
+<figure style="display:inline-block; margin: 0.5rem 0 0; text-align: center;">
+    <img src="@Model.DataUri"
+         alt="QR code for /@Model.ShortCode"
+         width="160" height="160"
+         style="image-rendering: pixelated; display: block;">
+    <figcaption style="margin-top: 0.3rem; font-size: 0.8rem;">
+        <a href="/api/qr/@Model.ShortCode" download="qr-@(Model.ShortCode).png">Download</a>
+        &nbsp;·&nbsp;
+        <a href="/api/qr/@Model.ShortCode" target="_blank">Share link</a>
+    </figcaption>
+</figure>
