@@ -95,7 +95,7 @@ app.MapGet("/account/login", (string? returnUrl) =>
 app.MapGet("/account/logout", () =>
     Results.SignOut(
         new AuthenticationProperties { RedirectUri = "/" },
-        [CookieAuthenticationDefaults.AuthenticationScheme, OpenIdConnectDefaults.AuthenticationScheme]));
+        [CookieAuthenticationDefaults.AuthenticationScheme]));
 
 app.MapGet("/api/qr/{shortCode}", (string shortCode, HttpContext ctx, QrService qr) =>
 {
