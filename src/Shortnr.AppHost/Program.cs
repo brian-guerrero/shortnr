@@ -14,7 +14,6 @@ var dex = builder.AddContainer("dex", "dexidp/dex", "v2.39.1")
 var dexEndpoint = dex.GetEndpoint("http");
 
 builder.AddProject<Projects.Shortnr_Web>("shortnr-web")
-    .WithReference(dex)
     .WithEnvironment("Authentication__Oidc__Authority", ReferenceExpression.Create($"{dexEndpoint}/dex"))
     .WaitFor(dex);
 
