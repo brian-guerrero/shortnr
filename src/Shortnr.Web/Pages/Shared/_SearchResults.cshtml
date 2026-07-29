@@ -43,7 +43,7 @@ else
                                 <td>@link.CreatedAtUtc.ToLocalTime().ToString("g")</td>
                                 <td>
                                     <span class="qr-wrap">
-                                        <button hx-get="/QR?shortCode=@link.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">QR</button>
+                                        <button hx-get="/qr/@link.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">QR</button>
                                     </span>
                                 </td>
                             </tr>

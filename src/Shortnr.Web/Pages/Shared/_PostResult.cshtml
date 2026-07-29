@@ -3,7 +3,7 @@
     <strong>Short URL:</strong>
     <a href="@Model.ShortUrl" target="_blank">@Model.ShortUrl</a>
     <span class="qr-wrap" style="display:inline-block; margin-left: 0.75rem; vertical-align: middle;">
-        <button hx-get="/QR?shortCode=@Model.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML" style="font-size: 0.8rem;">Show QR</button>
+        <button hx-get="/qr/@Model.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML" style="font-size: 0.8rem;">Show QR</button>
     </span>
 </ins>
 <section id="recent" hx-swap-oob="true">
@@ -21,7 +21,7 @@
                     <td>@link.ClickCount</td>
                     <td>
                         <span class="qr-wrap">
-                            <button hx-get="/QR?shortCode=@link.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">QR</button>
+                            <button hx-get="/qr/@link.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">QR</button>
                         </span>
                     </td>
                 </tr>

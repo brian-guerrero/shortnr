@@ -1,2 +1,31 @@
-@page
+@page "/qr/{shortCode}"
 @model Shortnr.Web.Pages.QRModel
+@{
+    ViewData["Title"] = "QR Code — /" + Model.ShortCode;
+}
+
+<article style="max-width: 480px; margin: 3rem auto; text-align: center;">
+    <header>
+        <h2 style="margin-bottom: 0.25rem;">QR Code</h2>
+        <p style="margin: 0;">
+            <a href="@Model.ShortUrl" target="_blank">@Model.ShortUrl</a>
+        </p>
+        @if (!string.IsNullOrEmpty(Model.LongUrl))
+        {
+            <p style="margin: 0.5rem 0 0; font-size: 0.85rem; color: var(--pico-muted-color); word-break: break-all;">
+                @Model.LongUrl
+            </p>
+        }
+    </header>
+
+    <img src="@Model.DataUri"
+         alt="QR code for @Model.ShortUrl"
+         width="240" height="240"
+         style="image-rendering: pixelated; margin: 1.5rem auto; display: block;">
+
+    <footer>
+        <a href="/api/qr/@Model.ShortCode" download="qr-@(Model.ShortCode).png" role="button">
+            Download PNG
+        </a>
+    </footer>
+</article>
