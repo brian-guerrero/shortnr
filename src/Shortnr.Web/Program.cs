@@ -52,11 +52,17 @@ app.MapGet("/api/qr/{shortCode}", (string shortCode, HttpContext ctx, QrService 
     return Results.File(png, contentType: "image/png", fileDownloadName: $"qr-{shortCode}.png");
 });
 
-app.MapGet("/api/metrics", async (AppDbContext db) =>
+app.MapGet("/api/metrics", async (AppDbContext db, HttpContext ctx, UserIdentityService identity) =>
 {
-    var totalLinks = await db.ShortenedUrls.CountAsync();
-    var totalClicks = await db.ShortenedUrls.SumAsync(l => (long?)l.ClickCount) ?? 0;
-    var topLinks = await db.ShortenedUrls
+    var ownerUserId = await identity.ResolveOwnerUserIdAsync(ctx.User);
+
+    var query = db.ShortenedUrls.AsQueryable();
+    if (ownerUserId is not null)
+        query = query.Where(l => l.OwnerUserId == ownerUserId);
+
+    var totalLinks = await query.CountAsync();
+    var totalClicks = await query.SumAsync(l => (long?)l.ClickCount) ?? 0;
+    var topLinks = await query
         .OrderByDescending(l => l.ClickCount)
         .Take(10)
         .Select(l => new { l.ShortCode, l.LongUrl, l.ClickCount })
