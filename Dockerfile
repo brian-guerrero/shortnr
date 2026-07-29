@@ -12,7 +12,7 @@ RUN dotnet restore Shortnr.Web/Shortnr.Web.csproj
 COPY src/Shortnr.Data/ Shortnr.Data/
 COPY src/Shortnr.Web/  Shortnr.Web/
 RUN dotnet publish Shortnr.Web/Shortnr.Web.csproj \
-    -c Release -o /app/publish --no-restore
+    -c Release -o /app/publish
 
 # ── runtime stage ─────────────────────────────────────────────────────────────
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
