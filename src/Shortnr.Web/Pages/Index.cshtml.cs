@@ -40,7 +40,7 @@ public class IndexModel : PageModel
                 .OrderByDescending(l => l.CreatedAtUtc)
                 .Take(10)
                 .ToListAsync();
-            return Partial("Shared/_PostResult", new PostResultViewModel { ShortUrl = baseUrl, RecentLinks = recentLinks });
+            return Partial("Shared/_PostResult", new PostResultViewModel { ShortUrl = baseUrl, ShortCode = existing.ShortCode, RecentLinks = recentLinks });
         }
 
         var shortCode = GenerateShortCode();
@@ -59,7 +59,7 @@ public class IndexModel : PageModel
             .ToListAsync();
 
         var baseUrl2 = $"{Request.Scheme}://{Request.Host}/{shortCode}";
-        return Partial("Shared/_PostResult", new PostResultViewModel { ShortUrl = baseUrl2, RecentLinks = recentLinks2 });
+        return Partial("Shared/_PostResult", new PostResultViewModel { ShortUrl = baseUrl2, ShortCode = shortCode, RecentLinks = recentLinks2 });
     }
 
     private static string GenerateShortCode()

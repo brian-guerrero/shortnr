@@ -30,6 +30,7 @@ else
                         </th>
                         <th hx-get="@caUrl" hx-target="#search-results" hx-swap="innerHTML" hx-include="#search-input">Created
                             @caInd</th>
+                        <th>QR</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -40,6 +41,11 @@ else
                                 <td style="max-width: 300px; word-break: break-all;">@link.LongUrl</td>
                                 <td>@link.ClickCount</td>
                                 <td>@link.CreatedAtUtc.ToLocalTime().ToString("g")</td>
+                                <td>
+                                    <span class="qr-wrap">
+                                        <button hx-get="/QR?shortCode=@link.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">QR</button>
+                                    </span>
+                                </td>
                             </tr>
                         }
                     </tbody>

@@ -11,6 +11,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddSingleton(Channel.CreateUnbounded<ClickRecord>());
 builder.Services.AddHostedService<ClickBatchProcessor>();
+builder.Services.AddSingleton<QrService>();
 
 var app = builder.Build();
 
