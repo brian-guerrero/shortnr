@@ -11,6 +11,84 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
     <link rel="manifest" href="/site.webmanifest">
+    <style>
+        /* User menu dropdown */
+        .user-menu {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .user-menu__trigger {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: none;
+            border: none;
+            padding: 0.2rem 0.4rem;
+            cursor: pointer;
+            color: inherit;
+            font: inherit;
+            border-radius: var(--pico-border-radius, 4px);
+        }
+
+        .user-menu__trigger:hover,
+        .user-menu__trigger:focus-visible {
+            background: var(--pico-secondary-background, rgba(0,0,0,.06));
+        }
+
+        .user-menu__avatar {
+            border-radius: 50%;
+            display: block;
+            flex-shrink: 0;
+        }
+
+        .user-menu__name {
+            max-width: 14ch;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .user-menu__caret {
+            font-size: .6em;
+            opacity: .6;
+        }
+
+        .user-menu__dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 4px);
+            right: 0;
+            min-width: 10rem;
+            background: var(--pico-card-background-color, #fff);
+            border: 1px solid var(--pico-muted-border-color, #ccc);
+            border-radius: var(--pico-border-radius, 4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,.12);
+            list-style: none;
+            padding: 0.25rem 0;
+            margin: 0;
+            z-index: 100;
+        }
+
+        .user-menu__dropdown li a {
+            display: block;
+            padding: 0.5rem 1rem;
+            white-space: nowrap;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .user-menu__dropdown li a:hover {
+            background: var(--pico-secondary-background, rgba(0,0,0,.06));
+        }
+
+        /* Show on hover or when trigger is focused (keyboard-accessible) */
+        .user-menu:hover .user-menu__dropdown,
+        .user-menu:focus-within .user-menu__dropdown {
+            display: block;
+        }
+    </style>
 </head>
 
 <body>
@@ -24,8 +102,7 @@
         <ul>
             @if (User.Identity?.IsAuthenticated == true)
             {
-                <li>@User.Identity.Name</li>
-                <li><a href="/account/logout">Log out</a></li>
+                <li>@await Html.PartialAsync("Shared/_UserMenu")</li>
             }
             else
             {
