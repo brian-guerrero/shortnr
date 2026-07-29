@@ -2,23 +2,16 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-# restore
+# restore NuGet packages
 COPY src/Shortnr.Data/Shortnr.Data.csproj  Shortnr.Data/
 COPY src/Shortnr.Web/Shortnr.Web.csproj    Shortnr.Web/
 RUN dotnet restore Shortnr.Web/Shortnr.Web.csproj
 
-# download and bundle frontend assets
-RUN apt-get update -qq && apt-get install -y --no-install-recommends curl \
- && mkdir -p Shortnr.Web/wwwroot/lib \
- && curl -fsSL https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css \
-         -o Shortnr.Web/wwwroot/lib/pico.min.css \
- && curl -fsSL https://unpkg.com/htmx.org@2/dist/htmx.min.js \
-         -o Shortnr.Web/wwwroot/lib/htmx.min.js \
- && curl -fsSL https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js \
-         -o Shortnr.Web/wwwroot/lib/chart.umd.min.js \
- && curl -fsSL https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js \
-         -o Shortnr.Web/wwwroot/lib/alpine.min.js \
- && apt-get purge -y curl && rm -rf /var/lib/apt/lists/*
+# install libman and restore frontend assets
+RUN dotnet tool install -g Microsoft.Web.LibraryManager.Cli
+ENV PATH="$PATH:/root/.dotnet/tools"
+COPY src/Shortnr.Web/libman.json Shortnr.Web/
+RUN cd Shortnr.Web && libman restore
 
 # copy source and publish
 COPY src/Shortnr.Data/ Shortnr.Data/
