@@ -56,6 +56,11 @@ app.MapGet("/api/metrics", async (AppDbContext db, HttpContext ctx, UserIdentity
 {
     var ownerUserId = await identity.ResolveOwnerUserIdAsync(ctx.User);
 
+    // When auth is enabled and ownerUserId couldn't be resolved (anonymous request or
+    // first-login provisioning race), return empty data rather than leaking all records.
+    if (identity.IsAuthEnabled && ownerUserId is null)
+        return Results.Json(new { totalLinks = 0, totalClicks = 0L, topLinks = Array.Empty<object>() });
+
     var query = db.ShortenedUrls.AsQueryable();
     if (ownerUserId is not null)
         query = query.Where(l => l.OwnerUserId == ownerUserId);
@@ -88,3 +93,6 @@ app.MapGet("/{shortCode}", async (string shortCode, AppDbContext db, Channel<Cli
 });
 
 app.Run();
+
+// Exposed for WebApplicationFactory<Program> in integration tests.
+public partial class Program { }

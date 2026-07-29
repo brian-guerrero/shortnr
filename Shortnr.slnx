@@ -5,4 +5,8 @@
     <Project Path="src/Shortnr.ServiceDefaults/Shortnr.ServiceDefaults.csproj" />
     <Project Path="src/Shortnr.Web/Shortnr.Web.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Shortnr.Tests.Unit/Shortnr.Tests.Unit.csproj" />
+    <Project Path="tests/Shortnr.Tests.Integration/Shortnr.Tests.Integration.csproj" />
+  </Folder>
 </Solution>
