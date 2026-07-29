@@ -4,16 +4,24 @@ URL shortener with a dashboard. .NET minimal APIs, HTMX frontend, EF Core + SQLi
 
 ## Project state
 
-Two projects under `src/`:
+Six projects under `src/` and `tests/`:
 - **Shortnr.Data** — class library: entities, `AppDbContext`, EF Core migrations (SQLite)
-- **Shortnr.Web** — ASP.NET Core Razor Pages (`Pages/`), plus minimal API endpoints for redirect and JSON
+- **Shortnr.Web** — ASP.NET Core Razor Pages (`Pages/`), plus minimal API endpoints for redirect and JSON. OIDC login/signup wired against a test IdP (Dex). Auth is opt-in via `Authentication:Enabled`.
+- **Shortnr.AppHost** — .NET Aspire orchestrator for local dev: runs `Shortnr.Web` plus a Dex container together. See the `dotnet-aspire` skill (`.claude/skills/dotnet-aspire`).
+- **Shortnr.ServiceDefaults** — shared `AddServiceDefaults()`/`MapDefaultEndpoints()` extensions (health checks, OpenTelemetry, service discovery) referenced by `Shortnr.Web`.
+- **Shortnr.Tests.Unit** (`tests/`) — xUnit unit tests for services (no HTTP stack, EF Core InMemory).
+- **Shortnr.Tests.Integration** (`tests/`) — xUnit integration tests using `WebApplicationFactory<Program>` with a real SQLite DB and a `TestAuthHandler` that replaces OIDC.
 
-Both build and run. No tests yet.
+`dex/config.yaml` configures the Dex test IdP — see the `dex-oidc` skill (`.claude/skills/dex-oidc`) before editing it or `Shortnr.Web`'s `Authentication:Oidc:*` config.
+
+All projects build and all tests pass.
 
 ## Dev commands
 
 - **Build**: `dotnet build` (repo root) — also runs `libman restore` automatically via `Microsoft.Web.LibraryManager.Build`
-- **Run**: `dotnet run --project src\Shortnr.Web\Shortnr.Web.csproj`
+- **Test**: `dotnet test` (repo root) — runs both unit and integration test projects
+- **Run standalone** (no auth, no IdP): `dotnet run --project src\Shortnr.Web\Shortnr.Web.csproj`
+- **Run under Aspire** (starts Dex too, requires a running container runtime): `dotnet run --project src\Shortnr.AppHost\Shortnr.AppHost.csproj` — opens the Aspire dashboard URL printed to the console.
 - **Add migration**: `dotnet ef migrations add <Name> --project src\Shortnr.Data\Shortnr.Data.csproj`
 - **Remove migration**: `dotnet ef migrations remove --project src\Shortnr.Data\Shortnr.Data.csproj`
 - **Restore frontend assets manually**: `cd src\Shortnr.Web && libman restore` (requires `dotnet tool install -g Microsoft.Web.LibraryManager.Cli`)
@@ -32,3 +40,19 @@ Both build and run. No tests yet.
 - **Alpine.js + Chart.js**: loaded only on the Dashboard page (`/dashboard`). The Chart.js component polls `/api/metrics` every 5s via Alpine.js `setInterval`. The `#metrics-summary` HTMX region polls `/dashboard` every 5s. Search queries `/dashboard` with `HX-Target: search-results`.
 - **QR codes** — `QrService` (`Services/QrService.cs`) wraps `QRCoder`. The `/qr/{shortCode}` Razor Page serves a full shareable QR page; `/api/qr/{shortCode}` returns a raw PNG for download/embedding. `QrService` is registered as a singleton in DI.
 - **Provider swap**: DbContext is provider-agnostic; switching to PostgreSQL = change connection string + `UseSqlite()` → `UseNpgsql()`.
+- **Auth is opt-in** — controlled by `Authentication:Enabled` in config (default `true`). When `false`, no OIDC middleware is registered, `/account/login` and `/account/logout` return 404, and the nav hides the login link. Toggle it per-environment via `appsettings.{Environment}.json` or the env var `Authentication__Enabled=false`. Auth wiring is extracted to `Extensions/AuthenticationServiceExtensions.cs` and `Extensions/AuthenticationEndpointExtensions.cs`.
+- **Auth** — cookie + OpenID Connect (`Microsoft.AspNetCore.Authentication.OpenIdConnect`), challenging against `Authentication:Oidc:Authority` (Dex locally). `/account/login` and `/account/logout` are minimal API endpoints. Never add IdP-specific code to `Shortnr.Web` — swapping the upstream identity source is a `dex/config.yaml` change only (see the `dex-oidc` skill).
+- **User provisioning is queued, not inline** — the OIDC handler's `OnTokenValidated` event writes a `PendingUserLogin` to an unbounded `Channel<PendingUserLogin>` (`Services/UserProvisioningProcessor.cs`, mirrors the `ClickBatchProcessor` pattern); a `BackgroundService` drains it and upserts `Users` by `(Issuer, Subject)`. Login/callback requests never block on a DB write.
+- **Ownership** — `ShortenedUrl.OwnerUserId` (nullable FK to `Users`) is set on creation from the current authenticated principal, best-effort: if the user's very first action follows immediately after their very first login, the provisioning queue may not have inserted their `Users` row yet, so ownership is simply left unset for that request rather than duplicating the upsert on the request path.
+- **`UserIdentityService`** — scoped service (`Services/UserIdentityService.cs`) that centralises `IsAuthEnabled` and `ResolveOwnerUserIdAsync(ClaimsPrincipal)`. Injected into `DashboardModel`, `IndexModel`, and the `/api/metrics` handler. Never duplicate owner-resolution logic in page models.
+- **Dashboard access control** — when auth is enabled, unauthenticated full-page requests to `/dashboard` redirect to `/`; unauthenticated HTMX partial requests return `401` (so the browser doesn't silently swap the page with a login redirect mid-poll). The Dashboard link is hidden in the nav when auth is enabled and the user is not signed in.
+- **Dashboard data scoping** — all three dashboard query branches (metrics summary, recent clicks, search/link list) filter by `OwnerUserId` when auth is enabled. `/api/metrics` returns zeros for anonymous requests when auth is enabled rather than leaking all records.
+- **Gravatar** — `Helpers/GravatarHelper.cs` generates avatar URLs via MD5 hash of the normalised email. Falls back to the mystery-person silhouette (`d=mp`). Used in `Pages/Shared/_UserMenu.cshtml`.
+- **Nav user menu** — uses Pico CSS's native `<details class="dropdown">` pattern. No custom dropdown CSS. The `_UserMenu.cshtml` partial reads claims from the current principal.
+
+## Testing conventions
+
+- Unit tests live in `tests/Shortnr.Tests.Unit/`. Use EF Core InMemory provider. No HTTP stack.
+- Integration tests live in `tests/Shortnr.Tests.Integration/`. Use `WebApplicationFactory<Program>` with `ShortnrWebAppFactory` (isolated SQLite DB per test class, auth overridden with `TestAuthHandler`).
+- Control auth state in integration tests via `factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser(...)`. Never test actual OIDC flows — those require a running IdP and are E2E territory.
+- `public partial class Program { }` at the bottom of `Program.cs` is required for `WebApplicationFactory<Program>` to compile.

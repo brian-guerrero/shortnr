@@ -1,10 +1,13 @@
 using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
+using Shortnr.Web.Extensions;
 using Shortnr.Web.Models;
 using Shortnr.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.AddServiceDefaults();
 
 builder.Services.AddRazorPages();
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -12,6 +15,17 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddSingleton(Channel.CreateUnbounded<ClickRecord>());
 builder.Services.AddHostedService<ClickBatchProcessor>();
 builder.Services.AddSingleton<QrService>();
+
+// User provisioning queue — drained by UserProvisioningProcessor on every login.
+// Registered unconditionally so DI is always consistent; the processor is a no-op
+// when auth is disabled.
+builder.Services.AddSingleton(Channel.CreateUnbounded<PendingUserLogin>());
+builder.Services.AddHostedService<UserProvisioningProcessor>();
+
+builder.Services.AddScoped<UserIdentityService>();
+
+builder.Services.AddOidcAuthentication(builder.Configuration, builder.Environment);
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
@@ -24,7 +38,12 @@ using (var scope = app.Services.CreateScope())
 app.UseStaticFiles();
 app.UseRouting();
 
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapDefaultEndpoints();
 app.MapRazorPages();
+app.MapAuthenticationEndpoints(app.Configuration);
 
 app.MapGet("/api/qr/{shortCode}", (string shortCode, HttpContext ctx, QrService qr) =>
 {
@@ -33,11 +52,22 @@ app.MapGet("/api/qr/{shortCode}", (string shortCode, HttpContext ctx, QrService 
     return Results.File(png, contentType: "image/png", fileDownloadName: $"qr-{shortCode}.png");
 });
 
-app.MapGet("/api/metrics", async (AppDbContext db) =>
+app.MapGet("/api/metrics", async (AppDbContext db, HttpContext ctx, UserIdentityService identity) =>
 {
-    var totalLinks = await db.ShortenedUrls.CountAsync();
-    var totalClicks = await db.ShortenedUrls.SumAsync(l => (long?)l.ClickCount) ?? 0;
-    var topLinks = await db.ShortenedUrls
+    var ownerUserId = await identity.ResolveOwnerUserIdAsync(ctx.User);
+
+    // When auth is enabled and ownerUserId couldn't be resolved (anonymous request or
+    // first-login provisioning race), return empty data rather than leaking all records.
+    if (identity.IsAuthEnabled && ownerUserId is null)
+        return Results.Json(new { totalLinks = 0, totalClicks = 0L, topLinks = Array.Empty<object>() });
+
+    var query = db.ShortenedUrls.AsQueryable();
+    if (ownerUserId is not null)
+        query = query.Where(l => l.OwnerUserId == ownerUserId);
+
+    var totalLinks = await query.CountAsync();
+    var totalClicks = await query.SumAsync(l => (long?)l.ClickCount) ?? 0;
+    var topLinks = await query
         .OrderByDescending(l => l.ClickCount)
         .Take(10)
         .Select(l => new { l.ShortCode, l.LongUrl, l.ClickCount })
@@ -63,3 +93,6 @@ app.MapGet("/{shortCode}", async (string shortCode, AppDbContext db, Channel<Cli
 });
 
 app.Run();
+
+// Exposed for WebApplicationFactory<Program> in integration tests.
+public partial class Program { }

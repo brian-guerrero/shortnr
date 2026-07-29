@@ -2,11 +2,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Shortnr.Data\Shortnr.Data.csproj" />
+    <ProjectReference Include="..\Shortnr.ServiceDefaults\Shortnr.ServiceDefaults.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="QRCoder" Version="1.8.0" />
     <PackageReference Include="Microsoft.Web.LibraryManager.Build" Version="3.0.114" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.10" />
   </ItemGroup>
 
   <PropertyGroup>

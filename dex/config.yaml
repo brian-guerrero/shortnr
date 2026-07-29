@@ -1,0 +1,40 @@
+# Local/test OpenID Connect identity provider for shortnr, run as a container resource
+# by src/Shortnr.AppHost. See the `dex-oidc` skill (.claude/skills/dex-oidc) before
+# editing this file — it explains why the issuer path and redirect URIs must line up
+# exactly with Shortnr.Web's OIDC handler configuration.
+#
+# To test a different flow (a connector-based upstream instead of the static password
+# DB, a second client, different scopes/redirects) edit this file only — Shortnr.Web's
+# code never needs to change when the upstream identity source changes.
+
+issuer: http://localhost:5556/dex
+
+storage:
+  type: sqlite3
+  config:
+    # /tmp is writable regardless of the container's user; state resets on every
+    # container restart, which is the desired behavior for a disposable test IdP.
+    file: /tmp/dex.db
+
+web:
+  http: 0.0.0.0:5556
+
+staticClients:
+  - id: shortnr-web
+    secret: dev-only-not-a-real-secret
+    name: 'shortnr'
+    redirectURIs:
+      - 'http://localhost:5156/signin-oidc'
+    postLogoutRedirectURIs:
+      - 'http://localhost:5156/'
+
+# Dex acting as its own tiny user directory, so sign-in works out of the box without
+# wiring a real upstream provider (Google/GitHub/etc). Swap or add `connectors` here to
+# exercise other OIDC flows without touching Shortnr.Web at all.
+enablePasswordDB: true
+staticPasswords:
+  # email: test@shortnr.local / password: password
+  - email: "test@example.com"
+    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+    username: "test"
+    userID: "08a8684b-db88-4b73-90a9-3cd1661f5466"

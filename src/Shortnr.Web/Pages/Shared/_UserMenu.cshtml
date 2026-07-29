@@ -1,0 +1,17 @@
+@using System.Security.Claims
+
+@{
+    var email     = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
+    var name      = User.Identity?.Name ?? email ?? "Account";
+    var avatarUrl = GravatarHelper.Url(email, size: 36);
+}
+
+<details class="dropdown">
+    <summary>
+        <img src="@avatarUrl" alt="" class="nav-avatar" width="36" height="36" />
+        @name
+    </summary>
+    <ul dir="rtl">
+        <li><a href="/account/logout">Log out</a></li>
+    </ul>
+</details>

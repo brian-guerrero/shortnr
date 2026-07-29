@@ -4,19 +4,22 @@ using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
 using Shortnr.Data.Entities;
 using Shortnr.Web.Models;
+using Shortnr.Web.Services;
 
 namespace Shortnr.Web.Pages;
 
 public class IndexModel : PageModel
 {
     private readonly AppDbContext _db;
+    private readonly UserIdentityService _identity;
 
     public List<ShortenedUrl> RecentLinks { get; set; } = [];
     public bool IsHtmxRequest { get; set; }
 
-    public IndexModel(AppDbContext db)
+    public IndexModel(AppDbContext db, UserIdentityService identity)
     {
         _db = db;
+        _identity = identity;
     }
 
     public async Task OnGet()
@@ -48,7 +51,9 @@ public class IndexModel : PageModel
         {
             LongUrl = url,
             ShortCode = shortCode,
-            CreatedAtUtc = DateTime.UtcNow
+            CreatedAtUtc = DateTime.UtcNow,
+            // Best-effort: provisioning is async so OwnerUserId may be null on first login.
+            OwnerUserId = await _identity.ResolveOwnerUserIdAsync(User)
         };
         _db.ShortenedUrls.Add(shortened);
         await _db.SaveChangesAsync();

@@ -7,6 +7,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 {
     public DbSet<ShortenedUrl> ShortenedUrls => Set<ShortenedUrl>();
     public DbSet<ClickEvent> ClickEvents => Set<ClickEvent>();
+    public DbSet<User> Users => Set<User>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -16,6 +17,22 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.LongUrl).IsRequired();
             entity.Property(e => e.ShortCode).IsRequired().HasMaxLength(64);
             entity.HasIndex(e => e.ShortCode).IsUnique();
+            entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
+
+            entity.HasOne(e => e.Owner)
+                .WithMany(u => u.ShortenedUrls)
+                .HasForeignKey(e => e.OwnerUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<User>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Issuer).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Subject).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Email).HasMaxLength(320);
+            entity.Property(e => e.Name).HasMaxLength(256);
+            entity.HasIndex(e => new { e.Issuer, e.Subject }).IsUnique();
             entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
         });
 

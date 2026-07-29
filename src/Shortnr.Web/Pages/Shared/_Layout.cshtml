@@ -1,4 +1,8 @@
-﻿<!DOCTYPE html>
+﻿@inject Microsoft.Extensions.Configuration.IConfiguration _config
+@{
+    var authEnabled = _config.GetValue<bool>("Authentication:Enabled", defaultValue: true);
+}
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -11,6 +15,9 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
     <link rel="manifest" href="/site.webmanifest">
+    <style>
+        .nav-avatar { border-radius: 50%; vertical-align: middle; }
+    </style>
 </head>
 
 <body>
@@ -19,7 +26,21 @@
             <li><strong><a href="/" style="--pico-text-decoration: none;">shortnr</a></strong></li>
         </ul>
         <ul>
-            <li><a href="/dashboard">Dashboard</a></li>
+            @if (!authEnabled || User.Identity?.IsAuthenticated == true)
+            {
+                <li><a href="/dashboard">Dashboard</a></li>
+            }
+            @if (authEnabled)
+            {
+                if (User.Identity?.IsAuthenticated == true)
+                {
+                    <li>@await Html.PartialAsync("Shared/_UserMenu")</li>
+                }
+                else
+                {
+                    <li><a href="/account/login">Log in</a></li>
+                }
+            }
         </ul>
     </nav>
     <main class="container" style="max-width: 960px; padding-top: 1rem;">

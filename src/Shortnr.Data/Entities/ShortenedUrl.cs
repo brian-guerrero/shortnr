@@ -7,6 +7,8 @@ public class ShortenedUrl
     public string ShortCode { get; set; } = string.Empty;
     public DateTime CreatedAtUtc { get; set; }
     public long ClickCount { get; set; }
+    public long? OwnerUserId { get; set; }
 
     public ICollection<ClickEvent> ClickEvents { get; set; } = [];
+    public User? Owner { get; set; }
 }
