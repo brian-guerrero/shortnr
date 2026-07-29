@@ -485,3 +485,6 @@ $RECYCLE.BIN/
 *.db
 *.db-shm
 *.db-wal
+
+# Frontend assets downloaded at build time
+src/Shortnr.Web/wwwroot/lib/

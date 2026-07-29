@@ -26,15 +26,6 @@ public sealed class QrService
     public string GenerateDataUri(string content, int pixelsPerModule = 3)
     {
         var bytes = GeneratePng(content, pixelsPerModule);
-        var uri = "data:image/png;base64," + Convert.ToBase64String(bytes);
-        return uri;
-    }
-}
-
-
-    public string GenerateDataUri(string content, int pixelsPerModule = 3)
-    {
-        var bytes = GeneratePng(content, pixelsPerModule);
         return "data:image/png;base64," + Convert.ToBase64String(bytes);
     }
 }
