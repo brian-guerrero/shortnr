@@ -2,18 +2,13 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-# restore NuGet packages
+# restore NuGet packages (including Microsoft.Web.LibraryManager.Build)
 COPY src/Shortnr.Data/Shortnr.Data.csproj  Shortnr.Data/
 COPY src/Shortnr.Web/Shortnr.Web.csproj    Shortnr.Web/
 RUN dotnet restore Shortnr.Web/Shortnr.Web.csproj
 
-# install libman and restore frontend assets
-RUN dotnet tool install -g Microsoft.Web.LibraryManager.Cli
-ENV PATH="$PATH:/root/.dotnet/tools"
-COPY src/Shortnr.Web/libman.json Shortnr.Web/
-RUN cd Shortnr.Web && libman restore
-
 # copy source and publish
+# Microsoft.Web.LibraryManager.Build runs libman restore automatically during publish
 COPY src/Shortnr.Data/ Shortnr.Data/
 COPY src/Shortnr.Web/  Shortnr.Web/
 RUN dotnet publish Shortnr.Web/Shortnr.Web.csproj \
