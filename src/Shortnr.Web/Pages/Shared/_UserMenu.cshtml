@@ -1,23 +1,17 @@
 @using System.Security.Claims
 
 @{
-    var email = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
-    var name  = User.Identity?.Name ?? email ?? "Account";
+    var email     = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
+    var name      = User.Identity?.Name ?? email ?? "Account";
     var avatarUrl = GravatarHelper.Url(email, size: 36);
 }
 
-<div class="user-menu">
-    <button class="user-menu__trigger" aria-label="Account menu">
-        <img src="@avatarUrl"
-             alt=""
-             class="user-menu__avatar"
-             width="36" height="36" />
-        <span class="user-menu__name">@name</span>
-        <span class="user-menu__caret" aria-hidden="true">&#9660;</span>
-    </button>
-    <ul class="user-menu__dropdown" role="menu">
-        <li role="menuitem">
-            <a href="/account/logout">Log out</a>
-        </li>
+<details class="dropdown">
+    <summary>
+        <img src="@avatarUrl" alt="" class="nav-avatar" width="36" height="36" />
+        @name
+    </summary>
+    <ul dir="rtl">
+        <li><a href="/account/logout">Log out</a></li>
     </ul>
-</div>
+</details>
