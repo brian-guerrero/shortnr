@@ -19,54 +19,61 @@ builder.Services.AddSingleton(Channel.CreateUnbounded<ClickRecord>());
 builder.Services.AddHostedService<ClickBatchProcessor>();
 builder.Services.AddSingleton<QrService>();
 
-// Signup/login provisioning: the OIDC handler's OnTokenValidated event below queues the
-// authenticated user here; UserProvisioningProcessor drains it into the Users table off
-// the request path (see the dex-oidc skill for the Dex-side client/claims config).
+// User provisioning queue — only needed when auth is enabled, but registering it
+// unconditionally keeps DI simple; the processor exits immediately when auth is off.
 builder.Services.AddSingleton(Channel.CreateUnbounded<PendingUserLogin>());
 builder.Services.AddHostedService<UserProvisioningProcessor>();
 
-builder.Services.AddAuthentication(options =>
+// Authentication is opt-in. Set Authentication:Enabled=false (or omit the OIDC
+// config entirely) to run the app without any login requirement.
+var authEnabled = builder.Configuration.GetValue<bool>("Authentication:Enabled", defaultValue: true);
+
+if (authEnabled)
 {
-    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
-    options.DefaultSignOutScheme = OpenIdConnectDefaults.AuthenticationScheme;
-})
-    .AddCookie()
-    .AddOpenIdConnect(options =>
+    builder.Services.AddAuthentication(options =>
     {
-        options.Authority = builder.Configuration["Authentication:Oidc:Authority"];
-        options.ClientId = builder.Configuration["Authentication:Oidc:ClientId"];
-        options.ClientSecret = builder.Configuration["Authentication:Oidc:ClientSecret"];
-        options.CallbackPath = builder.Configuration["Authentication:Oidc:CallbackPath"] ?? "/signin-oidc";
-        options.ResponseType = "code";
-        options.SaveTokens = true;
-        options.Scope.Add("profile");
-        options.Scope.Add("email");
-        // Dex runs over plain HTTP in local/test environments (no TLS termination).
-        options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
-
-        options.Events = new OpenIdConnectEvents
+        options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+        options.DefaultSignOutScheme = OpenIdConnectDefaults.AuthenticationScheme;
+    })
+        .AddCookie()
+        .AddOpenIdConnect(options =>
         {
-            OnTokenValidated = context =>
-            {
-                var principal = context.Principal;
-                var subject = principal?.FindFirstValue(ClaimTypes.NameIdentifier) ?? principal?.FindFirstValue("sub");
-                if (subject is not null)
-                {
-                    var queue = context.HttpContext.RequestServices.GetRequiredService<Channel<PendingUserLogin>>();
-                    queue.Writer.TryWrite(new PendingUserLogin
-                    {
-                        Issuer = context.Options.Authority ?? string.Empty,
-                        Subject = subject,
-                        Email = principal!.FindFirstValue(ClaimTypes.Email) ?? principal.FindFirstValue("email"),
-                        Name = principal.FindFirstValue(ClaimTypes.Name) ?? principal.FindFirstValue("name")
-                    });
-                }
+            options.Authority = builder.Configuration["Authentication:Oidc:Authority"];
+            options.ClientId = builder.Configuration["Authentication:Oidc:ClientId"];
+            options.ClientSecret = builder.Configuration["Authentication:Oidc:ClientSecret"];
+            options.CallbackPath = builder.Configuration["Authentication:Oidc:CallbackPath"] ?? "/signin-oidc";
+            options.ResponseType = "code";
+            options.SaveTokens = true;
+            options.Scope.Add("profile");
+            options.Scope.Add("email");
+            // Dex runs over plain HTTP in local/test environments (no TLS termination).
+            options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
 
-                return Task.CompletedTask;
-            }
-        };
-    });
+            options.Events = new OpenIdConnectEvents
+            {
+                OnTokenValidated = context =>
+                {
+                    var principal = context.Principal;
+                    var subject = principal?.FindFirstValue(ClaimTypes.NameIdentifier) ?? principal?.FindFirstValue("sub");
+                    if (subject is not null)
+                    {
+                        var queue = context.HttpContext.RequestServices.GetRequiredService<Channel<PendingUserLogin>>();
+                        queue.Writer.TryWrite(new PendingUserLogin
+                        {
+                            Issuer = context.Options.Authority ?? string.Empty,
+                            Subject = subject,
+                            Email = principal!.FindFirstValue(ClaimTypes.Email) ?? principal.FindFirstValue("email"),
+                            Name = principal.FindFirstValue(ClaimTypes.Name) ?? principal.FindFirstValue("name")
+                        });
+                    }
+
+                    return Task.CompletedTask;
+                }
+            };
+        });
+}
+
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
@@ -86,16 +93,19 @@ app.UseAuthorization();
 app.MapDefaultEndpoints();
 app.MapRazorPages();
 
-app.MapGet("/account/login", (string? returnUrl) =>
+if (authEnabled)
 {
-    var redirectUri = returnUrl is not null && Uri.IsWellFormedUriString(returnUrl, UriKind.Relative) ? returnUrl : "/";
-    return Results.Challenge(new AuthenticationProperties { RedirectUri = redirectUri }, [OpenIdConnectDefaults.AuthenticationScheme]);
-});
+    app.MapGet("/account/login", (string? returnUrl) =>
+    {
+        var redirectUri = returnUrl is not null && Uri.IsWellFormedUriString(returnUrl, UriKind.Relative) ? returnUrl : "/";
+        return Results.Challenge(new AuthenticationProperties { RedirectUri = redirectUri }, [OpenIdConnectDefaults.AuthenticationScheme]);
+    });
 
-app.MapGet("/account/logout", () =>
-    Results.SignOut(
-        new AuthenticationProperties { RedirectUri = "/" },
-        [CookieAuthenticationDefaults.AuthenticationScheme]));
+    app.MapGet("/account/logout", () =>
+        Results.SignOut(
+            new AuthenticationProperties { RedirectUri = "/" },
+            [CookieAuthenticationDefaults.AuthenticationScheme]));
+}
 
 app.MapGet("/api/qr/{shortCode}", (string shortCode, HttpContext ctx, QrService qr) =>
 {

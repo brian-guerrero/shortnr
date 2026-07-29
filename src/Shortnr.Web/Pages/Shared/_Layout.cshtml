@@ -1,4 +1,8 @@
-﻿<!DOCTYPE html>
+﻿@inject Microsoft.Extensions.Configuration.IConfiguration _config
+@{
+    var authEnabled = _config.GetValue<bool>("Authentication:Enabled", defaultValue: true);
+}
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -25,13 +29,16 @@
             <li><a href="/dashboard">Dashboard</a></li>
         </ul>
         <ul>
-            @if (User.Identity?.IsAuthenticated == true)
+            @if (authEnabled)
             {
-                <li>@await Html.PartialAsync("Shared/_UserMenu")</li>
-            }
-            else
-            {
-                <li><a href="/account/login">Log in</a></li>
+                if (User.Identity?.IsAuthenticated == true)
+                {
+                    <li>@await Html.PartialAsync("Shared/_UserMenu")</li>
+                }
+                else
+                {
+                    <li><a href="/account/login">Log in</a></li>
+                }
             }
         </ul>
     </nav>
