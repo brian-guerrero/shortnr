@@ -21,6 +21,17 @@
         <ul>
             <li><a href="/dashboard">Dashboard</a></li>
         </ul>
+        <ul>
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <li>@User.Identity.Name</li>
+                <li><a href="/account/logout">Log out</a></li>
+            }
+            else
+            {
+                <li><a href="/account/login">Log in</a></li>
+            }
+        </ul>
     </nav>
     <main class="container" style="max-width: 960px; padding-top: 1rem;">
         @RenderBody()

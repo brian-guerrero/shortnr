@@ -4,16 +4,21 @@ URL shortener with a dashboard. .NET minimal APIs, HTMX frontend, EF Core + SQLi
 
 ## Project state
 
-Two projects under `src/`:
+Four projects under `src/`:
 - **Shortnr.Data** — class library: entities, `AppDbContext`, EF Core migrations (SQLite)
-- **Shortnr.Web** — ASP.NET Core Razor Pages (`Pages/`), plus minimal API endpoints for redirect and JSON
+- **Shortnr.Web** — ASP.NET Core Razor Pages (`Pages/`), plus minimal API endpoints for redirect and JSON. OIDC login/signup wired against a test IdP (Dex).
+- **Shortnr.AppHost** — .NET Aspire orchestrator for local dev: runs `Shortnr.Web` plus a Dex container together. See the `dotnet-aspire` skill (`.claude/skills/dotnet-aspire`).
+- **Shortnr.ServiceDefaults** — shared `AddServiceDefaults()`/`MapDefaultEndpoints()` extensions (health checks, OpenTelemetry, service discovery) referenced by `Shortnr.Web`.
+
+`dex/config.yaml` configures the Dex test IdP — see the `dex-oidc` skill (`.claude/skills/dex-oidc`) before editing it or `Shortnr.Web`'s `Authentication:Oidc:*` config.
 
 Both build and run. No tests yet.
 
 ## Dev commands
 
 - **Build**: `dotnet build` (repo root) — also runs `libman restore` automatically via `Microsoft.Web.LibraryManager.Build`
-- **Run**: `dotnet run --project src\Shortnr.Web\Shortnr.Web.csproj`
+- **Run standalone** (no auth IdP): `dotnet run --project src\Shortnr.Web\Shortnr.Web.csproj`
+- **Run under Aspire** (starts Dex too, requires a running container runtime): `dotnet run --project src\Shortnr.AppHost\Shortnr.AppHost.csproj` — opens the Aspire dashboard URL printed to the console.
 - **Add migration**: `dotnet ef migrations add <Name> --project src\Shortnr.Data\Shortnr.Data.csproj`
 - **Remove migration**: `dotnet ef migrations remove --project src\Shortnr.Data\Shortnr.Data.csproj`
 - **Restore frontend assets manually**: `cd src\Shortnr.Web && libman restore` (requires `dotnet tool install -g Microsoft.Web.LibraryManager.Cli`)
@@ -32,3 +37,6 @@ Both build and run. No tests yet.
 - **Alpine.js + Chart.js**: loaded only on the Dashboard page (`/dashboard`). The Chart.js component polls `/api/metrics` every 5s via Alpine.js `setInterval`. The `#metrics-summary` HTMX region polls `/dashboard` every 5s. Search queries `/dashboard` with `HX-Target: search-results`.
 - **QR codes** — `QrService` (`Services/QrService.cs`) wraps `QRCoder`. The `/qr/{shortCode}` Razor Page serves a full shareable QR page; `/api/qr/{shortCode}` returns a raw PNG for download/embedding. `QrService` is registered as a singleton in DI.
 - **Provider swap**: DbContext is provider-agnostic; switching to PostgreSQL = change connection string + `UseSqlite()` → `UseNpgsql()`.
+- **Auth** — cookie + OpenID Connect (`Microsoft.AspNetCore.Authentication.OpenIdConnect`), challenging against `Authentication:Oidc:Authority` (Dex locally). `/account/login` and `/account/logout` are minimal API endpoints in `Program.cs`. Never add IdP-specific code to `Shortnr.Web` — swapping the upstream identity source is a `dex/config.yaml` change only (see the `dex-oidc` skill).
+- **User provisioning is queued, not inline** — the OIDC handler's `OnTokenValidated` event writes a `PendingUserLogin` to an unbounded `Channel<PendingUserLogin>` (`Services/UserProvisioningProcessor.cs`, mirrors the `ClickBatchProcessor` pattern); a `BackgroundService` drains it and upserts `Users` by `(Issuer, Subject)`. Login/callback requests never block on a DB write.
+- **Ownership** — `ShortenedUrl.OwnerUserId` (nullable FK to `Users`) is set on creation from the current authenticated principal, best-effort: if the user's very first action follows immediately after their very first login, the provisioning queue may not have inserted their `Users` row yet, so ownership is simply left unset for that request rather than duplicating the upsert on the request path.

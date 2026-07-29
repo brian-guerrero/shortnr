@@ -17,13 +17,17 @@ A URL shortener with a real-time dashboard. Built with ASP.NET Core Razor Pages,
 shortnr/
 ├── src/
 │   ├── Shortnr.Data/          # EF Core entities, AppDbContext, migrations
-│   └── Shortnr.Web/           # Razor Pages app
-│       ├── Pages/             # Index, Dashboard, QR pages + Shared partials
-│       ├── Services/          # ClickBatchProcessor, QrService
-│       ├── Models/            # ViewModels and DTOs
-│       ├── wwwroot/           # Static files (lib/ is gitignored, restored by LibMan)
-│       ├── libman.json        # Frontend dependency manifest
-│       └── Program.cs         # App setup, minimal API endpoints
+│   ├── Shortnr.Web/           # Razor Pages app
+│   │   ├── Pages/             # Index, Dashboard, QR pages + Shared partials
+│   │   ├── Services/          # ClickBatchProcessor, QrService, UserProvisioningProcessor
+│   │   ├── Models/            # ViewModels and DTOs
+│   │   ├── wwwroot/           # Static files (lib/ is gitignored, restored by LibMan)
+│   │   ├── libman.json        # Frontend dependency manifest
+│   │   └── Program.cs         # App setup, auth, minimal API endpoints
+│   ├── Shortnr.AppHost/       # .NET Aspire orchestrator (local dev: web app + Dex container)
+│   └── Shortnr.ServiceDefaults/  # Shared health checks / OpenTelemetry / service discovery
+├── dex/
+│   └── config.yaml            # Dex (test OIDC provider) config — see .claude/skills/dex-oidc
 ├── Dockerfile
 ├── .dockerignore
 └── AGENTS.md
@@ -47,6 +51,20 @@ Open `http://localhost:5000`.
 
 > `dotnet build` triggers `Microsoft.Web.LibraryManager.Build`, which downloads Pico CSS, htmx, Chart.js, and Alpine.js into `wwwroot/lib/` automatically. No manual `libman restore` needed.
 
+Running this way starts the app without a working login (no OIDC provider is
+available). To exercise login/signup locally, run under Aspire instead:
+
+```bash
+dotnet run --project src/Shortnr.AppHost
+```
+
+This starts `Shortnr.Web` **and** a local [Dex](https://dexidp.io) container (a
+spec-compliant OpenID Connect test IdP) together, wired to the same app graph, and
+prints the Aspire dashboard URL to the console. Requires a running container runtime
+(Docker Desktop / Podman). See `.claude/skills/dotnet-aspire` and
+`.claude/skills/dex-oidc` for how the orchestration and OIDC config fit together, and
+`dex/config.yaml` for the test login (`test@shortnr.local` / `password`).
+
 ## Docker
 
 ```bash
@@ -62,6 +80,8 @@ Open `http://localhost:8080`. The SQLite database is stored in the `shortnr-data
 |---------|---------|-------------|
 | `ConnectionStrings__DefaultConnection` | `Data Source=shortnr.db` | SQLite connection string. Override via environment variable. |
 | `ASPNETCORE_URLS` | `http://+:5000` (dev) / `http://+:8080` (Docker) | Listening address. |
+| `Authentication__Oidc__Authority` | `http://localhost:5556/dex` | OpenID Connect issuer URL. Set automatically by `Shortnr.AppHost` when running under Aspire. |
+| `Authentication__Oidc__ClientId` / `Authentication__Oidc__ClientSecret` | `shortnr-web` / dev-only value | Must match `staticClients` in `dex/config.yaml`. |
 
 Example override:
 
@@ -117,3 +137,7 @@ dotnet ef migrations remove --project src/Shortnr.Data/Shortnr.Data.csproj
 ```
 
 The database is created and migrated automatically at startup via `db.Database.Migrate()`.
+
+The `AddUsersAndOwnership` migration adds a `Users` table (keyed on `(Issuer, Subject)`,
+i.e. the OIDC provider + its `sub` claim) and a nullable `ShortenedUrl.OwnerUserId` FK
+linking each shortened URL to the user who created it, if any.
