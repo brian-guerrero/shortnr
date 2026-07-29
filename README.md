@@ -9,6 +9,9 @@ A URL shortener with a real-time dashboard. Built with ASP.NET Core Razor Pages,
 - Click tracking with IP, user agent, and referrer capture (async batch processing)
 - Real-time dashboard with metrics, sortable link/click tables, and a Chart.js bar chart
 - QR code generation — inline on the index page, shareable page at `/qr/{shortCode}`, downloadable PNG at `/api/qr/{shortCode}`
+- Optional authentication — OIDC login via Dex (or any OIDC provider); disable entirely with one config flag
+- Per-user dashboard — when auth is enabled, the dashboard and `/api/metrics` show only the signed-in user's links
+- User menu with Gravatar avatar and sign-out dropdown in the nav
 - Docker-ready with a persistent SQLite volume
 
 ## Project structure
@@ -18,14 +21,20 @@ shortnr/
 ├── src/
 │   ├── Shortnr.Data/          # EF Core entities, AppDbContext, migrations
 │   ├── Shortnr.Web/           # Razor Pages app
+│   │   ├── Extensions/        # Auth service + endpoint extension methods
+│   │   ├── Helpers/           # GravatarHelper
 │   │   ├── Pages/             # Index, Dashboard, QR pages + Shared partials
-│   │   ├── Services/          # ClickBatchProcessor, QrService, UserProvisioningProcessor
+│   │   ├── Services/          # ClickBatchProcessor, QrService, UserIdentityService,
+│   │   │                      #   UserProvisioningProcessor
 │   │   ├── Models/            # ViewModels and DTOs
 │   │   ├── wwwroot/           # Static files (lib/ is gitignored, restored by LibMan)
 │   │   ├── libman.json        # Frontend dependency manifest
-│   │   └── Program.cs         # App setup, auth, minimal API endpoints
+│   │   └── Program.cs         # App setup, minimal API endpoints
 │   ├── Shortnr.AppHost/       # .NET Aspire orchestrator (local dev: web app + Dex container)
 │   └── Shortnr.ServiceDefaults/  # Shared health checks / OpenTelemetry / service discovery
+├── tests/
+│   ├── Shortnr.Tests.Unit/        # xUnit unit tests (UserIdentityService, EF InMemory)
+│   └── Shortnr.Tests.Integration/ # xUnit integration tests (WebApplicationFactory + TestAuthHandler)
 ├── dex/
 │   └── config.yaml            # Dex (test OIDC provider) config — see .claude/skills/dex-oidc
 ├── Dockerfile
@@ -36,7 +45,7 @@ shortnr/
 ## Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
-- Docker (optional, for containerised deployment)
+- Docker (optional, for containerised deployment or running under Aspire)
 
 ## Getting started
 
@@ -47,12 +56,11 @@ dotnet build        # also restores frontend assets via LibMan automatically
 dotnet run --project src/Shortnr.Web/Shortnr.Web.csproj
 ```
 
-Open `http://localhost:5000`.
+Open `http://localhost:5156`.
 
 > `dotnet build` triggers `Microsoft.Web.LibraryManager.Build`, which downloads Pico CSS, htmx, Chart.js, and Alpine.js into `wwwroot/lib/` automatically. No manual `libman restore` needed.
 
-Running this way starts the app without a working login (no OIDC provider is
-available). To exercise login/signup locally, run under Aspire instead:
+Running this way starts the app **without authentication** — the dashboard is freely accessible and all data is shared. To run with full auth, either disable it explicitly (see below) or start under Aspire with a live Dex instance:
 
 ```bash
 dotnet run --project src/Shortnr.AppHost
@@ -63,7 +71,15 @@ spec-compliant OpenID Connect test IdP) together, wired to the same app graph, a
 prints the Aspire dashboard URL to the console. Requires a running container runtime
 (Docker Desktop / Podman). See `.claude/skills/dotnet-aspire` and
 `.claude/skills/dex-oidc` for how the orchestration and OIDC config fit together, and
-`dex/config.yaml` for the test login (`test@shortnr.local` / `password`).
+`dex/config.yaml` for the test login credentials.
+
+## Running tests
+
+```bash
+dotnet test
+```
+
+Runs both `Shortnr.Tests.Unit` (fast, in-process) and `Shortnr.Tests.Integration` (full web host, isolated SQLite DB per test class).
 
 ## Docker
 
@@ -80,10 +96,25 @@ Open `http://localhost:8080`. The SQLite database is stored in the `shortnr-data
 |---------|---------|-------------|
 | `ConnectionStrings__DefaultConnection` | `Data Source=shortnr.db` | SQLite connection string. Override via environment variable. |
 | `ASPNETCORE_URLS` | `http://+:5000` (dev) / `http://+:8080` (Docker) | Listening address. |
+| `Authentication__Enabled` | `true` | Set to `false` to disable OIDC entirely — no login UI, no access control, dashboard shows all data. |
 | `Authentication__Oidc__Authority` | `http://localhost:5556/dex` | OpenID Connect issuer URL. Set automatically by `Shortnr.AppHost` when running under Aspire. |
 | `Authentication__Oidc__ClientId` / `Authentication__Oidc__ClientSecret` | `shortnr-web` / dev-only value | Must match `staticClients` in `dex/config.yaml`. |
 
-Example override:
+### Disabling authentication
+
+```bash
+dotnet run --project src/Shortnr.Web -- Authentication:Enabled=false
+```
+
+Or in `appsettings.Development.json`:
+
+```json
+{ "Authentication": { "Enabled": false } }
+```
+
+When disabled: `/account/login` and `/account/logout` return 404, the login link and user menu are hidden from the nav, the dashboard is accessible without signing in, and all data is shown unfiltered.
+
+Example connection string override:
 
 ```bash
 dotnet run --project src/Shortnr.Web -- \
@@ -96,10 +127,28 @@ dotnet run --project src/Shortnr.Web -- \
 
 - **`/`** — Index page. POST shortens a URL and returns an HTMX partial with the short URL, a "Show QR" button, and an OOB swap of the recent links table.
 - **`/{shortCode}`** — Redirect endpoint (minimal API). Writes a `ClickRecord` to an in-memory channel and returns `302` immediately.
-- **`/dashboard`** — Dashboard page. Metrics, sortable search results, and recent clicks — all driven by HTMX polling and header-click sort requests.
+- **`/dashboard`** — Dashboard page. When auth is enabled, requires authentication (redirects to `/` for full-page requests; returns `401` for HTMX partial requests). Metrics, sortable search results, and recent clicks are all scoped to the signed-in user.
 - **`/qr/{shortCode}`** — Full shareable QR page with download link.
 - **`/api/qr/{shortCode}`** — Raw PNG download endpoint.
-- **`/api/metrics`** — JSON endpoint consumed by the Chart.js dashboard chart.
+- **`/api/metrics`** — JSON endpoint consumed by the Chart.js dashboard chart. Scoped to the current user when auth is enabled; returns zeros for anonymous requests.
+- **`/account/login`** / **`/account/logout`** — OIDC challenge / cookie sign-out. Only registered when `Authentication:Enabled` is `true`.
+
+### Authentication
+
+Auth wiring follows SRP via two extension classes:
+
+- `Extensions/AuthenticationServiceExtensions.cs` — `AddOidcAuthentication()`: registers cookie + OIDC schemes and the `OnTokenValidated` user-provisioning queue write.
+- `Extensions/AuthenticationEndpointExtensions.cs` — `MapAuthenticationEndpoints()`: registers `/account/login` and `/account/logout`.
+
+Both are no-ops when `Authentication:Enabled` is `false`.
+
+`UserIdentityService` (scoped) is the single source of truth for `IsAuthEnabled` and `ResolveOwnerUserIdAsync(ClaimsPrincipal)`, used by `DashboardModel`, `IndexModel`, and the `/api/metrics` handler.
+
+### User provisioning
+
+On successful OIDC login, `OnTokenValidated` writes a `PendingUserLogin` to an in-memory `Channel`. `UserProvisioningProcessor` (a `BackgroundService`) drains the channel and upserts a `Users` row keyed on `(Issuer, Subject)`. The request path never blocks on a DB write.
+
+`ShortenedUrl.OwnerUserId` is set best-effort at creation time — it may be `null` for a user's very first link if provisioning hasn't completed yet.
 
 ### HTMX + Razor Pages pattern
 
