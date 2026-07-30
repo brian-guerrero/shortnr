@@ -9,8 +9,8 @@
 </hgroup>
 
 <div sse-connect="/api/events">
-    <div id="metrics-summary" hx-get="/dashboard" hx-trigger="load, sse:metrics-update" hx-swap="innerHTML">
-        <article aria-busy="true"><p>Loading metrics...</p></article>
+    <div id="dashboard-data" hx-get="/dashboard" hx-trigger="load, sse:data-update" hx-swap="innerHTML">
+        <article aria-busy="true"><p>Loading dashboard...</p></article>
     </div>
 
     <div class="grid">
@@ -42,13 +42,6 @@
             <article aria-busy="true"><p>Loading clicks...</p></article>
         </div>
     </article>
-
-    <article>
-        <header><h3>Geo Breakdown</h3></header>
-        <div id="geo-breakdown" hx-get="/dashboard" hx-trigger="load, sse:geo-update" hx-swap="innerHTML">
-            <article aria-busy="true"><p>Loading geo data...</p></article>
-        </div>
-    </article>
 </div>
 
 @section Scripts {
@@ -65,7 +58,6 @@ const COLORS = [
     'rgba(0, 191, 255, 0.8)'
 ];
 
-// Persist expanded click-detail row across HTMX refreshes — one at a time.
 (function() {
     var rc = document.getElementById('recent-clicks');
     if (!rc) return;
@@ -97,24 +89,17 @@ function chartComponent() {
     let topChart = null;
     let countryChart = null;
     return {
-        async init() {
-            await this.renderCharts();
-            this.listenForUpdates();
-        },
-        listenForUpdates() {
-            var self = this;
-            document.addEventListener('htmx:sseOpen', function(e) {
-                e.detail.source.addEventListener('metrics-update', function() {
-                    self.renderCharts();
-                });
+        init() {
+            this.renderCharts();
+            document.body.addEventListener('htmx:afterSwap', (e) => {
+                if (e.detail.target.id === 'dashboard-data') this.renderCharts();
             });
         },
-        async renderCharts() {
+        renderCharts() {
+            var el = document.getElementById('chart-data');
+            if (!el) return;
             try {
-                const resp = await fetch('/api/metrics');
-                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-                const data = await resp.json();
-
+                var data = JSON.parse(el.textContent);
                 this.renderTopChart(data);
                 this.renderCountryChart(data);
             } catch (e) {
@@ -158,7 +143,7 @@ function chartComponent() {
         renderCountryChart(data) {
             const canvas = document.getElementById('countryChart');
             if (!canvas) return;
-            const labels = data.countryBreakdown.map(c => c.countryCode || c.countryName || 'Unknown');
+            const labels = data.countryBreakdown.map(c => c.countryCode || 'Unknown');
             const values = data.countryBreakdown.map(c => c.count);
 
             if (countryChart) {

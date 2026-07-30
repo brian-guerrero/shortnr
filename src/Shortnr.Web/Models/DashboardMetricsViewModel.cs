@@ -20,3 +20,12 @@ public class CityCount
     public string City { get; init; } = "";
     public int Count { get; init; }
 }
+
+public class DashboardDataViewModel
+{
+    public long TotalLinks { get; init; }
+    public long TotalClicks { get; init; }
+    public int TotalCountries { get; init; }
+    public string ChartJson { get; init; } = "";
+    public List<GeoBreakdownItem> GeoBreakdown { get; init; } = [];
+}

@@ -1,5 +1,20 @@
-@model List<GeoBreakdownItem>
-@if (Model.Count == 0)
+@model DashboardDataViewModel
+<div class="grid">
+    <article>
+        <header>Total Links</header>
+        <h2>@Model.TotalLinks</h2>
+    </article>
+    <article>
+        <header>Total Clicks</header>
+        <h2>@Model.TotalClicks</h2>
+    </article>
+    <article>
+        <header>Countries Reached</header>
+        <h2>@Model.TotalCountries</h2>
+    </article>
+</div>
+
+@if (Model.GeoBreakdown.Count == 0)
 {
     <p style="text-align: center;">No geo data yet</p>
 }
@@ -14,7 +29,7 @@ else
             </tr>
         </thead>
         <tbody>
-            @foreach (var item in Model)
+            @foreach (var item in Model.GeoBreakdown)
             {
                 <tr>
                     <td>@item.CountryCode - @item.CountryName</td>
@@ -34,3 +49,5 @@ else
         </tbody>
     </table>
 }
+
+<script id="chart-data" type="application/json">@Html.Raw(Model.ChartJson)</script>

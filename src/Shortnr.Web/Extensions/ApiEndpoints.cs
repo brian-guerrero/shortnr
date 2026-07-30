@@ -119,8 +119,7 @@ public static class ApiEndpoints
                     while (sseChannel.Reader.TryRead(out _)) { }
                     logger.LogDebug("Data changed — sending update events");
 
-                    await context.Response.WriteAsync("event: metrics-update\ndata: \n\n");
-                    await context.Response.WriteAsync("event: geo-update\ndata: \n\n");
+                    await context.Response.WriteAsync("event: data-update\ndata: \n\n");
                     await context.Response.Body.FlushAsync();
                 }
             }

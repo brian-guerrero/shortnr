@@ -195,8 +195,7 @@ app.MapGet("/api/events", async (HttpContext context, Channel<object> sseChannel
     while (await sseChannel.Reader.WaitToReadAsync(ct))
     {
         while (sseChannel.Reader.TryRead(out _)) { }  // drain
-        await context.Response.WriteAsync("event: metrics-update\ndata: \n\n");
-        await context.Response.WriteAsync("event: geo-update\ndata: \n\n");
+        await context.Response.WriteAsync("event: data-update\ndata: \n\n");
         await context.Response.Body.FlushAsync();
     }
 });
