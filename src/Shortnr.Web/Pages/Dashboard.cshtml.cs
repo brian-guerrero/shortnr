@@ -36,9 +36,10 @@ public class DashboardModel : PageModel
         {
             var target = Request.Headers["HX-Target"].FirstOrDefault();
 
+            // Click sort/pagination requests target #recent-clicks directly.
             if (target == "recent-clicks")
             {
-                var query = _db.ClickEvents.Include(e => e.ShortenedUrl).AsQueryable();
+                var query = _db.ClickEvents.AsQueryable();
                 if (ownerUserId is not null)
                     query = query.Where(e => e.ShortenedUrl.OwnerUserId == ownerUserId);
 
@@ -60,7 +61,7 @@ public class DashboardModel : PageModel
                 };
 
                 var limit = clickLimit is >= 5 and <= 20 ? clickLimit.Value : 5;
-                return Partial("Shared/_RecentClicks", await query.Take(limit).ToListAsync());
+                return Partial("Shared/_RecentClicks", await LoadRecentClicksAsync(query, limit));
             }
 
             if (target == "search-results")
@@ -90,8 +91,7 @@ public class DashboardModel : PageModel
                 return Partial("Shared/_SearchResults", await linkQ.Take(50).ToListAsync());
             }
 
-            // Combined dashboard-data target: metrics + geo breakdown + chart JSON.
-            // Uses a single links query and a single grouped geo query (fixes N+1).
+            // Combined dashboard-data target: metrics + geo breakdown + chart JSON + recent clicks via hx-swap-oob.
             var linkQuery = _db.ShortenedUrls.AsQueryable();
             if (ownerUserId is not null)
                 linkQuery = linkQuery.Where(l => l.OwnerUserId == ownerUserId);
@@ -112,17 +112,17 @@ public class DashboardModel : PageModel
             if (ownerUserId is not null)
                 clickQuery = clickQuery.Where(e => e.ShortenedUrl.OwnerUserId == ownerUserId);
 
-            var totalCountries = await clickQuery
-                .Where(e => e.CountryCode != null && e.CountryCode != "")
-                .Select(e => e.CountryCode)
-                .Distinct()
-                .CountAsync();
-
             var geoRows = await clickQuery
                 .Where(e => e.CountryCode != null && e.CountryCode != "")
                 .GroupBy(e => new { e.CountryCode, e.CountryName, CityName = e.CityName ?? "" })
                 .Select(g => new { g.Key.CountryCode, g.Key.CountryName, g.Key.CityName, Count = g.Count() })
                 .ToListAsync();
+
+            var totalCountries = geoRows
+                .Select(g => g.CountryCode)
+                .Where(cc => !string.IsNullOrEmpty(cc))
+                .Distinct()
+                .Count();
 
             var geoBreakdown = geoRows
                 .GroupBy(g => new { g.CountryCode, g.CountryName })
@@ -152,16 +152,48 @@ public class DashboardModel : PageModel
                 countryBreakdown = countryChartData
             });
 
+            var recentClicksQuery = _db.ClickEvents.AsQueryable();
+            if (ownerUserId is not null)
+                recentClicksQuery = recentClicksQuery.Where(e => e.ShortenedUrl.OwnerUserId == ownerUserId);
+
+            recentClicksQuery = recentClicksQuery.OrderByDescending(e => e.ClickedAtUtc);
+            var clickLimitValue = clickLimit is >= 5 and <= 20 ? clickLimit.Value : 5;
+            var recentClicks = await LoadRecentClicksAsync(recentClicksQuery, clickLimitValue);
+
             return Partial("Shared/_DashboardData", new DashboardDataViewModel
             {
                 TotalLinks = totalLinks,
                 TotalClicks = totalClicks,
                 TotalCountries = totalCountries,
                 ChartJson = chartJson,
-                GeoBreakdown = geoBreakdown
+                GeoBreakdown = geoBreakdown,
+                RecentClicks = recentClicks
             });
         }
 
         return Page();
+    }
+
+    private static async Task<List<ClickEventRow>> LoadRecentClicksAsync(IQueryable<ClickEvent> query, int limit)
+    {
+        return await query
+            .Take(limit)
+            .Select(e => new ClickEventRow
+            {
+                Id = e.Id,
+                ShortCode = e.ShortenedUrl.ShortCode,
+                CountryCode = e.CountryCode,
+                Browser = e.Browser,
+                BrowserVersion = e.BrowserVersion,
+                OperatingSystem = e.OperatingSystem,
+                OSVersion = e.OSVersion,
+                Referer = e.Referer,
+                ClickedAtUtc = e.ClickedAtUtc,
+                IpAddress = e.IpAddress,
+                UserAgent = e.UserAgent,
+                DeviceFamily = e.DeviceFamily,
+                CityName = e.CityName
+            })
+            .ToListAsync();
     }
 }

@@ -28,4 +28,5 @@ public class DashboardDataViewModel
     public int TotalCountries { get; init; }
     public string ChartJson { get; init; } = "";
     public List<GeoBreakdownItem> GeoBreakdown { get; init; } = [];
+    public List<ClickEventRow> RecentClicks { get; init; } = [];
 }

@@ -38,7 +38,7 @@
 
     <article>
         <header><h3>Recent Clicks</h3></header>
-        <div id="recent-clicks" hx-get="/dashboard" hx-trigger="load" hx-swap="innerHTML">
+        <div id="recent-clicks">
             <article aria-busy="true"><p>Loading clicks...</p></article>
         </div>
     </article>
@@ -76,12 +76,20 @@ const COLORS = [
         rc.dataset.expandedId = isOpen ? '' : (detail.getAttribute('data-click-id') || '');
     });
 
-    document.body.addEventListener('htmx:afterSwap', function(e) {
-        if (e.detail.target.id !== 'recent-clicks') return;
+    function restoreExpanded() {
         var id = rc.dataset.expandedId;
         if (!id) return;
         var detail = rc.querySelector('.detail-row[data-click-id="' + id + '"]');
         if (detail) detail.style.display = 'table-row';
+    }
+
+    document.body.addEventListener('htmx:afterSwap', function(e) {
+        if (e.detail.target.id !== 'recent-clicks') return;
+        restoreExpanded();
+    });
+    document.body.addEventListener('htmx:oobAfterSwap', function(e) {
+        if (e.detail.target.id !== 'recent-clicks') return;
+        restoreExpanded();
     });
 })();
 

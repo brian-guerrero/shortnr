@@ -1,10 +1,8 @@
-@model List<ClickEvent>
+@model List<ClickEventRow>
 @{
     var clickSort = Context.Request.Query["clickSort"].FirstOrDefault() ?? "";
     var clickDir = Context.Request.Query["clickDir"].FirstOrDefault() ?? "";
     var clickLimit = Context.Request.Query["clickLimit"].FirstOrDefault() ?? "5";
-
-    var pollUrl = "/dashboard?clickSort=" + clickSort + "&clickDir=" + clickDir + "&clickLimit=" + clickLimit;
 
     var sortUrl = (string col, string dir) => "/dashboard?clickSort=" + col + "&clickDir=" + dir + "&clickLimit=" + clickLimit;
     var sortInd = (string col, string asc, string desc) =>
@@ -16,7 +14,7 @@
 }
 else
 {
-    <table class="sortable" hx-get="@pollUrl" hx-trigger="sse:data-update" hx-target="#recent-clicks" hx-swap="innerHTML">
+    <table class="sortable">
         <thead>
             <tr>
                 <th hx-get="@sortUrl("shortCode", clickSort == "shortCode" && clickDir == "asc" ? "desc" : "asc")" hx-target="#recent-clicks" hx-swap="innerHTML">Short URL @sortInd("shortCode", " ▲", " ▼")</th>
@@ -31,7 +29,7 @@ else
             @foreach (var click in Model)
             {
                 <tr>
-                    <td><a href="/@click.ShortenedUrl.ShortCode" target="_blank">/@click.ShortenedUrl.ShortCode</a></td>
+                    <td><a href="/@click.ShortCode" target="_blank">/@click.ShortCode</a></td>
                     <td>@click.CountryCode</td>
                     <td>@click.Browser @click.BrowserVersion</td>
                     <td>@click.OperatingSystem @click.OSVersion</td>

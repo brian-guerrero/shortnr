@@ -51,3 +51,7 @@ else
 }
 
 <script id="chart-data" type="application/json">@Html.Raw(Model.ChartJson)</script>
+
+<div id="recent-clicks" hx-swap-oob="true">
+    <partial name="Shared/_RecentClicks" model="Model.RecentClicks" />
+</div>
