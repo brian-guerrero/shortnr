@@ -1,4 +1,6 @@
 using System.Net;
+using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
@@ -41,7 +43,6 @@ public class ClickBatchProcessor : BackgroundService
                 while (buffer.Count < 100 && _channel.Reader.TryRead(out var record))
                 {
                     buffer.Add(record);
-                    _logger.LogTrace("Clicked recorded from {Ip} {ShortCode}", record.IpAddress, record.ShortCode);
                 }
 
                 if (buffer.Count == 0) continue;
@@ -50,27 +51,31 @@ public class ClickBatchProcessor : BackgroundService
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
                 var shortCodes = buffer.Select(r => r.ShortCode).Distinct().ToList();
-                var urls = await db.ShortenedUrls
+                var urlRows = await db.ShortenedUrls
                     .Where(u => shortCodes.Contains(u.ShortCode))
+                    .Select(u => new { u.ShortCode, u.Id })
                     .ToListAsync(stoppingToken);
 
-                var urlDict = urls.ToDictionary(u => u.ShortCode);
+                var urlMap = urlRows.ToDictionary(u => u.ShortCode, u => u.Id);
+                var clickCountDelta = new Dictionary<long, int>();
+                var now = DateTime.UtcNow;
 
+                var events = new List<ClickEvent>(buffer.Count);
                 foreach (var record in buffer)
                 {
-                    if (!urlDict.TryGetValue(record.ShortCode, out var url)) continue;
+                    if (!urlMap.TryGetValue(record.ShortCode, out var urlId)) continue;
 
-                    url.ClickCount++;
+                    clickCountDelta[urlId] = clickCountDelta.GetValueOrDefault(urlId) + 1;
 
-                    var uaInfo = uaParserLibrary.UAParser.GetClientInfo(record.UserAgent);
+                    var uaInfo = UAParser.GetClientInfo(record.UserAgent);
 
                     var clickEvent = new ClickEvent
                     {
-                        ShortenedUrlId = url.Id,
+                        ShortenedUrlId = urlId,
                         IpAddress = record.IpAddress,
                         UserAgent = record.UserAgent,
                         Referer = record.Referer,
-                        ClickedAtUtc = DateTime.UtcNow,
+                        ClickedAtUtc = now,
                         DeviceFamily = uaInfo.Device.Type ?? uaInfo.Device.Model,
                         OperatingSystem = uaInfo.OS.Name,
                         OSVersion = uaInfo.OS.Version,
@@ -81,12 +86,26 @@ public class ClickBatchProcessor : BackgroundService
                     };
 
                     EnrichGeo(record.IpAddress, clickEvent);
-
-                    db.ClickEvents.Add(clickEvent);
+                    events.Add(clickEvent);
                 }
 
-                await db.SaveChangesAsync(stoppingToken);
-                _logger.LogInformation("Processed {Count} click events in one batch — notifying SSE clients", buffer.Count);
+                if (events.Count == 0) { buffer.Clear(); continue; }
+
+                using var tx = await db.Database.BeginTransactionAsync(stoppingToken);
+
+                var insertSql = BuildMultiRowInsert(events);
+                await db.Database.ExecuteSqlInterpolatedAsync(insertSql, stoppingToken);
+
+                foreach (var (urlId, delta) in clickCountDelta)
+                {
+                    await db.ShortenedUrls
+                        .Where(u => u.Id == urlId)
+                        .ExecuteUpdateAsync(s => s.SetProperty(u => u.ClickCount, u => u.ClickCount + delta), stoppingToken);
+                }
+
+                await tx.CommitAsync(stoppingToken);
+
+                _logger.LogInformation("Processed {Count} click events in one batch — notifying SSE clients", events.Count);
                 _sseChannel.Writer.TryWrite(new object());
                 buffer.Clear();
             }
@@ -101,6 +120,46 @@ public class ClickBatchProcessor : BackgroundService
         }
 
         _logger.LogInformation("ClickBatchProcessor stopping");
+    }
+
+    private static FormattableString BuildMultiRowInsert(List<ClickEvent> events)
+    {
+        var format = new StringBuilder();
+        format.Append("INSERT INTO \"ClickEvents\" (");
+        format.Append("\"ShortenedUrlId\", \"IpAddress\", \"UserAgent\", \"Referer\", \"ClickedAtUtc\", ");
+        format.Append("\"CountryCode\", \"CountryName\", \"CityName\", \"PostalCode\", \"Latitude\", \"Longitude\", ");
+        format.Append("\"DeviceFamily\", \"OperatingSystem\", \"OSVersion\", \"Browser\", \"BrowserVersion\"");
+        format.Append(") VALUES ");
+
+        var args = new List<object>(events.Count * 16);
+        int pi = 0;
+        for (int i = 0; i < events.Count; i++)
+        {
+            if (i > 0) format.Append(", ");
+            format.Append($"({{{pi++}}}, {{{pi++}}}, {{{pi++}}}, {{{pi++}}}, {{{pi++}}}, ");
+            format.Append($"{{{pi++}}}, {{{pi++}}}, {{{pi++}}}, {{{pi++}}}, {{{pi++}}}, {{{pi++}}}, ");
+            format.Append($"{{{pi++}}}, {{{pi++}}}, {{{pi++}}}, {{{pi++}}}, {{{pi++}}})");
+
+            var e = events[i];
+            args.Add(e.ShortenedUrlId);
+            args.Add(e.IpAddress);
+            args.Add(e.UserAgent);
+            args.Add(e.Referer);
+            args.Add(e.ClickedAtUtc);
+            args.Add((object?)e.CountryCode);
+            args.Add((object?)e.CountryName);
+            args.Add((object?)e.CityName);
+            args.Add((object?)e.PostalCode);
+            args.Add((object?)e.Latitude);
+            args.Add((object?)e.Longitude);
+            args.Add((object?)e.DeviceFamily);
+            args.Add((object?)e.OperatingSystem);
+            args.Add((object?)e.OSVersion);
+            args.Add((object?)e.Browser);
+            args.Add((object?)e.BrowserVersion);
+        }
+
+        return FormattableStringFactory.Create(format.ToString(), args.ToArray());
     }
 
     private void EnrichGeo(string ip, ClickEvent clickEvent)
