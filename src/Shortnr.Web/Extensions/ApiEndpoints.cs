@@ -114,39 +114,12 @@ public static class ApiEndpoints
             var ct = context.RequestAborted;
             try
             {
-                while (!ct.IsCancellationRequested)
+                while (await sseChannel.Reader.WaitToReadAsync(ct))
                 {
-                    var notifyTask = sseChannel.Reader.WaitToReadAsync(ct).AsTask();
-                    var delayTask = Task.Delay(5000, ct);
-                    var completed = await Task.WhenAny(notifyTask, delayTask);
+                    while (sseChannel.Reader.TryRead(out _)) { }
+                    logger.LogDebug("Data changed — sending update events");
 
-                    if (completed == notifyTask)
-                    {
-                        while (sseChannel.Reader.TryRead(out _)) { }
-                        logger.LogDebug("Notification received — sending metrics-update immediately");
-                        await context.Response.WriteAsync("event: metrics-update\ndata: \n\n");
-                        await context.Response.Body.FlushAsync();
-                        continue;
-                    }
-
-                    logger.LogTrace("Timer tick — sending metrics-update");
                     await context.Response.WriteAsync("event: metrics-update\ndata: \n\n");
-                    await context.Response.Body.FlushAsync();
-
-                    notifyTask = sseChannel.Reader.WaitToReadAsync(ct).AsTask();
-                    delayTask = Task.Delay(5000, ct);
-                    completed = await Task.WhenAny(notifyTask, delayTask);
-
-                    if (completed == notifyTask)
-                    {
-                        while (sseChannel.Reader.TryRead(out _)) { }
-                        logger.LogDebug("Notification received — sending metrics-update immediately");
-                        await context.Response.WriteAsync("event: metrics-update\ndata: \n\n");
-                        await context.Response.Body.FlushAsync();
-                        continue;
-                    }
-
-                    logger.LogTrace("Timer tick — sending geo-update");
                     await context.Response.WriteAsync("event: geo-update\ndata: \n\n");
                     await context.Response.Body.FlushAsync();
                 }
@@ -162,7 +135,7 @@ public static class ApiEndpoints
         });
 
         app.MapGet("/{shortCode}", async (string shortCode, AppDbContext db,
-            Channel<ClickRecord> clickChannel, Channel<object> sseChannel, HttpContext context, ILoggerFactory loggerFactory) =>
+            Channel<ClickRecord> clickChannel, HttpContext context, ILoggerFactory loggerFactory) =>
         {
             var logger = loggerFactory.CreateLogger("Shortnr.Api.Redirect");
             var link = await db.ShortenedUrls.FirstOrDefaultAsync(l => l.ShortCode == shortCode);
@@ -185,8 +158,7 @@ public static class ApiEndpoints
                 Referer = context.Request.Headers["Referer"].FirstOrDefault() ?? ""
             });
 
-            var notified = sseChannel.Writer.TryWrite(new object());
-            logger.LogInformation("Redirect shortCode={ShortCode} ip={Ip} sseNotified={Notified}", shortCode, ip, notified);
+            logger.LogInformation("Redirect shortCode={ShortCode} ip={Ip}", shortCode, ip);
 
             return Results.Redirect(link.LongUrl);
         });

@@ -8,8 +8,8 @@
     <p>Real-time metrics for your shortened links.</p>
 </hgroup>
 
-<div>
-    <div id="metrics-summary" hx-get="/dashboard" hx-trigger="load, metrics-update" hx-swap="innerHTML">
+<div sse-connect="/api/events">
+    <div id="metrics-summary" hx-get="/dashboard" hx-trigger="load, sse:metrics-update" hx-swap="innerHTML">
         <article aria-busy="true"><p>Loading metrics...</p></article>
     </div>
 
@@ -45,7 +45,7 @@
 
     <article>
         <header><h3>Geo Breakdown</h3></header>
-        <div id="geo-breakdown" hx-get="/dashboard" hx-trigger="load, geo-update" hx-swap="innerHTML">
+        <div id="geo-breakdown" hx-get="/dashboard" hx-trigger="load, sse:geo-update" hx-swap="innerHTML">
             <article aria-busy="true"><p>Loading geo data...</p></article>
         </div>
     </article>
@@ -56,21 +56,6 @@
 .sortable th { cursor: pointer; user-select: none; white-space: nowrap; }
 .sortable tbody tr:not(.detail-row) { cursor: pointer; }
 </style>
-<script>
-(function() {
-    var source = new EventSource('/api/events');
-    source.addEventListener('metrics-update', function() {
-        var ms = document.getElementById('metrics-summary');
-        if (ms) ms.dispatchEvent(new Event('metrics-update'));
-        var table = document.querySelector('#recent-clicks .sortable');
-        if (table) table.dispatchEvent(new Event('metrics-update'));
-    });
-    source.addEventListener('geo-update', function() {
-        var gb = document.getElementById('geo-breakdown');
-        if (gb) gb.dispatchEvent(new Event('geo-update'));
-    });
-})();
-</script>
 <script src="/lib/chartjs/dist/chart.umd.min.js"></script>
 <script>
 const COLORS = [
@@ -114,7 +99,15 @@ function chartComponent() {
     return {
         async init() {
             await this.renderCharts();
-            setInterval(() => this.renderCharts(), 5000);
+            this.listenForUpdates();
+        },
+        listenForUpdates() {
+            var self = this;
+            document.addEventListener('htmx:sseOpen', function(e) {
+                e.detail.source.addEventListener('metrics-update', function() {
+                    self.renderCharts();
+                });
+            });
         },
         async renderCharts() {
             try {

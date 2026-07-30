@@ -16,7 +16,7 @@
 }
 else
 {
-    <table class="sortable" hx-get="@pollUrl" hx-trigger="metrics-update" hx-target="#recent-clicks" hx-swap="innerHTML">
+    <table class="sortable" hx-get="@pollUrl" hx-trigger="sse:metrics-update" hx-target="#recent-clicks" hx-swap="innerHTML">
         <thead>
             <tr>
                 <th hx-get="@sortUrl("shortCode", clickSort == "shortCode" && clickDir == "asc" ? "desc" : "asc")" hx-target="#recent-clicks" hx-swap="innerHTML">Short URL @sortInd("shortCode", " ▲", " ▼")</th>

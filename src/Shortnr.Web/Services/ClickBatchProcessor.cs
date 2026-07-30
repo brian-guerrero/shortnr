@@ -14,14 +14,16 @@ public class ClickBatchProcessor : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<ClickBatchProcessor> _logger;
     private readonly GeoIpService _geoIp;
+    private readonly Channel<object> _sseChannel;
 
     public ClickBatchProcessor(Channel<ClickRecord> channel, IServiceScopeFactory scopeFactory,
-        ILogger<ClickBatchProcessor> logger, GeoIpService geoIp)
+        ILogger<ClickBatchProcessor> logger, GeoIpService geoIp, Channel<object> sseChannel)
     {
         _channel = channel;
         _scopeFactory = scopeFactory;
         _logger = logger;
         _geoIp = geoIp;
+        _sseChannel = sseChannel;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -84,7 +86,8 @@ public class ClickBatchProcessor : BackgroundService
                 }
 
                 await db.SaveChangesAsync(stoppingToken);
-                _logger.LogInformation("Processed {Count} click events in one batch", buffer.Count);
+                _logger.LogInformation("Processed {Count} click events in one batch — notifying SSE clients", buffer.Count);
+                _sseChannel.Writer.TryWrite(new object());
                 buffer.Clear();
             }
             catch (OperationCanceledException)
