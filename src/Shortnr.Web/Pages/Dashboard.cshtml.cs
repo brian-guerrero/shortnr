@@ -63,6 +63,33 @@ public class DashboardModel : PageModel
                 return Partial("Shared/_RecentClicks", await query.Take(limit).ToListAsync());
             }
 
+            if (target == "search-results")
+            {
+                var linkQ = _db.ShortenedUrls.AsQueryable();
+                if (ownerUserId is not null)
+                    linkQ = linkQ.Where(l => l.OwnerUserId == ownerUserId);
+
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    var lower = search.ToLower();
+                    linkQ = linkQ.Where(l => l.LongUrl.ToLower().Contains(lower) || l.ShortCode.ToLower().Contains(lower));
+                }
+                linkQ = (linkSort, linkDir == "desc") switch
+                {
+                    ("shortCode", false) => linkQ.OrderBy(l => l.ShortCode),
+                    ("shortCode", true) => linkQ.OrderByDescending(l => l.ShortCode),
+                    ("longUrl", false) => linkQ.OrderBy(l => l.LongUrl),
+                    ("longUrl", true) => linkQ.OrderByDescending(l => l.LongUrl),
+                    ("clickCount", false) => linkQ.OrderBy(l => l.ClickCount),
+                    ("clickCount", true) => linkQ.OrderByDescending(l => l.ClickCount),
+                    ("createdAtUtc", false) => linkQ.OrderBy(l => l.CreatedAtUtc),
+                    ("createdAtUtc", true) => linkQ.OrderByDescending(l => l.CreatedAtUtc),
+                    _ => linkQ.OrderByDescending(l => l.CreatedAtUtc)
+                };
+
+                return Partial("Shared/_SearchResults", await linkQ.Take(50).ToListAsync());
+            }
+
             // Combined dashboard-data target: metrics + geo breakdown + chart JSON.
             // Uses a single links query and a single grouped geo query (fixes N+1).
             var linkQuery = _db.ShortenedUrls.AsQueryable();
