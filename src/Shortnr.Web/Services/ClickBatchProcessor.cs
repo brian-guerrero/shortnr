@@ -1,9 +1,10 @@
+using System.Net;
 using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Shortnr.Data;
 using Shortnr.Data.Entities;
 using Shortnr.Web.Models;
+using uaParserLibrary;
 
 namespace Shortnr.Web.Services;
 
@@ -12,12 +13,15 @@ public class ClickBatchProcessor : BackgroundService
     private readonly Channel<ClickRecord> _channel;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<ClickBatchProcessor> _logger;
+    private readonly GeoIpService _geoIp;
 
-    public ClickBatchProcessor(Channel<ClickRecord> channel, IServiceScopeFactory scopeFactory, ILogger<ClickBatchProcessor> logger)
+    public ClickBatchProcessor(Channel<ClickRecord> channel, IServiceScopeFactory scopeFactory,
+        ILogger<ClickBatchProcessor> logger, GeoIpService geoIp)
     {
         _channel = channel;
         _scopeFactory = scopeFactory;
         _logger = logger;
+        _geoIp = geoIp;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -55,14 +59,28 @@ public class ClickBatchProcessor : BackgroundService
                     if (!urlDict.TryGetValue(record.ShortCode, out var url)) continue;
 
                     url.ClickCount++;
-                    db.ClickEvents.Add(new ClickEvent
+
+                    var uaInfo = uaParserLibrary.UAParser.GetClientInfo(record.UserAgent);
+
+                    var clickEvent = new ClickEvent
                     {
                         ShortenedUrlId = url.Id,
                         IpAddress = record.IpAddress,
                         UserAgent = record.UserAgent,
                         Referer = record.Referer,
-                        ClickedAtUtc = DateTime.UtcNow
-                    });
+                        ClickedAtUtc = DateTime.UtcNow,
+                        DeviceFamily = uaInfo.Device.Type ?? uaInfo.Device.Model,
+                        OperatingSystem = uaInfo.OS.Name,
+                        OSVersion = uaInfo.OS.Version,
+                        Browser = uaInfo.Browser.Name,
+                        BrowserVersion = uaInfo.Browser.Major is not null
+                            ? uaInfo.Browser.Major + (uaInfo.Browser.Version is not null ? "." + uaInfo.Browser.Version : "")
+                            : uaInfo.Browser.Version
+                    };
+
+                    EnrichGeo(record.IpAddress, clickEvent);
+
+                    db.ClickEvents.Add(clickEvent);
                 }
 
                 await db.SaveChangesAsync(stoppingToken);
@@ -71,7 +89,6 @@ public class ClickBatchProcessor : BackgroundService
             }
             catch (OperationCanceledException)
             {
-                // Expected when stoppingToken is cancelled
                 break;
             }
             catch (Exception ex)
@@ -81,5 +98,18 @@ public class ClickBatchProcessor : BackgroundService
         }
 
         _logger.LogInformation("ClickBatchProcessor stopping");
+    }
+
+    private void EnrichGeo(string ip, ClickEvent clickEvent)
+    {
+        if (!IPAddress.TryParse(ip, out var addr)) return;
+        if (!_geoIp.TryCity(addr, out var city)) return;
+
+        clickEvent.CountryCode = city.Country?.IsoCode;
+        clickEvent.CountryName = city.Country?.Name;
+        clickEvent.CityName = city.City?.Name;
+        clickEvent.PostalCode = city.Postal?.Code;
+        clickEvent.Latitude = city.Location?.Latitude;
+        clickEvent.Longitude = city.Location?.Longitude;
     }
 }

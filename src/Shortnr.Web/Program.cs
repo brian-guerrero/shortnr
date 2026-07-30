@@ -13,6 +13,17 @@ builder.Services.AddRazorPages();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddSingleton(Channel.CreateUnbounded<ClickRecord>());
+builder.Services.AddSingleton(sp =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+    var logger = sp.GetRequiredService<ILogger<GeoIpService>>();
+    var configuredPath = config["GeoIp:DatabasePath"];
+    var path = !string.IsNullOrWhiteSpace(configuredPath)
+        ? configuredPath
+        : Path.Combine(sp.GetRequiredService<IWebHostEnvironment>().WebRootPath, "data", "GeoLite2-City.mmdb");
+    return new GeoIpService(path, logger);
+});
+builder.Services.AddHostedService<GeoIpUpdateService>();
 builder.Services.AddHostedService<ClickBatchProcessor>();
 builder.Services.AddSingleton<QrService>();
 
@@ -20,6 +31,7 @@ builder.Services.AddSingleton<QrService>();
 // Registered unconditionally so DI is always consistent; the processor is a no-op
 // when auth is disabled.
 builder.Services.AddSingleton(Channel.CreateUnbounded<PendingUserLogin>());
+builder.Services.AddSingleton(Channel.CreateUnbounded<object>());
 builder.Services.AddHostedService<UserProvisioningProcessor>();
 
 builder.Services.AddScoped<UserIdentityService>();
@@ -45,52 +57,7 @@ app.MapDefaultEndpoints();
 app.MapRazorPages();
 app.MapAuthenticationEndpoints(app.Configuration);
 
-app.MapGet("/api/qr/{shortCode}", (string shortCode, HttpContext ctx, QrService qr) =>
-{
-    var shortUrl = $"{ctx.Request.Scheme}://{ctx.Request.Host}/{shortCode}";
-    var png = qr.GeneratePng(shortUrl);
-    return Results.File(png, contentType: "image/png", fileDownloadName: $"qr-{shortCode}.png");
-});
-
-app.MapGet("/api/metrics", async (AppDbContext db, HttpContext ctx, UserIdentityService identity) =>
-{
-    var ownerUserId = await identity.ResolveOwnerUserIdAsync(ctx.User);
-
-    // When auth is enabled and ownerUserId couldn't be resolved (anonymous request or
-    // first-login provisioning race), return empty data rather than leaking all records.
-    if (identity.IsAuthEnabled && ownerUserId is null)
-        return Results.Json(new { totalLinks = 0, totalClicks = 0L, topLinks = Array.Empty<object>() });
-
-    var query = db.ShortenedUrls.AsQueryable();
-    if (ownerUserId is not null)
-        query = query.Where(l => l.OwnerUserId == ownerUserId);
-
-    var totalLinks = await query.CountAsync();
-    var totalClicks = await query.SumAsync(l => (long?)l.ClickCount) ?? 0;
-    var topLinks = await query
-        .OrderByDescending(l => l.ClickCount)
-        .Take(10)
-        .Select(l => new { l.ShortCode, l.LongUrl, l.ClickCount })
-        .ToListAsync();
-
-    return Results.Json(new { totalLinks, totalClicks, topLinks });
-});
-
-app.MapGet("/{shortCode}", async (string shortCode, AppDbContext db, Channel<ClickRecord> clickChannel, HttpContext context) =>
-{
-    var link = await db.ShortenedUrls.FirstOrDefaultAsync(l => l.ShortCode == shortCode);
-    if (link is null) return Results.NotFound();
-
-    clickChannel.Writer.TryWrite(new ClickRecord
-    {
-        ShortCode = shortCode,
-        IpAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-        UserAgent = context.Request.Headers["User-Agent"].FirstOrDefault() ?? "",
-        Referer = context.Request.Headers["Referer"].FirstOrDefault() ?? ""
-    });
-
-    return Results.Redirect(link.LongUrl);
-});
+app.MapApiEndpoints();
 
 app.Run();
 

@@ -19,7 +19,7 @@ public class DashboardModel : PageModel
         _identity = identity;
     }
 
-    public async Task<IActionResult> OnGet(string? search, string? linkSort, string? linkDir, string? clickSort, string? clickDir)
+    public async Task<IActionResult> OnGet(string? search, string? linkSort, string? linkDir, string? clickSort, string? clickDir, int? clickLimit)
     {
         // When auth is on, require a signed-in user. HTMX partial requests get a 401
         // rather than a redirect so the browser isn't transparently swapped to the login page.
@@ -47,10 +47,21 @@ public class DashboardModel : PageModel
                 var totalLinks = await linkQuery.CountAsync();
                 var totalClicks = await linkQuery.SumAsync(l => (long?)l.ClickCount) ?? 0;
 
+                var clickQuery = _db.ClickEvents.AsQueryable();
+                if (ownerUserId is not null)
+                    clickQuery = clickQuery.Where(e => e.ShortenedUrl.OwnerUserId == ownerUserId);
+
+                var totalCountries = await clickQuery
+                    .Where(e => e.CountryCode != null && e.CountryCode != "")
+                    .Select(e => e.CountryCode)
+                    .Distinct()
+                    .CountAsync();
+
                 return Partial("Shared/_DashboardMetrics", new DashboardMetricsViewModel
                 {
                     TotalLinks = totalLinks,
-                    TotalClicks = totalClicks
+                    TotalClicks = totalClicks,
+                    TotalCountries = totalCountries
                 });
             }
 
@@ -64,18 +75,58 @@ public class DashboardModel : PageModel
                 {
                     ("shortCode", false) => query.OrderBy(e => e.ShortenedUrl.ShortCode),
                     ("shortCode", true) => query.OrderByDescending(e => e.ShortenedUrl.ShortCode),
-                    ("ipAddress", false) => query.OrderBy(e => e.IpAddress),
-                    ("ipAddress", true) => query.OrderByDescending(e => e.IpAddress),
+                    ("countryCode", false) => query.OrderBy(e => e.CountryCode ?? ""),
+                    ("countryCode", true) => query.OrderByDescending(e => e.CountryCode ?? ""),
+                    ("browser", false) => query.OrderBy(e => e.Browser ?? ""),
+                    ("browser", true) => query.OrderByDescending(e => e.Browser ?? ""),
+                    ("operatingSystem", false) => query.OrderBy(e => e.OperatingSystem ?? ""),
+                    ("operatingSystem", true) => query.OrderByDescending(e => e.OperatingSystem ?? ""),
                     ("referer", false) => query.OrderBy(e => e.Referer),
                     ("referer", true) => query.OrderByDescending(e => e.Referer),
-                    ("userAgent", false) => query.OrderBy(e => e.UserAgent),
-                    ("userAgent", true) => query.OrderByDescending(e => e.UserAgent),
                     ("clickedAtUtc", false) => query.OrderBy(e => e.ClickedAtUtc),
                     ("clickedAtUtc", true) => query.OrderByDescending(e => e.ClickedAtUtc),
                     _ => query.OrderByDescending(e => e.ClickedAtUtc)
                 };
 
-                return Partial("Shared/_RecentClicks", await query.Take(20).ToListAsync());
+                var limit = clickLimit is >= 5 and <= 20 ? clickLimit.Value : 5;
+                return Partial("Shared/_RecentClicks", await query.Take(limit).ToListAsync());
+            }
+
+            if (target == "geo-breakdown")
+            {
+                var clickQuery = _db.ClickEvents.AsQueryable();
+                if (ownerUserId is not null)
+                    clickQuery = clickQuery.Where(e => e.ShortenedUrl.OwnerUserId == ownerUserId);
+
+                var countryGroups = await clickQuery
+                    .Where(e => e.CountryCode != null && e.CountryCode != "")
+                    .GroupBy(e => new { e.CountryCode, e.CountryName })
+                    .Select(g => new { g.Key.CountryCode, g.Key.CountryName, TotalClicks = g.Count() })
+                    .OrderByDescending(x => x.TotalClicks)
+                    .Take(10)
+                    .ToListAsync();
+
+                var breakdown = new List<GeoBreakdownItem>(countryGroups.Count);
+                foreach (var cg in countryGroups)
+                {
+                    var cities = await clickQuery
+                        .Where(e => e.CountryCode == cg.CountryCode && e.CityName != null && e.CityName != "")
+                        .GroupBy(e => e.CityName)
+                        .Select(g => new CityCount { City = g.Key ?? "", Count = g.Count() })
+                        .OrderByDescending(c => c.Count)
+                        .Take(5)
+                        .ToListAsync();
+
+                    breakdown.Add(new GeoBreakdownItem
+                    {
+                        CountryCode = cg.CountryCode ?? "",
+                        CountryName = cg.CountryName ?? "",
+                        TotalClicks = cg.TotalClicks,
+                        CityCounts = cities
+                    });
+                }
+
+                return Partial("Shared/_GeoBreakdown", breakdown);
             }
 
             // Search / link list

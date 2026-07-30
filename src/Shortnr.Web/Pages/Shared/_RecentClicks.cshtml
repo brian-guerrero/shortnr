@@ -2,22 +2,13 @@
 @{
     var clickSort = Context.Request.Query["clickSort"].FirstOrDefault() ?? "";
     var clickDir = Context.Request.Query["clickDir"].FirstOrDefault() ?? "";
-    var pollUrl = clickSort != "" ? "/dashboard?clickSort=" + clickSort + "&clickDir=" + clickDir : "/dashboard";
+    var clickLimit = Context.Request.Query["clickLimit"].FirstOrDefault() ?? "5";
 
-    var scUrl = "/dashboard?clickSort=shortCode&clickDir=" + (clickSort == "shortCode" && clickDir == "asc" ? "desc" :
-"asc");
-    var scInd = clickSort == "shortCode" ? clickDir == "asc" ? " ▲" : " ▼" : "";
-    var ipUrl = "/dashboard?clickSort=ipAddress&clickDir=" + (clickSort == "ipAddress" && clickDir == "asc" ? "desc" :
-"asc");
-    var ipInd = clickSort == "ipAddress" ? clickDir == "asc" ? " ▲" : " ▼" : "";
-    var rfUrl = "/dashboard?clickSort=referer&clickDir=" + (clickSort == "referer" && clickDir == "asc" ? "desc" : "asc");
-    var rfInd = clickSort == "referer" ? clickDir == "asc" ? " ▲" : " ▼" : "";
-    var uaUrl = "/dashboard?clickSort=userAgent&clickDir=" + (clickSort == "userAgent" && clickDir == "asc" ? "desc" :
-"asc");
-    var uaInd = clickSort == "userAgent" ? clickDir == "asc" ? " ▲" : " ▼" : "";
-    var ctUrl = "/dashboard?clickSort=clickedAtUtc&clickDir=" + (clickSort == "clickedAtUtc" && clickDir == "asc" ? "desc" :
-"asc");
-    var ctInd = clickSort == "clickedAtUtc" ? clickDir == "asc" ? " ▲" : " ▼" : "";
+    var pollUrl = "/dashboard?clickSort=" + clickSort + "&clickDir=" + clickDir + "&clickLimit=" + clickLimit;
+
+    var sortUrl = (string col, string dir) => "/dashboard?clickSort=" + col + "&clickDir=" + dir + "&clickLimit=" + clickLimit;
+    var sortInd = (string col, string asc, string desc) =>
+        clickSort == col ? (clickDir == "asc" ? asc : desc) : "";
 }
 @if (Model.Count == 0)
 {
@@ -25,14 +16,15 @@
 }
 else
 {
-    <table class="sortable" hx-get="@pollUrl" hx-trigger="every 5s" hx-target="#recent-clicks" hx-swap="innerHTML">
+    <table class="sortable" hx-get="@pollUrl" hx-trigger="metrics-update" hx-target="#recent-clicks" hx-swap="innerHTML">
         <thead>
             <tr>
-                <th hx-get="@scUrl" hx-target="#recent-clicks" hx-swap="innerHTML">Short URL @scInd</th>
-                <th hx-get="@ipUrl" hx-target="#recent-clicks" hx-swap="innerHTML">IP @ipInd</th>
-                <th hx-get="@rfUrl" hx-target="#recent-clicks" hx-swap="innerHTML">Referer @rfInd</th>
-                <th hx-get="@uaUrl" hx-target="#recent-clicks" hx-swap="innerHTML">User Agent @uaInd</th>
-                <th hx-get="@ctUrl" hx-target="#recent-clicks" hx-swap="innerHTML">Time @ctInd</th>
+                <th hx-get="@sortUrl("shortCode", clickSort == "shortCode" && clickDir == "asc" ? "desc" : "asc")" hx-target="#recent-clicks" hx-swap="innerHTML">Short URL @sortInd("shortCode", " ▲", " ▼")</th>
+                <th hx-get="@sortUrl("countryCode", clickSort == "countryCode" && clickDir == "asc" ? "desc" : "asc")" hx-target="#recent-clicks" hx-swap="innerHTML">Country @sortInd("countryCode", " ▲", " ▼")</th>
+                <th hx-get="@sortUrl("browser", clickSort == "browser" && clickDir == "asc" ? "desc" : "asc")" hx-target="#recent-clicks" hx-swap="innerHTML">Browser @sortInd("browser", " ▲", " ▼")</th>
+                <th hx-get="@sortUrl("operatingSystem", clickSort == "operatingSystem" && clickDir == "asc" ? "desc" : "asc")" hx-target="#recent-clicks" hx-swap="innerHTML">OS @sortInd("operatingSystem", " ▲", " ▼")</th>
+                <th hx-get="@sortUrl("referer", clickSort == "referer" && clickDir == "asc" ? "desc" : "asc")" hx-target="#recent-clicks" hx-swap="innerHTML">Referer @sortInd("referer", " ▲", " ▼")</th>
+                <th hx-get="@sortUrl("clickedAtUtc", clickSort == "clickedAtUtc" && clickDir == "asc" ? "desc" : "asc")" hx-target="#recent-clicks" hx-swap="innerHTML">Time @sortInd("clickedAtUtc", " ▲", " ▼")</th>
             </tr>
         </thead>
         <tbody>
@@ -40,14 +32,36 @@ else
             {
                 <tr>
                     <td><a href="/@click.ShortenedUrl.ShortCode" target="_blank">/@click.ShortenedUrl.ShortCode</a></td>
-                    <td>@click.IpAddress</td>
+                    <td>@click.CountryCode</td>
+                    <td>@click.Browser @click.BrowserVersion</td>
+                    <td>@click.OperatingSystem @click.OSVersion</td>
                     <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
                         title="@click.Referer">@click.Referer</td>
-                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
-                        title="@click.UserAgent">@click.UserAgent</td>
                     <td>@click.ClickedAtUtc.ToLocalTime().ToString("g")</td>
+                </tr>
+                <tr style="display: none;" class="detail-row" data-click-id="@click.Id">
+                    <td colspan="6" style="font-size: 0.85em; background: var(--pico-card-sectioning-background-color, #f0f0f0);">
+                        <strong>IP:</strong> @click.IpAddress |
+                        <strong>UA:</strong> @click.UserAgent |
+                        <strong>Device:</strong> @click.DeviceFamily |
+                        <strong>City:</strong> @click.CityName
+                    </td>
                 </tr>
             }
         </tbody>
     </table>
+    <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+        <label for="per-page" style="margin-bottom: 0; font-size: 0.85em;">Per page:</label>
+        <select id="per-page" style="width: auto; margin-bottom: 0;"
+                hx-get="/dashboard?clickSort=@clickSort&clickDir=@clickDir"
+                hx-target="#recent-clicks"
+                hx-swap="innerHTML"
+                hx-trigger="change"
+                name="clickLimit">
+            <option value="5" selected="@(clickLimit == "5")">5</option>
+            <option value="10" selected="@(clickLimit == "10")">10</option>
+            <option value="15" selected="@(clickLimit == "15")">15</option>
+            <option value="20" selected="@(clickLimit == "20")">20</option>
+        </select>
+    </div>
 }

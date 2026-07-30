@@ -8,86 +8,188 @@
     <p>Real-time metrics for your shortened links.</p>
 </hgroup>
 
-<div id="metrics-summary" hx-get="/dashboard" hx-trigger="load, every 5s" hx-swap="innerHTML">
-    <article aria-busy="true"><p>Loading metrics...</p></article>
+<div>
+    <div id="metrics-summary" hx-get="/dashboard" hx-trigger="load, metrics-update" hx-swap="innerHTML">
+        <article aria-busy="true"><p>Loading metrics...</p></article>
+    </div>
+
+    <div class="grid">
+        <article x-data="chartComponent()">
+            <header><h3>Top Links</h3></header>
+            <canvas id="topChart" height="100"></canvas>
+        </article>
+        <article x-data="chartComponent()">
+            <header><h3>Countries</h3></header>
+            <canvas id="countryChart" height="100"></canvas>
+        </article>
+    </div>
+
+    <article>
+        <header><h3>Search Links</h3></header>
+        <input type="search" id="search-input" name="search" placeholder="Search by URL or short code..."
+               hx-get="/dashboard"
+               hx-trigger="keyup changed delay:200ms"
+               hx-target="#search-results"
+               hx-swap="innerHTML">
+        <div id="search-results" hx-get="/dashboard" hx-trigger="load" hx-swap="innerHTML">
+            <article aria-busy="true"><p>Loading...</p></article>
+        </div>
+    </article>
+
+    <article>
+        <header><h3>Recent Clicks</h3></header>
+        <div id="recent-clicks" hx-get="/dashboard" hx-trigger="load" hx-swap="innerHTML">
+            <article aria-busy="true"><p>Loading clicks...</p></article>
+        </div>
+    </article>
+
+    <article>
+        <header><h3>Geo Breakdown</h3></header>
+        <div id="geo-breakdown" hx-get="/dashboard" hx-trigger="load, geo-update" hx-swap="innerHTML">
+            <article aria-busy="true"><p>Loading geo data...</p></article>
+        </div>
+    </article>
 </div>
-
-<article x-data="chartComponent()">
-    <header><h3>Top Links</h3></header>
-    <canvas id="topChart" height="100"></canvas>
-</article>
-
-<article>
-    <header><h3>Search Links</h3></header>
-    <input type="search" id="search-input" name="search" placeholder="Search by URL or short code..."
-           hx-get="/dashboard"
-           hx-trigger="keyup changed delay:200ms"
-           hx-target="#search-results"
-           hx-swap="innerHTML">
-    <div id="search-results" hx-get="/dashboard" hx-trigger="load" hx-swap="innerHTML">
-        <article aria-busy="true"><p>Loading...</p></article>
-    </div>
-</article>
-
-<article>
-    <header><h3>Recent Clicks</h3></header>
-    <div id="recent-clicks" hx-get="/dashboard" hx-trigger="load" hx-swap="innerHTML">
-        <article aria-busy="true"><p>Loading clicks...</p></article>
-    </div>
-</article>
 
 @section Scripts {
 <style>
 .sortable th { cursor: pointer; user-select: none; white-space: nowrap; }
+.sortable tbody tr:not(.detail-row) { cursor: pointer; }
 </style>
+<script>
+(function() {
+    var source = new EventSource('/api/events');
+    source.addEventListener('metrics-update', function() {
+        var ms = document.getElementById('metrics-summary');
+        if (ms) ms.dispatchEvent(new Event('metrics-update'));
+        var table = document.querySelector('#recent-clicks .sortable');
+        if (table) table.dispatchEvent(new Event('metrics-update'));
+    });
+    source.addEventListener('geo-update', function() {
+        var gb = document.getElementById('geo-breakdown');
+        if (gb) gb.dispatchEvent(new Event('geo-update'));
+    });
+})();
+</script>
 <script src="/lib/chartjs/dist/chart.umd.min.js"></script>
 <script>
+const COLORS = [
+    'rgba(54, 162, 235, 0.8)', 'rgba(255, 99, 132, 0.8)', 'rgba(75, 192, 192, 0.8)',
+    'rgba(255, 159, 64, 0.8)', 'rgba(153, 102, 255, 0.8)', 'rgba(255, 205, 86, 0.8)',
+    'rgba(201, 203, 207, 0.8)', 'rgba(34, 139, 34, 0.8)', 'rgba(220, 20, 60, 0.8)',
+    'rgba(0, 191, 255, 0.8)'
+];
+
+// Persist expanded click-detail row across HTMX refreshes — one at a time.
+(function() {
+    var rc = document.getElementById('recent-clicks');
+    if (!rc) return;
+
+    rc.addEventListener('click', function(e) {
+        var row = e.target.closest('tr:not(.detail-row)');
+        if (!row) return;
+        var detail = row.nextElementSibling;
+        if (!detail || !detail.classList.contains('detail-row')) return;
+
+        var prevOpen = rc.querySelector('.detail-row[style*="table-row"]');
+        if (prevOpen && prevOpen !== detail) prevOpen.style.display = 'none';
+
+        var isOpen = detail.style.display === 'table-row';
+        detail.style.display = isOpen ? 'none' : 'table-row';
+        rc.dataset.expandedId = isOpen ? '' : (detail.getAttribute('data-click-id') || '');
+    });
+
+    document.body.addEventListener('htmx:afterSwap', function(e) {
+        if (e.detail.target.id !== 'recent-clicks') return;
+        var id = rc.dataset.expandedId;
+        if (!id) return;
+        var detail = rc.querySelector('.detail-row[data-click-id="' + id + '"]');
+        if (detail) detail.style.display = 'table-row';
+    });
+})();
+
 function chartComponent() {
-    let chart = null;
+    let topChart = null;
+    let countryChart = null;
     return {
         async init() {
-            await this.renderChart();
-            setInterval(() => this.renderChart(), 5000);
+            await this.renderCharts();
+            setInterval(() => this.renderCharts(), 5000);
         },
-        async renderChart() {
+        async renderCharts() {
             try {
                 const resp = await fetch('/api/metrics');
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
                 const data = await resp.json();
-                const canvas = document.getElementById('topChart');
-                if (!canvas) return;
-                const labels = data.topLinks.map(l => l.shortCode);
-                const values = data.topLinks.map(l => l.clickCount);
 
-                if (chart) {
-                    chart.data.labels = labels;
-                    chart.data.datasets[0].data = values;
-                    chart.update();
-                } else {
-                    chart = new Chart(canvas, {
-                        type: 'bar',
-                        data: {
-                            labels,
-                            datasets: [{
-                                label: 'Clicks',
-                                data: values,
-                                backgroundColor: 'rgba(54, 162, 235, 0.6)',
-                                borderColor: 'rgba(54, 162, 235, 1)',
-                                borderWidth: 1
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            indexAxis: 'y',
-                            plugins: { legend: { display: false } },
-                            scales: {
-                                x: { beginAtZero: true, ticks: { precision: 0 } }
-                            }
-                        }
-                    });
-                }
+                this.renderTopChart(data);
+                this.renderCountryChart(data);
             } catch (e) {
                 console.error('chart render failed:', e);
+            }
+        },
+        renderTopChart(data) {
+            const canvas = document.getElementById('topChart');
+            if (!canvas) return;
+            const labels = data.topLinks.map(l => l.shortCode);
+            const values = data.topLinks.map(l => l.clickCount);
+
+            if (topChart) {
+                topChart.data.labels = labels;
+                topChart.data.datasets[0].data = values;
+                topChart.update();
+            } else if (labels.length > 0) {
+                topChart = new Chart(canvas, {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: 'Clicks',
+                            data: values,
+                            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        indexAxis: 'y',
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { beginAtZero: true, ticks: { precision: 0 } }
+                        }
+                    }
+                });
+            }
+        },
+        renderCountryChart(data) {
+            const canvas = document.getElementById('countryChart');
+            if (!canvas) return;
+            const labels = data.countryBreakdown.map(c => c.countryCode || c.countryName || 'Unknown');
+            const values = data.countryBreakdown.map(c => c.count);
+
+            if (countryChart) {
+                countryChart.data.labels = labels;
+                countryChart.data.datasets[0].data = values;
+                countryChart.update();
+            } else if (labels.length > 0) {
+                countryChart = new Chart(canvas, {
+                    type: 'doughnut',
+                    data: {
+                        labels,
+                        datasets: [{
+                            data: values,
+                            backgroundColor: COLORS.slice(0, labels.length),
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { position: 'right' }
+                        }
+                    }
+                });
             }
         }
     };

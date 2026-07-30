@@ -44,6 +44,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.Referer).HasMaxLength(2048);
             entity.Property(e => e.ClickedAtUtc).HasDefaultValueSql("datetime('now')");
 
+            entity.Property(e => e.CountryCode).HasMaxLength(2);
+            entity.Property(e => e.CountryName).HasMaxLength(100);
+            entity.Property(e => e.CityName).HasMaxLength(100);
+            entity.Property(e => e.PostalCode).HasMaxLength(20);
+
+            entity.Property(e => e.DeviceFamily).HasMaxLength(50);
+            entity.Property(e => e.OperatingSystem).HasMaxLength(50);
+            entity.Property(e => e.OSVersion).HasMaxLength(50);
+            entity.Property(e => e.Browser).HasMaxLength(50);
+            entity.Property(e => e.BrowserVersion).HasMaxLength(50);
+
             entity.HasOne(e => e.ShortenedUrl)
                 .WithMany(s => s.ClickEvents)
                 .HasForeignKey(e => e.ShortenedUrlId);
