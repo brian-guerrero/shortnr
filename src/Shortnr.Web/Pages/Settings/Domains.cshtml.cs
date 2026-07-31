@@ -90,11 +90,11 @@ public class DomainsModel : PageModel
             var hasDefault = await _db.Domains.AnyAsync(d =>
                 d.OwnerUserId == ownerUserId && d.Id != domain.Id && d.IsDefault);
             if (!hasDefault)
-                domain.IsDefault = true;
+                await MakeDefaultAsync(domain, ownerUserId);
 
             await _db.SaveChangesAsync();
             var message = domain.IsDefault
-                ? $"Domain '{domain.Hostname}' verified and set as the default domain for new links."
+                ? $"Domain '{domain.Hostname}' verified and set as the default domain. Existing links without a domain now use it."
                 : $"Domain '{domain.Hostname}' verified.";
             return await ListPartialAsync(status: message);
         }
@@ -115,16 +115,41 @@ public class DomainsModel : PageModel
             return await ListPartialAsync(error: "Only verified domains can be the default.");
 
         var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        await MakeDefaultAsync(domain, ownerUserId);
+        await _db.SaveChangesAsync();
+
+        return await ListPartialAsync(status: $"Domain '{domain.Hostname}' is now the default. Existing links without a domain now use it.");
+    }
+
+    /// <summary>
+    /// Marks the given verified domain as the owner's default, clears any other
+    /// default, and migrates the owner's links that have no domain yet onto it
+    /// (skipping any whose short code already exists on that domain).
+    /// </summary>
+    private async Task MakeDefaultAsync(Domain domain, long? ownerUserId)
+    {
         var others = await _db.Domains
-            .Where(d => d.OwnerUserId == ownerUserId && d.Id != id && d.IsDefault)
+            .Where(d => d.OwnerUserId == ownerUserId && d.Id != domain.Id && d.IsDefault)
             .ToListAsync();
         foreach (var other in others)
             other.IsDefault = false;
 
         domain.IsDefault = true;
-        await _db.SaveChangesAsync();
 
-        return await ListPartialAsync(status: $"Domain '{domain.Hostname}' is now the default domain for new links.");
+        var existingCodes = await _db.ShortenedUrls
+            .Where(l => l.DomainId == domain.Id)
+            .Select(l => l.ShortCode)
+            .ToListAsync();
+
+        var linksToMigrate = await _db.ShortenedUrls
+            .Where(l => l.DomainId == null && l.OwnerUserId == ownerUserId)
+            .ToListAsync();
+
+        foreach (var link in linksToMigrate)
+        {
+            if (!existingCodes.Contains(link.ShortCode))
+                link.DomainId = domain.Id;
+        }
     }
 
     public async Task<IActionResult> OnPostDelete(long id)

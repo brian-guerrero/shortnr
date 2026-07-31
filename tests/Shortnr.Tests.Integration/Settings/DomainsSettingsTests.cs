@@ -208,6 +208,103 @@ public class DomainsSettingsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task SetDefault_MigratesExistingNoDomainLinksToTheDefaultDomain()
+    {
+        var domainId = await SeedDomainAsync("go.example.com", "TOKEN-ABC", verified: true);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.ShortenedUrls.Add(new ShortenedUrl
+            {
+                LongUrl = "https://example.com/migrate-me",
+                ShortCode = "mig001",
+                CreatedAtUtc = DateTime.UtcNow
+            });
+            db.SaveChanges();
+        }
+
+        var client = _factory.CreateClient();
+        var token = await GetAntiforgeryTokenAsync(client);
+
+        var response = await PostFormAsync(client, "/settings/domains?handler=SetDefault", token,
+            ("id", domainId.ToString()));
+
+        Assert.Contains("now the default", await response.Content.ReadAsStringAsync());
+
+        using var scope2 = _factory.Services.CreateScope();
+        var db2 = scope2.ServiceProvider.GetRequiredService<AppDbContext>();
+        var link = await db2.ShortenedUrls.SingleAsync(l => l.ShortCode == "mig001");
+        Assert.Equal(domainId, link.DomainId);
+    }
+
+    [Fact]
+    public async Task VerifyFirstDomain_MigratesExistingNoDomainLinksToIt()
+    {
+        ServedTokens.Clear();
+        ServedTokens["go.example.com"] = "TOKEN-ABC";
+        var domainId = await SeedDomainAsync("go.example.com", "TOKEN-ABC", verified: false);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.ShortenedUrls.Add(new ShortenedUrl
+            {
+                LongUrl = "https://example.com/migrate-me",
+                ShortCode = "mig002",
+                CreatedAtUtc = DateTime.UtcNow
+            });
+            db.SaveChanges();
+        }
+
+        var client = _factory.CreateClient();
+        var token = await GetAntiforgeryTokenAsync(client);
+
+        var response = await PostFormAsync(client, "/settings/domains?handler=Verify", token,
+            ("id", domainId.ToString()));
+
+        Assert.Contains("verified and set as the default", await response.Content.ReadAsStringAsync());
+
+        using var scope2 = _factory.Services.CreateScope();
+        var db2 = scope2.ServiceProvider.GetRequiredService<AppDbContext>();
+        var link = await db2.ShortenedUrls.SingleAsync(l => l.ShortCode == "mig002");
+        Assert.Equal(domainId, link.DomainId);
+    }
+
+    [Fact]
+    public async Task SetDefault_DoesNotMigrateLinksAlreadyOnAnotherDomain()
+    {
+        var defaultId = await SeedDomainAsync("go.example.com", "TOKEN-ABC", verified: true);
+        var otherId = await SeedDomainAsync("other.example.com", "TOKEN-OTHER", verified: true);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.ShortenedUrls.Add(new ShortenedUrl
+            {
+                LongUrl = "https://example.com/stays",
+                ShortCode = "stay001",
+                DomainId = otherId,
+                CreatedAtUtc = DateTime.UtcNow
+            });
+            db.SaveChanges();
+        }
+
+        var client = _factory.CreateClient();
+        var token = await GetAntiforgeryTokenAsync(client);
+
+        var response = await PostFormAsync(client, "/settings/domains?handler=SetDefault", token,
+            ("id", defaultId.ToString()));
+
+        Assert.Contains("now the default", await response.Content.ReadAsStringAsync());
+
+        using var scope2 = _factory.Services.CreateScope();
+        var db2 = scope2.ServiceProvider.GetRequiredService<AppDbContext>();
+        var link = await db2.ShortenedUrls.SingleAsync(l => l.ShortCode == "stay001");
+        Assert.Equal(otherId, link.DomainId);
+    }
+
+    [Fact]
     public async Task VerifyDomain_WhenTokenMissing_StaysUnverified()
     {
         ServedTokens.Clear();
