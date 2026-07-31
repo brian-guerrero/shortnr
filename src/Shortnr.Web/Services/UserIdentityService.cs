@@ -16,11 +16,17 @@ public class UserIdentityService(AppDbContext db, IConfiguration config)
     /// Returns the <c>Users.Id</c> for the currently authenticated principal, or
     /// <c>null</c> when auth is disabled, the user is not authenticated, or the
     /// provisioning queue hasn't written the row yet (narrow first-login race).
+    /// API-key principals carry the already-resolved owner id and short-circuit
+    /// the issuer/subject lookup.
     /// </summary>
     public async Task<long?> ResolveOwnerUserIdAsync(ClaimsPrincipal principal)
     {
         if (!IsAuthEnabled) return null;
         if (principal.Identity?.IsAuthenticated != true) return null;
+
+        var apiKeyOwner = principal.FindFirstValue(ApiKeyHandler.ApiKeyIdClaim);
+        if (apiKeyOwner is not null && long.TryParse(apiKeyOwner, out var ownerId))
+            return ownerId;
 
         var subject = principal.FindFirstValue(ClaimTypes.NameIdentifier)
                    ?? principal.FindFirstValue("sub");

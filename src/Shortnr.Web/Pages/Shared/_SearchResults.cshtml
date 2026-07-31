@@ -5,6 +5,8 @@
 
     var scUrl = "/dashboard?linkSort=shortCode&linkDir=" + (linkSort == "shortCode" && linkDir == "asc" ? "desc" : "asc");
     var scInd = linkSort == "shortCode" ? linkDir == "asc" ? " ▲" : " ▼" : "";
+    var dmUrl = "/dashboard?linkSort=domain&linkDir=" + (linkSort == "domain" && linkDir == "asc" ? "desc" : "asc");
+    var dmInd = linkSort == "domain" ? linkDir == "asc" ? " ▲" : " ▼" : "";
     var luUrl = "/dashboard?linkSort=longUrl&linkDir=" + (linkSort == "longUrl" && linkDir == "asc" ? "desc" : "asc");
     var luInd = linkSort == "longUrl" ? linkDir == "asc" ? " ▲" : " ▼" : "";
     var ccUrl = "/dashboard?linkSort=clickCount&linkDir=" + (linkSort == "clickCount" && linkDir == "asc" ? "desc" : "asc");
@@ -22,13 +24,15 @@ else
     <table class="sortable">
         <thead>
             <tr>
-                <th hx-get="@scUrl" hx-target="#search-results" hx-swap="innerHTML" hx-include="#search-input">Short URL
+                <th hx-get="@scUrl" hx-target="#search-results" hx-swap="innerHTML" hx-include="#search-input, #domain-filter">Short URL
                     @scInd</th>
-                    <th hx-get="@luUrl" hx-target="#search-results" hx-swap="innerHTML" hx-include="#search-input">Original
+                <th hx-get="@dmUrl" hx-target="#search-results" hx-swap="innerHTML" hx-include="#search-input, #domain-filter">Domain
+                    @dmInd</th>
+                    <th hx-get="@luUrl" hx-target="#search-results" hx-swap="innerHTML" hx-include="#search-input, #domain-filter">Original
                         @luInd</th>
-                        <th hx-get="@ccUrl" hx-target="#search-results" hx-swap="innerHTML" hx-include="#search-input">Clicks @ccInd
+                        <th hx-get="@ccUrl" hx-target="#search-results" hx-swap="innerHTML" hx-include="#search-input, #domain-filter">Clicks @ccInd
                         </th>
-                        <th hx-get="@caUrl" hx-target="#search-results" hx-swap="innerHTML" hx-include="#search-input">Created
+                        <th hx-get="@caUrl" hx-target="#search-results" hx-swap="innerHTML" hx-include="#search-input, #domain-filter">Created
                             @caInd</th>
                         <th>QR</th>
                         </tr>
@@ -37,7 +41,17 @@ else
                         @foreach (var link in Model)
                         {
                             <tr>
-                                <td><a href="/@link.ShortCode" target="_blank">/@link.ShortCode</a></td>
+                                <td>
+                                    @if (link.Domain is not null)
+                                    {
+                                        <a href="@Context.Request.Scheme://@link.Domain.Hostname/@link.ShortCode" target="_blank">@link.Domain.Hostname/@link.ShortCode</a>
+                                    }
+                                    else
+                                    {
+                                        <a href="/@link.ShortCode" target="_blank">/@link.ShortCode</a>
+                                    }
+                                </td>
+                                <td>@(link.Domain?.Hostname ?? "default")</td>
                                 <td style="max-width: 300px; word-break: break-all;">@link.LongUrl</td>
                                 <td>@link.ClickCount</td>
                                 <td>@link.CreatedAtUtc.ToLocalTime().ToString("g")</td>

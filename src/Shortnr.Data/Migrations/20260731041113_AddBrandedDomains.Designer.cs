@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Shortnr.Data;
 
@@ -10,57 +11,14 @@ using Shortnr.Data;
 namespace Shortnr.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260731041113_AddBrandedDomains")]
+    partial class AddBrandedDomains
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
-
-            modelBuilder.Entity("Shortnr.Data.Entities.ApiKey", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT")
-                        .HasDefaultValueSql("datetime('now')");
-
-                    b.Property<string>("KeyHash")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("KeyPrefix")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Label")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("LastUsedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<long>("OwnerUserId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime?>("RevokedAt")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("KeyHash")
-                        .IsUnique();
-
-                    b.HasIndex("OwnerUserId");
-
-                    b.ToTable("ApiKeys");
-                });
 
             modelBuilder.Entity("Shortnr.Data.Entities.ClickEvent", b =>
                 {
@@ -213,13 +171,13 @@ namespace Shortnr.Data.Migrations
 
                     b.HasIndex("OwnerUserId");
 
-                    b.HasIndex("ShortCode")
-                        .IsUnique()
-                        .HasFilter("[DomainId] IS NULL");
-
                     b.HasIndex("DomainId", "ShortCode")
                         .IsUnique()
                         .HasFilter("[DomainId] IS NOT NULL");
+
+                    b.HasIndex("ShortCode")
+                        .IsUnique()
+                        .HasFilter("[DomainId] IS NULL");
 
                     b.ToTable("ShortenedUrls");
                 });
@@ -262,17 +220,6 @@ namespace Shortnr.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("Users");
-                });
-
-            modelBuilder.Entity("Shortnr.Data.Entities.ApiKey", b =>
-                {
-                    b.HasOne("Shortnr.Data.Entities.User", "Owner")
-                        .WithMany()
-                        .HasForeignKey("OwnerUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Owner");
                 });
 
             modelBuilder.Entity("Shortnr.Data.Entities.ClickEvent", b =>

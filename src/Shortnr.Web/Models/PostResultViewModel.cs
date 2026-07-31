@@ -4,7 +4,9 @@ namespace Shortnr.Web.Models;
 
 public class PostResultViewModel
 {
-    public required string ShortUrl { get; init; }
-    public required string ShortCode { get; init; }
+    public string? ShortUrl { get; init; }
+    public string? ShortCode { get; init; }
+    public bool HasError { get; init; }
+    public string? ErrorMessage { get; init; }
     public required List<ShortenedUrl> RecentLinks { get; init; }
 }

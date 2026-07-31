@@ -26,11 +26,25 @@
 
     <article>
         <header><h3>Search Links</h3></header>
-        <input type="search" id="search-input" name="search" placeholder="Search by URL or short code..."
-               hx-get="/dashboard"
-               hx-trigger="keyup changed delay:200ms"
-               hx-target="#search-results"
-               hx-swap="innerHTML">
+        <div class="grid">
+            <input type="search" id="search-input" name="search" placeholder="Search by URL, short code or domain..."
+                   hx-get="/dashboard"
+                   hx-trigger="keyup changed delay:200ms"
+                   hx-target="#search-results"
+                   hx-swap="innerHTML"
+                   hx-include="#domain-filter">
+            <select id="domain-filter" name="domain"
+                    hx-get="/dashboard"
+                    hx-trigger="change"
+                    hx-target="#search-results"
+                    hx-swap="innerHTML"
+                    hx-include="#search-input">
+                @foreach (var d in Model.DomainOptions)
+                {
+                    <option value="@d">@d</option>
+                }
+            </select>
+        </div>
         <div id="search-results" hx-get="/dashboard" hx-trigger="load" hx-swap="innerHTML">
             <article aria-busy="true"><p>Loading...</p></article>
         </div>

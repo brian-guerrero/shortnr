@@ -1,5 +1,7 @@
 using System.Threading.Channels;
+using System.Threading.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Scalar.AspNetCore;
 using Shortnr.Data;
 using Shortnr.Web.Extensions;
 using Shortnr.Web.Models;
@@ -35,9 +37,60 @@ builder.Services.AddSingleton(Channel.CreateUnbounded<object>());
 builder.Services.AddHostedService<UserProvisioningProcessor>();
 
 builder.Services.AddScoped<UserIdentityService>();
+builder.Services.AddHttpClient<DomainVerifierService>(client => client.Timeout = TimeSpan.FromSeconds(15));
 
 builder.Services.AddOidcAuthentication(builder.Configuration, builder.Environment);
-builder.Services.AddAuthorization();
+
+// API-key authentication for /api/v1. Registered unconditionally so the
+// policy resolves even when OIDC is disabled; with no keys in the database
+// the endpoints simply always return 401 in that mode.
+builder.Services.AddAuthentication()
+    .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, ApiKeyHandler>(
+        ApiKeyHandler.SchemeName, _ => { });
+
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(ApiKeyHandler.SchemeName, policy => policy
+        .AddAuthenticationSchemes(ApiKeyHandler.SchemeName)
+        .RequireAuthenticatedUser());
+
+// Per-key rate limiting: 60 requests/min burst + 1000/day cap. Partitioned by
+// the presented (hashed) key so it works independently of auth ordering.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("api-key", context =>
+    {
+        var header = context.Request.Headers.Authorization.ToString();
+        var key = header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+            ? header["Bearer ".Length..].Trim()
+            : "";
+        var partitionKey = key.Length == 0 ? "anonymous" : ApiKeyService.HashKey(key);
+
+        return RateLimitPartition.Get(partitionKey, _ => new ChainedRateLimiter(
+        [
+            new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }),
+            new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 1000,
+                Window = TimeSpan.FromDays(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            })
+        ]));
+    });
+});
+
+builder.Services.AddOpenApi(options =>
+{
+    options.ShouldInclude = description =>
+        description.RelativePath?.StartsWith("api/v1", StringComparison.OrdinalIgnoreCase) == true;
+});
 
 var app = builder.Build();
 
@@ -52,12 +105,19 @@ app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.MapDefaultEndpoints();
 app.MapRazorPages();
 app.MapAuthenticationEndpoints(app.Configuration);
 
 app.MapApiEndpoints();
+app.MapApiV1Endpoints();
+
+app.MapOpenApi();
+app.MapScalarApiReference("/api/docs", options => options
+    .WithTitle("shortnr API")
+    .WithOpenApiRoutePattern("/openapi/{documentName}.json"));
 
 app.Run();
 

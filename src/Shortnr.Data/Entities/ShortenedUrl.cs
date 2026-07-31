@@ -8,7 +8,17 @@ public class ShortenedUrl
     public DateTime CreatedAtUtc { get; set; }
     public long ClickCount { get; set; }
     public long? OwnerUserId { get; set; }
+    public long? DomainId { get; set; }
 
     public ICollection<ClickEvent> ClickEvents { get; set; } = [];
     public User? Owner { get; set; }
+    public Domain? Domain { get; set; }
+
+    public string DisplayUrl() => Domain?.Hostname is { Length: > 0 } host
+        ? $"//{host}/{ShortCode}"
+        : $"/{ShortCode}";
+
+    public string DisplayText() => Domain?.Hostname is { Length: > 0 } host
+        ? $"{host}/{ShortCode}"
+        : $"/{ShortCode}";
 }

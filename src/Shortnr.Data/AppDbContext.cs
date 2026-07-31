@@ -8,6 +8,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ShortenedUrl> ShortenedUrls => Set<ShortenedUrl>();
     public DbSet<ClickEvent> ClickEvents => Set<ClickEvent>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<Domain> Domains => Set<Domain>();
+    public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -16,11 +18,39 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasKey(e => e.Id);
             entity.Property(e => e.LongUrl).IsRequired();
             entity.Property(e => e.ShortCode).IsRequired().HasMaxLength(64);
-            entity.HasIndex(e => e.ShortCode).IsUnique();
+            // Uniqueness is scoped per-domain so different domains can reuse the
+            // same slug independently. SQLite treats NULLs as distinct inside
+            // unique indexes, so default-domain (DomainId IS NULL) uniqueness is
+            // enforced with a filtered index rather than a plain composite one.
+            entity.HasIndex(e => new { e.DomainId, e.ShortCode })
+                .IsUnique()
+                .HasFilter("[DomainId] IS NOT NULL");
+            entity.HasIndex(e => e.ShortCode)
+                .IsUnique()
+                .HasFilter("[DomainId] IS NULL");
             entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
 
             entity.HasOne(e => e.Owner)
                 .WithMany(u => u.ShortenedUrls)
+                .HasForeignKey(e => e.OwnerUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Domain)
+                .WithMany()
+                .HasForeignKey(e => e.DomainId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<Domain>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Hostname).IsRequired().HasMaxLength(255);
+            entity.HasIndex(e => e.Hostname).IsUnique();
+            entity.Property(e => e.VerificationToken).IsRequired().HasMaxLength(128);
+            entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
+
+            entity.HasOne(e => e.Owner)
+                .WithMany()
                 .HasForeignKey(e => e.OwnerUserId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
@@ -34,6 +64,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.Name).HasMaxLength(256);
             entity.HasIndex(e => new { e.Issuer, e.Subject }).IsUnique();
             entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
+        });
+
+        modelBuilder.Entity<ApiKey>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.KeyHash).IsRequired().HasMaxLength(64);
+            entity.Property(e => e.KeyPrefix).IsRequired().HasMaxLength(16);
+            entity.Property(e => e.Label).IsRequired().HasMaxLength(128);
+            entity.HasIndex(e => e.KeyHash).IsUnique();
+            entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
+
+            entity.HasOne(e => e.Owner)
+                .WithMany()
+                .HasForeignKey(e => e.OwnerUserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<ClickEvent>(entity =>

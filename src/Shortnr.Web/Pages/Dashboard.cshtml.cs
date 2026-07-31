@@ -20,7 +20,9 @@ public class DashboardModel : PageModel
         _identity = identity;
     }
 
-    public async Task<IActionResult> OnGet(string? search, string? linkSort, string? linkDir, string? clickSort, string? clickDir, int? clickLimit)
+    public List<string> DomainOptions { get; set; } = [];
+
+    public async Task<IActionResult> OnGet(string? search, string? linkSort, string? linkDir, string? clickSort, string? clickDir, int? clickLimit, string? domain)
     {
         if (_identity.IsAuthEnabled && User.Identity?.IsAuthenticated != true)
         {
@@ -73,12 +75,22 @@ public class DashboardModel : PageModel
                 if (!string.IsNullOrWhiteSpace(search))
                 {
                     var lower = search.ToLower();
-                    linkQ = linkQ.Where(l => l.LongUrl.ToLower().Contains(lower) || l.ShortCode.ToLower().Contains(lower));
+                    linkQ = linkQ.Where(l => l.LongUrl.ToLower().Contains(lower)
+                        || l.ShortCode.ToLower().Contains(lower)
+                        || (l.Domain != null && l.Domain.Hostname.ToLower().Contains(lower)));
+                }
+                if (!string.IsNullOrEmpty(domain))
+                {
+                    linkQ = domain == "default"
+                        ? linkQ.Where(l => l.DomainId == null)
+                        : linkQ.Where(l => l.Domain != null && l.Domain.Hostname == domain);
                 }
                 linkQ = (linkSort, linkDir == "desc") switch
                 {
                     ("shortCode", false) => linkQ.OrderBy(l => l.ShortCode),
                     ("shortCode", true) => linkQ.OrderByDescending(l => l.ShortCode),
+                    ("domain", false) => linkQ.OrderBy(l => l.Domain == null ? "" : l.Domain.Hostname).ThenBy(l => l.ShortCode),
+                    ("domain", true) => linkQ.OrderByDescending(l => l.Domain == null ? "" : l.Domain.Hostname).ThenBy(l => l.ShortCode),
                     ("longUrl", false) => linkQ.OrderBy(l => l.LongUrl),
                     ("longUrl", true) => linkQ.OrderByDescending(l => l.LongUrl),
                     ("clickCount", false) => linkQ.OrderBy(l => l.ClickCount),
@@ -88,7 +100,7 @@ public class DashboardModel : PageModel
                     _ => linkQ.OrderByDescending(l => l.CreatedAtUtc)
                 };
 
-                return Partial("Shared/_SearchResults", await linkQ.Take(50).ToListAsync());
+                return Partial("Shared/_SearchResults", await linkQ.Take(50).Include(l => l.Domain).ToListAsync());
             }
 
             // Combined dashboard-data target: metrics + geo breakdown + chart JSON + recent clicks via hx-swap-oob.
@@ -171,7 +183,19 @@ public class DashboardModel : PageModel
             });
         }
 
+        DomainOptions = await LoadDomainOptionsAsync();
         return Page();
+    }
+
+    private async Task<List<string>> LoadDomainOptionsAsync()
+    {
+        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        var query = _db.Domains.AsQueryable();
+        if (ownerUserId is not null)
+            query = query.Where(d => d.OwnerUserId == ownerUserId);
+
+        var hostnames = await query.OrderBy(d => d.Hostname).Select(d => d.Hostname).ToListAsync();
+        return new List<string> { "default" }.Concat(hostnames).ToList();
     }
 
     private static async Task<List<ClickEventRow>> LoadRecentClicksAsync(IQueryable<ClickEvent> query, int limit)
