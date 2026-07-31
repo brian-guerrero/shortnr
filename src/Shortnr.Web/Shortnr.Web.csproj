@@ -7,9 +7,13 @@
 
   <ItemGroup>
     <PackageReference Include="MaxMind.GeoIP2" Version="6.1.0" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
     <PackageReference Include="QRCoder" Version="1.8.0" />
     <PackageReference Include="Microsoft.Web.LibraryManager.Build" Version="3.0.114" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.10" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.16.17" />
+    <PackageReference Include="System.Threading.RateLimiting" Version="10.0.10" />
     <PackageReference Include="uaParser.Net" Version="1.0.1" />
   </ItemGroup>
 
