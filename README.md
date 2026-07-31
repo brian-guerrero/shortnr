@@ -39,6 +39,8 @@ shortnr/
 │   └── config.yaml            # Dex (test OIDC provider) config — see .claude/skills/dex-oidc
 ├── Dockerfile
 ├── .dockerignore
+├── LICENSE                  # Business Source License 1.1 (→ Apache 2.0)
+├── CONTRIBUTING.md
 └── AGENTS.md
 ```
 
@@ -99,6 +101,27 @@ Open `http://localhost:8080`. The SQLite database is stored in the `shortnr-data
 | `Authentication__Enabled` | `true` | Set to `false` to disable OIDC entirely — no login UI, no access control, dashboard shows all data. |
 | `Authentication__Oidc__Authority` | `http://localhost:5556/dex` | OpenID Connect issuer URL. Set automatically by `Shortnr.AppHost` when running under Aspire. |
 | `Authentication__Oidc__ClientId` / `Authentication__Oidc__ClientSecret` | `shortnr-web` / dev-only value | Must match `staticClients` in `dex/config.yaml`. |
+| `GeoIp__MaxMindAccountId` | *(empty)* | MaxMind account ID. **GeoIP enrichment is disabled until both account ID and license key are set.** |
+| `GeoIp__MaxMindLicenseKey` | *(empty)* | MaxMind license key. Enables downloading GeoLite2-City from MaxMind's official endpoint on startup + Wed/Sat 12:00 UTC. |
+| `GeoIp__DatabasePath` | `wwwroot/data/GeoLite2-City.mmdb` | Where the downloaded database is stored. |
+
+### GeoIP / MaxMind attribution
+
+When `GeoIp__MaxMindAccountId` and `GeoIp__MaxMindLicenseKey` are configured,
+shortnr downloads the GeoLite2 City database from MaxMind's official,
+license-keyed endpoint (`download.maxmind.com`) and uses it to enrich click
+events with country/city data. Both keys come from a
+[MaxMind account](https://www.maxmind.com) — downloading requires accepting the
+[GeoLite2 EULA](https://www.maxmind.com/en/geolite2/eula).
+
+- Without a license key, enrichment is a **no-op**: no download is attempted and
+  clicks simply carry no geo data (fail open).
+- The database is never bundled with the repo; it is downloaded at runtime and
+  is not part of the distribution.
+- Per the GeoLite2 EULA, the running app displays the required attribution in
+  its footer:
+  > This product includes GeoLite2 data created by MaxMind, available from
+  > https://www.maxmind.com
 
 ### Disabling authentication
 
@@ -190,3 +213,21 @@ The database is created and migrated automatically at startup via `db.Database.M
 The `AddUsersAndOwnership` migration adds a `Users` table (keyed on `(Issuer, Subject)`,
 i.e. the OIDC provider + its `sub` claim) and a nullable `ShortenedUrl.OwnerUserId` FK
 linking each shortened URL to the user who created it, if any.
+
+## License
+
+shortnr is licensed under the **Business Source License 1.1** (see `LICENSE`).
+
+In plain English:
+
+- **Free to self-host and use internally** — for your own or your organization's
+  purposes, including in production.
+- **Source-available** — the code is readable, auditable, and forkable; this is
+  not a closed-source project.
+- **Not a hosted-service license** — you may not offer shortnr to third parties
+  as a hosted or managed service without a separate commercial license.
+- **Auto-converts to Apache 2.0** three years after publication, after which the
+  standard Apache 2.0 terms apply.
+
+See `CONTRIBUTING.md` for how contributions are licensed. For commercial
+licensing questions, contact the address in `LICENSE`.
