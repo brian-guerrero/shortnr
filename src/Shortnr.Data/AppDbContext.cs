@@ -8,6 +8,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ShortenedUrl> ShortenedUrls => Set<ShortenedUrl>();
     public DbSet<ClickEvent> ClickEvents => Set<ClickEvent>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<Domain> Domains => Set<Domain>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -16,11 +17,34 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasKey(e => e.Id);
             entity.Property(e => e.LongUrl).IsRequired();
             entity.Property(e => e.ShortCode).IsRequired().HasMaxLength(64);
-            entity.HasIndex(e => e.ShortCode).IsUnique();
+            // Uniqueness is scoped per-domain so different domains can reuse the
+            // same slug independently. A null DomainId (instance default host) is
+            // enforced by app-level collision checks since SQLite treats NULLs as
+            // distinct inside unique indexes.
+            entity.HasIndex(e => new { e.DomainId, e.ShortCode }).IsUnique();
             entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
 
             entity.HasOne(e => e.Owner)
                 .WithMany(u => u.ShortenedUrls)
+                .HasForeignKey(e => e.OwnerUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Domain)
+                .WithMany()
+                .HasForeignKey(e => e.DomainId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<Domain>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Hostname).IsRequired().HasMaxLength(255);
+            entity.HasIndex(e => e.Hostname).IsUnique();
+            entity.Property(e => e.VerificationToken).IsRequired().HasMaxLength(128);
+            entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
+
+            entity.HasOne(e => e.Owner)
+                .WithMany()
                 .HasForeignKey(e => e.OwnerUserId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
