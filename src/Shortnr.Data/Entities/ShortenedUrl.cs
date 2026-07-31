@@ -18,5 +18,7 @@ public class ShortenedUrl
         ? $"//{host}/{ShortCode}"
         : $"/{ShortCode}";
 
-    public string DisplayText() => DisplayUrl();
+    public string DisplayText() => Domain?.Hostname is { Length: > 0 } host
+        ? $"{host}/{ShortCode}"
+        : $"/{ShortCode}";
 }
