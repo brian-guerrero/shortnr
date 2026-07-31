@@ -1,6 +1,7 @@
 using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
+using Shortnr.Web.Helpers;
 using Shortnr.Web.Models;
 using Shortnr.Web.Services;
 
@@ -10,9 +11,12 @@ public static class ApiEndpoints
 {
     public static IEndpointRouteBuilder MapApiEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/qr/{shortCode}", (string shortCode, HttpContext ctx, QrService qr) =>
+        app.MapGet("/api/qr/{shortCode}", async (string shortCode, HttpContext ctx, QrService qr, AppDbContext db) =>
         {
-            var shortUrl = $"{ctx.Request.Scheme}://{ctx.Request.Host}/{shortCode}";
+            var link = await ShortUrlHelper.ResolveAsync(db, ctx.Request.Host.Host, shortCode);
+            if (link is null) return Results.NotFound();
+
+            var shortUrl = ShortUrlHelper.Build(ctx.Request.Scheme, ctx.Request.Host.Host, link);
             var png = qr.GeneratePng(shortUrl);
             return Results.File(png, contentType: "image/png", fileDownloadName: $"qr-{shortCode}.png");
         });

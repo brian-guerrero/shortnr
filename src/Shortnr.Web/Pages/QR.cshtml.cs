@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
+using Shortnr.Web.Helpers;
 using Shortnr.Web.Models;
 using Shortnr.Web.Services;
 
@@ -25,11 +25,11 @@ public class QRModel : PageModel
 
     public async Task<IActionResult> OnGet(string shortCode)
     {
-        var link = await _db.ShortenedUrls.FirstOrDefaultAsync(l => l.ShortCode == shortCode);
+        var link = await ShortUrlHelper.ResolveAsync(_db, Request.Host.Host, shortCode);
         if (link is null) return NotFound();
 
         ShortCode = shortCode;
-        ShortUrl = $"{Request.Scheme}://{Request.Host}/{shortCode}";
+        ShortUrl = ShortUrlHelper.Build(Request.Scheme, Request.Host.Host, link);
         LongUrl = link.LongUrl;
         DataUri = _qr.GenerateDataUri(ShortUrl);
 
