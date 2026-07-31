@@ -1,13 +1,13 @@
 @model Shortnr.Web.Pages.Settings.DomainsModel
 @if (Model.ErrorMessage is not null)
 {
-    <mark style="display:block; margin-bottom: 1rem; background: var(--pico-del-color); color: var(--pico-color);">
+    <mark class="pico-background-red-100" style="display:block; margin-bottom: 1rem;">
         <strong>@Model.ErrorMessage</strong>
     </mark>
 }
 @if (Model.StatusMessage is not null)
 {
-    <mark style="display:block; margin-bottom: 1rem; background: var(--pico-ins-color); color: var(--pico-color);">
+    <mark class="pico-background-green-100" style="display:block; margin-bottom: 1rem;">
         <strong>@Model.StatusMessage</strong>
     </mark>
 }
@@ -25,11 +25,17 @@ else
             @foreach (var domain in Model.Domains)
             {
                 <tr>
-                    <td><code>@domain.Hostname</code></td>
+                    <td>
+                        <code>@domain.Hostname</code>
+                        @if (domain.IsDefault)
+                        {
+                            <mark class="pico-background-blue-100" style="margin-left: 0.5rem;">default</mark>
+                        }
+                    </td>
                     <td>
                         @if (domain.IsVerified)
                         {
-                            <mark style="background: var(--pico-ins-color); color: var(--pico-color);">verified</mark>
+                            <mark class="pico-background-green-100">verified</mark>
                         }
                         else
                         {
@@ -53,6 +59,14 @@ else
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="id" value="@domain.Id">
                                 <button type="submit" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Verify</button>
+                            </form>
+                        }
+                        @if (domain.IsVerified && !domain.IsDefault)
+                        {
+                            <form hx-post="/settings/domains?handler=SetDefault" hx-target="#domains-list" hx-swap="innerHTML" style="display:inline;">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@domain.Id">
+                                <button type="submit" class="secondary" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Make default</button>
                             </form>
                         }
                         <form hx-post="/settings/domains?handler=Delete" hx-target="#domains-list" hx-swap="innerHTML" style="display:inline;">

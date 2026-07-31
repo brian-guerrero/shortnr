@@ -4,38 +4,56 @@
     Layout = Model.IsHtmxRequest ? null : "_Layout";
 }
 <article>
-    <header><h1>shortnr</h1></header>
+    <header>
+        <h1>shortnr</h1>
+    </header>
     <form hx-post="/" hx-target="#result" hx-swap="innerHTML">
         @Html.AntiForgeryToken()
         <label for="url">Enter a long URL</label>
         <input type="url" name="url" id="url" placeholder="https://example.com/very/long/path" required>
-        <label for="slug">Custom code <small>(optional)</small></label>
-        <input type="text" name="slug" id="slug" placeholder="my-custom-code" pattern="[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}" maxlength="64">
-        <button type="submit">Shorten</button>
-    </form>
-    <div id="result"></div>
-</article>
+        <details>
+            <summary role="button" class="secondary">Advanced options</summary>
+            <div>
+                <label for="slug">Custom code <small>(optional)</small></label>
+                <input type="text" name="slug" id="slug" placeholder="my-custom-code"
+                       pattern="[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}" maxlength="64">
+                <div>
 
-<section id="recent">
-    <h2>Recent links</h2>
-    <table>
-        <thead>
-            <tr><th>Short URL</th><th>Original</th><th>Clicks</th><th>QR</th></tr>
-        </thead>
-        <tbody>
-            @foreach (var link in Model.RecentLinks)
-            {
-                <tr>
-                    <td><a href="/@link.ShortCode" target="_blank">/@link.ShortCode</a></td>
-                    <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">@link.LongUrl</td>
-                    <td>@link.ClickCount</td>
-                    <td>
-                        <span class="qr-wrap">
-                            <button hx-get="/qr/@link.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">QR</button>
-                        </span>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-</section>
+                </details>
+                <button type="submit">Shorten</button>
+            </form>
+            <div id="result"></div>
+        </article>
+
+        <section id="recent">
+            <h2>Recent links</h2>
+            <div class="overflow-auto">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Short URL</th>
+                            <th>Original</th>
+                            <th>Clicks</th>
+                            <th>QR</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var link in Model.RecentLinks)
+                        {
+                            <tr>
+                                <td><a href="@link.DisplayUrl()" target="_blank">@link.DisplayText()</a></td>
+                                <td>
+                                    @link.LongUrl</td>
+                                    <td>@link.ClickCount</td>
+                                    <td>
+                                        <span class="qr-wrap">
+                                            <button hx-get="/qr/@link.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML"
+                                                    style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">QR</button>
+                                        </span>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>

@@ -1,7 +1,7 @@
 @model Shortnr.Web.Models.PostResultViewModel
 @if (Model.HasError)
 {
-    <mark style="display:block; margin-top: 1rem; background: var(--pico-del-color); color: var(--pico-color);">
+    <mark class="pico-background-red-100" style="display:block; margin-top: 1rem;">
         <strong>@Model.ErrorMessage</strong>
     </mark>
 }
@@ -25,7 +25,7 @@ else
             @foreach (var link in Model.RecentLinks)
             {
                 <tr>
-                    <td><a href="/@link.ShortCode" target="_blank">/@link.ShortCode</a></td>
+                    <td><a href="@link.DisplayUrl()" target="_blank">@link.DisplayText()</a></td>
                     <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">@link.LongUrl</td>
                     <td>@link.ClickCount</td>
                     <td>

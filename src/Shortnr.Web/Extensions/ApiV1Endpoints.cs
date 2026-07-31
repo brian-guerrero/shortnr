@@ -89,6 +89,13 @@ public static class ApiV1Endpoints
                 return TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["domain"] = ["Unknown, unowned or unverified domain."] });
             domainId = domain.Id;
         }
+        else
+        {
+            // Fall back to the owner's verified default domain, mirroring the web UI.
+            domain = await db.Domains.FirstOrDefaultAsync(
+                d => d.OwnerUserId == ownerUserId && d.IsVerified && d.IsDefault, ct);
+            domainId = domain?.Id;
+        }
 
         var slug = body.Slug?.Trim() ?? "";
         string shortCode;
