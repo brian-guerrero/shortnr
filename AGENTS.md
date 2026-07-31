@@ -28,6 +28,17 @@ All projects build and all tests pass.
 
 > A running `Shortnr.Web` or `Shortnr.AppHost` process locks `bin\` outputs and makes `dotnet build` fail with `MSB3027`/`MSB3021` file-copy errors. Stop it (or check for the PID in the error message) before building/testing.
 
+## Multi-feature workflow (stacked PRs with gh-stack)
+
+**Whenever dealing with multiple features at a time, use `gh stack` to split the work into a stack of small, dependent PRs** — one stack per distinct feature/project, one layer (branch → PR) per logical concern (e.g. `feat/auth-data-model` → `feat/auth-api` → `feat/auth-ui`). Each PR targets the branch below it, so reviewers see only that layer's diff. Do not open one giant PR or pile unrelated features onto a single branch.
+
+- The `gh stack` extension (`github/gh-stack`) is installed; stacked PRs on GitHub are in public preview. See the **`gh-stack` skill** (`.opencode/skills/gh-stack`) for the full non-interactive workflow, command reference, and exit-code handling.
+- Branch names use this repo's existing `feat/...` convention and are used verbatim. Plan layers in dependency order (foundational changes lowest) before running `gh stack init`.
+- One-time git config (avoids interactive prompts): `git config rerere.enabled true` and `git config remote.pushDefault origin` (repo currently has a single `origin` remote).
+- **All `gh stack` commands must run non-interactively** or they hang: always pass branch names to `init`/`add`/`checkout`, `--auto` to `submit`, `--json` to `view`, `--yes` to `merge`.
+- Standard loop: `gh stack init feat/<first-layer>` → per layer `git add`/`git commit` then `gh stack add feat/<next-layer>` → `gh stack submit --auto` → keep layers rebased with `gh stack sync` (or navigate down, commit, `gh stack rebase --upstack`) → merge the whole stack with `gh stack merge --yes [--squash]`.
+- Never use `gh pr merge` on stacked PRs; never commit unrelated features into an open stack.
+
 ## Architecture & conventions
 
 - **Razor partials for HTMX responses** — PageModel handlers that respond to HTMX requests must use the `Partial()` helper (returns `PartialViewResult`) with a `.cshtml` partial from `Pages/Shared/`. Never build HTML inline in C# code (no raw strings, no `Content()` with HTML). Never manually construct `PartialViewResult` or assign a different model type to `ViewData.Model` — use `return Partial("Shared/_PartialName", model)` instead. Full-page responses use `Page()` with layout.
