@@ -50,28 +50,27 @@ public class ClickBatchProcessor : BackgroundService
                 using var scope = _scopeFactory.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-                var shortCodes = buffer.Select(r => r.ShortCode).Distinct().ToList();
-                var urlRows = await db.ShortenedUrls
-                    .Where(u => shortCodes.Contains(u.ShortCode))
-                    .Select(u => new { u.ShortCode, u.Id })
-                    .ToListAsync(stoppingToken);
+                var ids = buffer.Select(r => r.ShortenedUrlId).Distinct().ToList();
+                var existingIds = await db.ShortenedUrls
+                    .Where(u => ids.Contains(u.Id))
+                    .Select(u => u.Id)
+                    .ToHashSetAsync(stoppingToken);
 
-                var urlMap = urlRows.ToDictionary(u => u.ShortCode, u => u.Id);
                 var clickCountDelta = new Dictionary<long, int>();
                 var now = DateTime.UtcNow;
 
                 var events = new List<ClickEvent>(buffer.Count);
                 foreach (var record in buffer)
                 {
-                    if (!urlMap.TryGetValue(record.ShortCode, out var urlId)) continue;
+                    if (!existingIds.Contains(record.ShortenedUrlId)) continue;
 
-                    clickCountDelta[urlId] = clickCountDelta.GetValueOrDefault(urlId) + 1;
+                    clickCountDelta[record.ShortenedUrlId] = clickCountDelta.GetValueOrDefault(record.ShortenedUrlId) + 1;
 
                     var uaInfo = UAParser.GetClientInfo(record.UserAgent);
 
                     var clickEvent = new ClickEvent
                     {
-                        ShortenedUrlId = urlId,
+                        ShortenedUrlId = record.ShortenedUrlId,
                         IpAddress = record.IpAddress,
                         UserAgent = record.UserAgent,
                         Referer = record.Referer,
