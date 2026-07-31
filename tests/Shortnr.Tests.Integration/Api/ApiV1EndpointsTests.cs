@@ -95,6 +95,49 @@ public class ApiV1EndpointsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task CreateWithoutDomain_FallsBackToOwnersDefaultDomain()
+    {
+        var ownerUserId = await SeedUserAndKeyAsync("api-owner", TestKey);
+        await SeedDomainAsync(ownerUserId, "go.example.com", verified: true, isDefault: true);
+
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestKey);
+
+        var create = await client.PostAsJsonAsync("/api/v1/links", new CreateLinkRequest
+        {
+            Url = "https://example.com/default-target"
+        });
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        var created = await create.Content.ReadFromJsonAsync<LinkResponse>();
+        Assert.NotNull(created);
+        Assert.Equal("go.example.com", created.Domain);
+        Assert.Contains("//go.example.com/", created.ShortUrl);
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var link = await db.ShortenedUrls.SingleAsync(l => l.ShortCode == created.ShortCode);
+        Assert.NotNull(link.DomainId);
+    }
+
+    [Fact]
+    public async Task CreateWithoutDomain_WhenNoDefaultDomain_UsesInstanceHost()
+    {
+        await SeedUserAndKeyAsync("api-owner", TestKey);
+
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestKey);
+
+        var create = await client.PostAsJsonAsync("/api/v1/links", new CreateLinkRequest
+        {
+            Url = "https://example.com/no-domain-target"
+        });
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        var created = await create.Content.ReadFromJsonAsync<LinkResponse>();
+        Assert.NotNull(created);
+        Assert.Null(created.Domain);
+    }
+
+    [Fact]
     public async Task Update_ChangesUrlSlugAndDomain()
     {
         var ownerUserId = await SeedUserAndKeyAsync("api-owner", TestKey);
@@ -277,7 +320,7 @@ public class ApiV1EndpointsTests : IAsyncLifetime
         return user.Id;
     }
 
-    private async Task SeedDomainAsync(long ownerUserId, string hostname, bool verified)
+    private async Task SeedDomainAsync(long ownerUserId, string hostname, bool verified, bool isDefault = false)
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -286,6 +329,7 @@ public class ApiV1EndpointsTests : IAsyncLifetime
             Hostname = hostname,
             OwnerUserId = ownerUserId,
             IsVerified = verified,
+            IsDefault = isDefault,
             VerificationToken = "tok",
             CreatedAtUtc = DateTime.UtcNow
         });

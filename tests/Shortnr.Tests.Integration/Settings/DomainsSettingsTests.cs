@@ -123,6 +123,91 @@ public class DomainsSettingsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task VerifyDomain_FirstVerifiedDomain_BecomesDefault()
+    {
+        ServedTokens.Clear();
+        ServedTokens["go.example.com"] = "TOKEN-ABC";
+        var domainId = await SeedDomainAsync("go.example.com", "TOKEN-ABC", verified: false);
+
+        var client = _factory.CreateClient();
+        var token = await GetAntiforgeryTokenAsync(client);
+
+        var response = await PostFormAsync(client, "/settings/domains?handler=Verify", token,
+            ("id", domainId.ToString()));
+
+        Assert.Contains("default domain", await response.Content.ReadAsStringAsync());
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var domain = await db.Domains.SingleAsync(d => d.Id == domainId);
+        Assert.True(domain.IsVerified);
+        Assert.True(domain.IsDefault);
+    }
+
+    [Fact]
+    public async Task VerifySecondDomain_DoesNotStealDefault()
+    {
+        ServedTokens.Clear();
+        ServedTokens["one.example.com"] = "TOKEN-1";
+        ServedTokens["two.example.com"] = "TOKEN-2";
+        var firstId = await SeedDomainAsync("one.example.com", "TOKEN-1", verified: true);
+        await SetDefaultAsync(firstId);
+        var secondId = await SeedDomainAsync("two.example.com", "TOKEN-2", verified: false);
+
+        var client = _factory.CreateClient();
+        var token = await GetAntiforgeryTokenAsync(client);
+
+        var response = await PostFormAsync(client, "/settings/domains?handler=Verify", token,
+            ("id", secondId.ToString()));
+
+        Assert.DoesNotContain("default domain", await response.Content.ReadAsStringAsync());
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Assert.True((await db.Domains.SingleAsync(d => d.Id == firstId)).IsDefault);
+        Assert.False((await db.Domains.SingleAsync(d => d.Id == secondId)).IsDefault);
+    }
+
+    [Fact]
+    public async Task SetDefault_WhenVerified_MarksItDefaultAndClearsOthers()
+    {
+        var firstId = await SeedDomainAsync("one.example.com", "TOKEN-1", verified: true);
+        await SetDefaultAsync(firstId);
+        var secondId = await SeedDomainAsync("two.example.com", "TOKEN-2", verified: true);
+
+        var client = _factory.CreateClient();
+        var token = await GetAntiforgeryTokenAsync(client);
+
+        var response = await PostFormAsync(client, "/settings/domains?handler=SetDefault", token,
+            ("id", secondId.ToString()));
+
+        Assert.Contains("now the default", await response.Content.ReadAsStringAsync());
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Assert.False((await db.Domains.SingleAsync(d => d.Id == firstId)).IsDefault);
+        Assert.True((await db.Domains.SingleAsync(d => d.Id == secondId)).IsDefault);
+    }
+
+    [Fact]
+    public async Task SetDefault_WhenUnverified_ReturnsError()
+    {
+        var domainId = await SeedDomainAsync("go.example.com", "TOKEN-ABC", verified: false);
+
+        var client = _factory.CreateClient();
+        var token = await GetAntiforgeryTokenAsync(client);
+
+        var response = await PostFormAsync(client, "/settings/domains?handler=SetDefault", token,
+            ("id", domainId.ToString()));
+
+        Assert.Contains("Only verified domains", await response.Content.ReadAsStringAsync());
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Assert.False((await db.Domains.SingleAsync(d => d.Id == domainId)).IsDefault);
+    }
+
+    [Fact]
     public async Task VerifyDomain_WhenTokenMissing_StaysUnverified()
     {
         ServedTokens.Clear();
@@ -245,6 +330,15 @@ public class DomainsSettingsTests : IAsyncLifetime
         db.Domains.Add(domain);
         await db.SaveChangesAsync();
         return domain.Id;
+    }
+
+    private async Task SetDefaultAsync(long domainId)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var domain = await db.Domains.SingleAsync(d => d.Id == domainId);
+        domain.IsDefault = true;
+        await db.SaveChangesAsync();
     }
 
     private static async Task<string> GetAntiforgeryTokenAsync(HttpClient client)

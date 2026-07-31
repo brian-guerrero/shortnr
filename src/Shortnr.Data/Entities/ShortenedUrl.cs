@@ -13,4 +13,10 @@ public class ShortenedUrl
     public ICollection<ClickEvent> ClickEvents { get; set; } = [];
     public User? Owner { get; set; }
     public Domain? Domain { get; set; }
+
+    public string DisplayUrl() => Domain?.Hostname is { Length: > 0 } host
+        ? $"//{host}/{ShortCode}"
+        : $"/{ShortCode}";
+
+    public string DisplayText() => DisplayUrl();
 }

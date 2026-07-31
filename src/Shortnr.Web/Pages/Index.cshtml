@@ -26,7 +26,7 @@
             @foreach (var link in Model.RecentLinks)
             {
                 <tr>
-                    <td><a href="/@link.ShortCode" target="_blank">/@link.ShortCode</a></td>
+                    <td><a href="@link.DisplayUrl()" target="_blank">@link.DisplayText()</a></td>
                     <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">@link.LongUrl</td>
                     <td>@link.ClickCount</td>
                     <td>
