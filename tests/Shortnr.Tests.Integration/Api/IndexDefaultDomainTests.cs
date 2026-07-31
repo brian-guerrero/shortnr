@@ -128,6 +128,40 @@ public class IndexDefaultDomainTests : IAsyncLifetime
         Assert.Null(link.DomainId);
     }
 
+    [Fact]
+    public async Task RecentLinks_ShowOwnersLinksAcrossDomains_WhenDefaultDomainIsSet()
+    {
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var alice = await db.Users.SingleAsync(u => u.Subject == "alice");
+            var domain = new Domain
+            {
+                Hostname = "go.example.com",
+                OwnerUserId = alice.Id,
+                IsVerified = true,
+                IsDefault = true,
+                VerificationToken = "tok",
+                CreatedAtUtc = DateTime.UtcNow
+            };
+            db.Domains.Add(domain);
+            await db.SaveChangesAsync();
+
+            db.ShortenedUrls.AddRange(
+                new ShortenedUrl { LongUrl = "https://example.com/old-instance", ShortCode = "old111", OwnerUserId = alice.Id, CreatedAtUtc = DateTime.UtcNow.AddMinutes(-2) },
+                new ShortenedUrl { LongUrl = "https://example.com/old-domain", ShortCode = "old222", DomainId = domain.Id, OwnerUserId = alice.Id, CreatedAtUtc = DateTime.UtcNow.AddMinutes(-1) });
+            await db.SaveChangesAsync();
+        }
+
+        var client = AuthenticatedClient();
+        var page = await client.GetAsync("/");
+        var html = await page.Content.ReadAsStringAsync();
+
+        Assert.Contains("old111", html);
+        Assert.Contains("old222", html);
+        Assert.Contains("old-instance", html);
+    }
+
     private HttpClient AuthenticatedClient()
     {
         _factory.Services.GetRequiredService<TestAuthState>()
