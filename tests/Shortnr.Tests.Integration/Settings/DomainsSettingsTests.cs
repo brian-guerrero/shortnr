@@ -25,6 +25,9 @@ public class DomainsSettingsTests : IAsyncLifetime
     /// <summary>Tokens the stub verifier claims to serve, keyed by hostname.</summary>
     private static readonly Dictionary<string, string> ServedTokens = new();
 
+    /// <summary>TXT records the stub DNS resolver claims to hold, keyed by record name.</summary>
+    private static readonly Dictionary<string, string> ServedTxtRecords = new();
+
     private readonly StubVerifierFactory _factory = new();
 
     public Task InitializeAsync() => Task.CompletedTask;
@@ -120,6 +123,49 @@ public class DomainsSettingsTests : IAsyncLifetime
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         Assert.True((await db.Domains.SingleAsync(d => d.Id == domainId)).IsVerified);
+    }
+
+    [Fact]
+    public async Task VerifyDomain_ByTxt_WhenRecordMatches_MarksVerified()
+    {
+        ServedTxtRecords.Clear();
+        ServedTxtRecords["_shortnr-verify.go.example.com"] = "TOKEN-TXT";
+        var domainId = await SeedDomainAsync("go.example.com", "TOKEN-TXT", verified: false);
+
+        var client = _factory.CreateClient();
+        var token = await GetAntiforgeryTokenAsync(client);
+
+        var response = await PostFormAsync(client, "/settings/domains?handler=Verify", token,
+            ("id", domainId.ToString()),
+            ("method", "txt"));
+
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("verified", body);
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Assert.True((await db.Domains.SingleAsync(d => d.Id == domainId)).IsVerified);
+    }
+
+    [Fact]
+    public async Task VerifyDomain_ByTxt_WhenRecordMissing_StaysUnverified()
+    {
+        ServedTxtRecords.Clear();
+        var domainId = await SeedDomainAsync("go.example.com", "TOKEN-TXT", verified: false);
+
+        var client = _factory.CreateClient();
+        var token = await GetAntiforgeryTokenAsync(client);
+
+        var response = await PostFormAsync(client, "/settings/domains?handler=Verify", token,
+            ("id", domainId.ToString()),
+            ("method", "txt"));
+
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Verification failed", body);
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Assert.False((await db.Domains.SingleAsync(d => d.Id == domainId)).IsVerified);
     }
 
     [Fact]
@@ -465,7 +511,9 @@ public class DomainsSettingsTests : IAsyncLifetime
             {
                 services.RemoveAll<DomainVerifierService>();
                 services.AddScoped<DomainVerifierService>(_ =>
-                    new DomainVerifierService(new HttpClient(new StubVerifierHandler())));
+                    new DomainVerifierService(
+                        new HttpClient(new StubVerifierHandler()),
+                        new StubTxtDnsResolver()));
             });
         }
     }
@@ -479,6 +527,15 @@ public class DomainsSettingsTests : IAsyncLifetime
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(token) });
 
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+        }
+    }
+
+    private sealed class StubTxtDnsResolver : ITxtDnsResolver
+    {
+        public Task<IReadOnlyList<string>> GetTxtRecordsAsync(string name, CancellationToken cancellationToken = default)
+        {
+            var token = ServedTxtRecords.TryGetValue(name, out var value) ? value : null;
+            return Task.FromResult<IReadOnlyList<string>>(token is null ? [] : [token]);
         }
     }
 }

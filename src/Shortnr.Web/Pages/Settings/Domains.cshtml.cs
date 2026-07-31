@@ -70,7 +70,7 @@ public class DomainsModel : PageModel
         return await ListPartialAsync(status: $"Domain '{hostname}' added. Point its DNS at this instance, then serve the token below at https://{hostname}/.well-known/shortnr-verify.txt and click Verify.");
     }
 
-    public async Task<IActionResult> OnPostVerify(long id)
+    public async Task<IActionResult> OnPostVerify(long id, string method)
     {
         var gate = EnforceAccess();
         if (gate is not null)
@@ -80,7 +80,10 @@ public class DomainsModel : PageModel
         if (domain is null)
             return await ListPartialAsync(error: "Domain not found.");
 
-        var verified = await _verifier.VerifyAsync(domain.Hostname, domain.VerificationToken);
+        var verified = method == "txt"
+            ? await _verifier.VerifyByTxtAsync(domain.Hostname, domain.VerificationToken)
+            : await _verifier.VerifyAsync(domain.Hostname, domain.VerificationToken);
+
         if (verified)
         {
             domain.IsVerified = true;
@@ -99,7 +102,7 @@ public class DomainsModel : PageModel
             return await ListPartialAsync(status: message);
         }
 
-        return await ListPartialAsync(error: $"Verification failed for '{domain.Hostname}'. Confirm the domain points at this instance and that /.well-known/shortnr-verify.txt serves the token shown below, then retry.");
+        return await ListPartialAsync(error: $"Verification failed for '{domain.Hostname}'. Confirm the domain points at this instance and that the verification token is served at https://{domain.Hostname}/.well-known/shortnr-verify.txt (file method) or as a TXT record at _shortnr-verify.{domain.Hostname} (DNS method), then retry.");
     }
 
     public async Task<IActionResult> OnPostSetDefault(long id)

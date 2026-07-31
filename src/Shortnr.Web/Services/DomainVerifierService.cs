@@ -1,12 +1,15 @@
+using DnsClient;
+
 namespace Shortnr.Web.Services;
 
 /// <summary>
 /// Verifies a custom domain by fetching its well-known verification file over
-/// HTTP and comparing the served token with the stored one. Custom domains are
-/// expected to point (CNAME/A record) at this instance, so the fetch resolves
-/// back into the app's own /.well-known/shortnr-verify.txt endpoint.
+/// HTTP (or by DNS TXT record) and comparing the served token with the stored
+/// one. Custom domains are expected to point (CNAME/A record) at this instance,
+/// so the file fetch resolves back into the app's own
+/// /.well-known/shortnr-verify.txt endpoint.
 /// </summary>
-public class DomainVerifierService(HttpClient httpClient)
+public class DomainVerifierService(HttpClient httpClient, ITxtDnsResolver txtDns)
 {
     public async Task<bool> VerifyAsync(string hostname, string expectedToken, CancellationToken cancellationToken = default)
     {
@@ -25,6 +28,28 @@ public class DomainVerifierService(HttpClient httpClient)
             return false;
         }
         catch (TaskCanceledException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Verifies via a DNS TXT record at <c>_shortnr-verify.{hostname}</c>
+    /// containing the verification token. The leading record name is prefixed so
+    /// it never collides with the host's own existing TXT records.
+    /// </summary>
+    public async Task<bool> VerifyByTxtAsync(string hostname, string expectedToken, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var records = await txtDns.GetTxtRecordsAsync($"_shortnr-verify.{hostname}", cancellationToken);
+            return records.Any(record => record.Trim() == expectedToken);
+        }
+        catch (DnsResponseException)
+        {
+            return false;
+        }
+        catch (OperationCanceledException)
         {
             return false;
         }
