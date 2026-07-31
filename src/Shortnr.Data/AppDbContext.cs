@@ -9,6 +9,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ClickEvent> ClickEvents => Set<ClickEvent>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Domain> Domains => Set<Domain>();
+    public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -63,6 +64,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.Name).HasMaxLength(256);
             entity.HasIndex(e => new { e.Issuer, e.Subject }).IsUnique();
             entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
+        });
+
+        modelBuilder.Entity<ApiKey>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.KeyHash).IsRequired().HasMaxLength(64);
+            entity.Property(e => e.KeyPrefix).IsRequired().HasMaxLength(16);
+            entity.Property(e => e.Label).IsRequired().HasMaxLength(128);
+            entity.HasIndex(e => e.KeyHash).IsUnique();
+            entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
+
+            entity.HasOne(e => e.Owner)
+                .WithMany()
+                .HasForeignKey(e => e.OwnerUserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<ClickEvent>(entity =>
