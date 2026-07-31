@@ -55,6 +55,12 @@ public class ShortnrWebAppFactory : WebApplicationFactory<Program>
                 ["Authentication:Oidc:Authority"] = TestIssuer,
                 ["Authentication:Oidc:ClientId"] = "test-client",
                 ["Authentication:Oidc:ClientSecret"] = "test-secret",
+                // Keep public-endpoint rate limits out of the way for most tests;
+                // rate-limit tests override these on their own factory.
+                ["RateLimiting:Shorten:PerMinute"] = "100000",
+                ["RateLimiting:Shorten:PerDay"] = "1000000",
+                ["RateLimiting:Redirect:PerMinute"] = "100000",
+                ["RateLimiting:Redirect:PerDay"] = "1000000",
             });
         });
 
