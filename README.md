@@ -181,6 +181,15 @@ All HTMX responses are Razor partials in `Pages/Shared/`. Handlers branch on `HX
 
 The redirect endpoint writes to a `Channel<ClickRecord>` (unbounded, in-memory) and returns immediately. `ClickBatchProcessor` (a `BackgroundService`) drains the channel in batches of up to 100, batch-inserts `ClickEvent` rows, and increments `ClickCount` on the parent `ShortenedUrl` in a single `SaveChangesAsync` call.
 
+### Rate limiting
+
+Public endpoints are rate limited per client IP, stacking a per-minute burst window with a per-day cap:
+
+- The shorten form (`POST /`) enforces `RateLimiting:Shorten:PerMinute` / `RateLimiting:Shorten:PerDay` and rejects over-limit requests with `429`.
+- The redirect endpoint (`GET /{shortCode}`) enforces `RateLimiting:Redirect:PerMinute` / `RateLimiting:Redirect:PerDay`, deliberately far more generous than the shorten limits so legitimate traffic (including viral spikes) is never throttled.
+
+Operators expecting very high redirect volume should configure additional limiting at the reverse proxy or CDN edge. Set `RateLimiting:TrustForwardedFor` to `true` when the app is behind a proxy that forwards the client IP in `X-Forwarded-For`.
+
 ### QR codes
 
 `QrService` wraps `QRCoder` and is registered as a singleton. It exposes `GeneratePng` (returns `byte[]`) and `GenerateDataUri` (returns a base64 data URI for inline HTML embedding). QR codes are generated on demand — nothing is stored.
