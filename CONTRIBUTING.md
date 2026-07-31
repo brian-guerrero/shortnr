@@ -9,8 +9,7 @@ please read this before opening a PR so your work lands cleanly.
   rewrites.
 - **No new dependencies without a discussion.** Every package added becomes a
   maintenance and (if shipped) licensing commitment. If you need a library, open
-  an issue first to justify it — see the dependency posture in
-  `03-Research/Dependency-License-Audit.md` for why this matters here.
+  an issue first to justify it.
 - **Migrations are additive.** Never delete or rewrite a committed EF Core
   migration (`src/Shortnr.Data/Migrations/`).
 - **Follow the architecture conventions.** HTMX responses are Razor partials
