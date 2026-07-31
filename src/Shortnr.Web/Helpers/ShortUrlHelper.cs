@@ -48,4 +48,18 @@ public static class ShortUrlHelper
             : requestHost;
         return $"{scheme}://{host}/{link.ShortCode}";
     }
+
+    /// <summary>
+    /// Display text for a link, e.g. <c>go.example.com/abc123</c> for a
+    /// custom-domain link or <c>/abc123</c> for a default-host link.
+    /// </summary>
+    public static string DisplayText(string? hostname, string shortCode) =>
+        hostname is { Length: > 0 } host ? $"{host}/{shortCode}" : $"/{shortCode}";
+
+    /// <summary>
+    /// Href for a link, e.g. <c>https://go.example.com/abc123</c> for a
+    /// custom-domain link or <c>/abc123</c> for a default-host link.
+    /// </summary>
+    public static string DisplayHref(string scheme, string? hostname, string shortCode) =>
+        hostname is { Length: > 0 } host ? $"{scheme}://{host}/{shortCode}" : $"/{shortCode}";
 }

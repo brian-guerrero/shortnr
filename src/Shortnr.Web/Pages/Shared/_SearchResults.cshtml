@@ -42,14 +42,7 @@ else
                         {
                             <tr>
                                 <td>
-                                    @if (link.Domain is not null)
-                                    {
-                                        <a href="@Context.Request.Scheme://@link.Domain.Hostname/@link.ShortCode" target="_blank">@link.Domain.Hostname/@link.ShortCode</a>
-                                    }
-                                    else
-                                    {
-                                        <a href="/@link.ShortCode" target="_blank">/@link.ShortCode</a>
-                                    }
+                                    <a href="@ShortUrlHelper.DisplayHref(Context.Request.Scheme, link.Domain?.Hostname, link.ShortCode)" target="_blank">@ShortUrlHelper.DisplayText(link.Domain?.Hostname, link.ShortCode)</a>
                                 </td>
                                 <td>@(link.Domain?.Hostname ?? "default")</td>
                                 <td style="max-width: 300px; word-break: break-all;">@link.LongUrl</td>

@@ -4,6 +4,7 @@ public class ClickEventRow
 {
     public long Id { get; init; }
     public string ShortCode { get; init; } = "";
+    public string? Hostname { get; init; }
     public string? CountryCode { get; init; }
     public string? Browser { get; init; }
     public string? BrowserVersion { get; init; }

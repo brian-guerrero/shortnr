@@ -29,7 +29,7 @@ else
             @foreach (var click in Model)
             {
                 <tr>
-                    <td><a href="/@click.ShortCode" target="_blank">/@click.ShortCode</a></td>
+                    <td><a href="@ShortUrlHelper.DisplayHref(Context.Request.Scheme, click.Hostname, click.ShortCode)" target="_blank">@ShortUrlHelper.DisplayText(click.Hostname, click.ShortCode)</a></td>
                     <td>@click.CountryCode</td>
                     <td>@click.Browser @click.BrowserVersion</td>
                     <td>@click.OperatingSystem @click.OSVersion</td>

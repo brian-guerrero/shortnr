@@ -206,6 +206,7 @@ public class DashboardModel : PageModel
             {
                 Id = e.Id,
                 ShortCode = e.ShortenedUrl.ShortCode,
+                Hostname = e.ShortenedUrl.Domain!.Hostname,
                 CountryCode = e.CountryCode,
                 Browser = e.Browser,
                 BrowserVersion = e.BrowserVersion,
