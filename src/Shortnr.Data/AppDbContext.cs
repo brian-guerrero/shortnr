@@ -18,10 +18,15 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.LongUrl).IsRequired();
             entity.Property(e => e.ShortCode).IsRequired().HasMaxLength(64);
             // Uniqueness is scoped per-domain so different domains can reuse the
-            // same slug independently. A null DomainId (instance default host) is
-            // enforced by app-level collision checks since SQLite treats NULLs as
-            // distinct inside unique indexes.
-            entity.HasIndex(e => new { e.DomainId, e.ShortCode }).IsUnique();
+            // same slug independently. SQLite treats NULLs as distinct inside
+            // unique indexes, so default-domain (DomainId IS NULL) uniqueness is
+            // enforced with a filtered index rather than a plain composite one.
+            entity.HasIndex(e => new { e.DomainId, e.ShortCode })
+                .IsUnique()
+                .HasFilter("[DomainId] IS NOT NULL");
+            entity.HasIndex(e => e.ShortCode)
+                .IsUnique()
+                .HasFilter("[DomainId] IS NULL");
             entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
 
             entity.HasOne(e => e.Owner)

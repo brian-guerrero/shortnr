@@ -1,11 +1,20 @@
 @model Shortnr.Web.Models.PostResultViewModel
-<ins style="display:block; margin-top: 1rem;">
-    <strong>Short URL:</strong>
-    <a href="@Model.ShortUrl" target="_blank">@Model.ShortUrl</a>
-    <span class="qr-wrap" style="display:inline-block; margin-left: 0.75rem; vertical-align: middle;">
-        <button hx-get="/qr/@Model.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML" style="font-size: 0.8rem;">Show QR</button>
-    </span>
-</ins>
+@if (Model.HasError)
+{
+    <mark style="display:block; margin-top: 1rem; background: var(--pico-del-color); color: var(--pico-color);">
+        <strong>@Model.ErrorMessage</strong>
+    </mark>
+}
+else
+{
+    <ins style="display:block; margin-top: 1rem;">
+        <strong>Short URL:</strong>
+        <a href="@Model.ShortUrl" target="_blank">@Model.ShortUrl</a>
+        <span class="qr-wrap" style="display:inline-block; margin-left: 0.75rem; vertical-align: middle;">
+            <button hx-get="/qr/@Model.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML" style="font-size: 0.8rem;">Show QR</button>
+        </span>
+    </ins>
+}
 <section id="recent" hx-swap-oob="true">
     <h2>Recent links</h2>
     <table>

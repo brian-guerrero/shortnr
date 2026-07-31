@@ -172,7 +172,12 @@ namespace Shortnr.Data.Migrations
                     b.HasIndex("OwnerUserId");
 
                     b.HasIndex("DomainId", "ShortCode")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[DomainId] IS NOT NULL");
+
+                    b.HasIndex("ShortCode")
+                        .IsUnique()
+                        .HasFilter("[DomainId] IS NULL");
 
                     b.ToTable("ShortenedUrls");
                 });

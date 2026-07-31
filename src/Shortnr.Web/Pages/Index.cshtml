@@ -9,6 +9,8 @@
         @Html.AntiForgeryToken()
         <label for="url">Enter a long URL</label>
         <input type="url" name="url" id="url" placeholder="https://example.com/very/long/path" required>
+        <label for="slug">Custom code <small>(optional)</small></label>
+        <input type="text" name="slug" id="slug" placeholder="my-custom-code" pattern="[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}" maxlength="64">
         <button type="submit">Shorten</button>
     </form>
     <div id="result"></div>
