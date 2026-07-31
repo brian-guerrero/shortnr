@@ -35,6 +35,7 @@ builder.Services.AddSingleton(Channel.CreateUnbounded<object>());
 builder.Services.AddHostedService<UserProvisioningProcessor>();
 
 builder.Services.AddScoped<UserIdentityService>();
+builder.Services.AddHttpClient<DomainVerifierService>(client => client.Timeout = TimeSpan.FromSeconds(15));
 
 builder.Services.AddOidcAuthentication(builder.Configuration, builder.Environment);
 builder.Services.AddAuthorization();

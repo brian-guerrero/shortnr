@@ -1,0 +1,68 @@
+@model Shortnr.Web.Pages.Settings.DomainsModel
+@if (Model.ErrorMessage is not null)
+{
+    <mark style="display:block; margin-bottom: 1rem; background: var(--pico-del-color); color: var(--pico-color);">
+        <strong>@Model.ErrorMessage</strong>
+    </mark>
+}
+@if (Model.StatusMessage is not null)
+{
+    <mark style="display:block; margin-bottom: 1rem; background: var(--pico-ins-color); color: var(--pico-color);">
+        <strong>@Model.StatusMessage</strong>
+    </mark>
+}
+@if (Model.Domains.Count == 0)
+{
+    <p>No custom domains yet. Add one above to start using branded short links.</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr><th>Domain</th><th>Status</th><th>Verification token</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var domain in Model.Domains)
+            {
+                <tr>
+                    <td><code>@domain.Hostname</code></td>
+                    <td>
+                        @if (domain.IsVerified)
+                        {
+                            <mark style="background: var(--pico-ins-color); color: var(--pico-color);">verified</mark>
+                        }
+                        else
+                        {
+                            <mark>unverified</mark>
+                        }
+                    </td>
+                    <td>
+                        @if (domain.IsVerified)
+                        {
+                            <small>—</small>
+                        }
+                        else
+                        {
+                            <code style="font-size: 0.75rem;">@domain.VerificationToken</code>
+                        }
+                    </td>
+                    <td>
+                        @if (!domain.IsVerified)
+                        {
+                            <form hx-post="/settings/domains?handler=Verify" hx-target="#domains-list" hx-swap="innerHTML" style="display:inline;">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@domain.Id">
+                                <button type="submit" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Verify</button>
+                            </form>
+                        }
+                        <form hx-post="/settings/domains?handler=Delete" hx-target="#domains-list" hx-swap="innerHTML" style="display:inline;">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@domain.Id">
+                            <button type="submit" class="secondary" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

@@ -1,0 +1,19 @@
+@page
+@model Shortnr.Web.Pages.Settings.DomainsModel
+@{
+    Layout = Model.IsHtmxRequest ? null : "_Layout";
+}
+<article>
+    <header><h1>Domains</h1></header>
+    <form hx-post="/settings/domains" hx-target="#domains-list" hx-swap="innerHTML"
+          hx-on::after-request="if (event.detail.successful) this.querySelector('input[name=hostname]').value = ''">
+        @Html.AntiForgeryToken()
+        <label for="domain-hostname">Add a custom domain</label>
+        <input type="text" name="hostname" id="domain-hostname" placeholder="go.example.com"
+               pattern="[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+" required>
+        <button type="submit">Add domain</button>
+    </form>
+    <div id="domains-list">
+        @await Html.PartialAsync("Shared/_DomainsList", Model)
+    </div>
+</article>
