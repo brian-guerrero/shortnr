@@ -1,7 +1,7 @@
 @model Shortnr.Web.Models.PostResultViewModel
 @if (Model.HasError)
 {
-    <mark style="display:block; margin-top: 1rem; background: var(--pico-del-color); color: var(--pico-color);">
+    <mark class="pico-background-red-100" style="display:block; margin-top: 1rem;">
         <strong>@Model.ErrorMessage</strong>
     </mark>
 }

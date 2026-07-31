@@ -1,13 +1,13 @@
 @model Shortnr.Web.Pages.Settings.DomainsModel
 @if (Model.ErrorMessage is not null)
 {
-    <mark style="display:block; margin-bottom: 1rem; background: var(--pico-del-color); color: var(--pico-color);">
+    <mark class="pico-background-red-100" style="display:block; margin-bottom: 1rem;">
         <strong>@Model.ErrorMessage</strong>
     </mark>
 }
 @if (Model.StatusMessage is not null)
 {
-    <mark style="display:block; margin-bottom: 1rem; background: var(--pico-ins-color); color: var(--pico-color);">
+    <mark class="pico-background-green-100" style="display:block; margin-bottom: 1rem;">
         <strong>@Model.StatusMessage</strong>
     </mark>
 }
@@ -29,13 +29,13 @@ else
                         <code>@domain.Hostname</code>
                         @if (domain.IsDefault)
                         {
-                            <mark style="background: var(--pico-mark-background-color); color: var(--pico-color); margin-left: 0.5rem;">default</mark>
+                            <mark class="pico-background-blue-100" style="margin-left: 0.5rem;">default</mark>
                         }
                     </td>
                     <td>
                         @if (domain.IsVerified)
                         {
-                            <mark style="background: var(--pico-ins-color); color: var(--pico-color);">verified</mark>
+                            <mark class="pico-background-green-100">verified</mark>
                         }
                         else
                         {
