@@ -1,5 +1,6 @@
 using System.Threading.Channels;
 using System.Threading.RateLimiting;
+using DnsClient;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using Shortnr.Data;
@@ -38,6 +39,8 @@ builder.Services.AddHostedService<UserProvisioningProcessor>();
 
 builder.Services.AddScoped<UserIdentityService>();
 builder.Services.AddHttpClient<DomainVerifierService>(client => client.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddSingleton<IDnsQuery>(new LookupClient());
+builder.Services.AddSingleton<ITxtDnsResolver, DnsClientTxtResolver>();
 
 builder.Services.AddOidcAuthentication(builder.Configuration, builder.Environment);
 

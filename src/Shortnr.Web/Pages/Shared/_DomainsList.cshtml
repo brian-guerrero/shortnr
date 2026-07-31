@@ -50,6 +50,11 @@ else
                         else
                         {
                             <code style="font-size: 0.75rem;">@domain.VerificationToken</code>
+                            <div style="font-size: 0.75rem; margin-top: 0.25rem;">
+                                <strong>File:</strong> /.well-known/shortnr-verify.txt
+                                <br>
+                                <strong>DNS TXT:</strong> _shortnr-verify.@(domain.Hostname)
+                            </div>
                         }
                     </td>
                     <td>
@@ -58,6 +63,10 @@ else
                             <form hx-post="/settings/domains?handler=Verify" hx-target="#domains-list" hx-swap="innerHTML" style="display:inline;">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="id" value="@domain.Id">
+                                <select name="method" style="font-size: 0.75rem; padding: 0.2rem; margin-bottom: 0; width: auto;" title="Verification method">
+                                    <option value="file">Verify via file</option>
+                                    <option value="txt">Verify via DNS TXT</option>
+                                </select>
                                 <button type="submit" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Verify</button>
                             </form>
                         }
