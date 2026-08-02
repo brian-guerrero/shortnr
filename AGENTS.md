@@ -30,13 +30,15 @@ All projects build and all tests pass.
 
 ## Multi-feature workflow (stacked PRs with gh-stack)
 
-**Whenever dealing with multiple features at a time, use `gh stack` to split the work into a stack of small, dependent PRs** — one stack per distinct feature/project, one layer (branch → PR) per logical concern (e.g. `feat/auth-data-model` → `feat/auth-api` → `feat/auth-ui`). Each PR targets the branch below it, so reviewers see only that layer's diff. Do not open one giant PR or pile unrelated features onto a single branch.
+**Whenever dealing with multiple features at a time, use `gh stack` to split the work into a stack of dependent PRs** — one stack per project, one layer (branch → PR) **per feature** (e.g. `feat/auth` → `feat/api-keys`). Each PR targets the branch below it, so reviewers see only that feature's diff. Do not open one giant PR, pile unrelated features onto a single branch, or split one feature across multiple branches.
 
+- **Commits are the units of work, not branches.** Each feature layer is built from multiple logical commits (data model → migration → services → UI → tests), one commit per logical unit. Do not squash a feature into a single commit. This is what the smaller tasks a feature used to be broken into are *for*.
 - The `gh stack` extension (`github/gh-stack`) is installed; stacked PRs on GitHub are in public preview. See the **`gh-stack` skill** (`.agents/skills/gh-stack`) for the full non-interactive workflow, command reference, and exit-code handling.
-- Branch names use this repo's existing `feat/...` convention and are used verbatim. Plan layers in dependency order (foundational changes lowest) before running `gh stack init`.
+- Branch names use this repo's existing `feat/...` convention and are used verbatim. Name each layer after the feature it delivers; plan layers in dependency order (foundational features lowest) before running `gh stack init`.
 - One-time git config (avoids interactive prompts): `git config rerere.enabled true` and `git config remote.pushDefault origin` (repo currently has a single `origin` remote).
 - **All `gh stack` commands must run non-interactively** or they hang: always pass branch names to `init`/`add`/`checkout`, `--auto` to `submit`, `--json` to `view`, `--yes` to `merge`.
-- Standard loop: `gh stack init feat/<first-layer>` → per layer `git add`/`git commit` then `gh stack add feat/<next-layer>` → `gh stack submit --auto` → keep layers rebased with `gh stack sync` (or navigate down, commit, `gh stack rebase --upstack`) → merge the whole stack with `gh stack merge --yes [--squash]`.
+- Standard loop: `gh stack init feat/<first-feature>` → per feature, commit logical units then `gh stack add feat/<next-feature>` → `gh stack submit --auto` → keep layers rebased with `gh stack sync` (or navigate down, commit, `gh stack rebase --upstack`) → **a human reviews every PR** and only then the stack is merged.
+- **Stacks are never auto-merged and never merged in the same session that creates them.** Every PR in a stack is reviewed by a human before it lands. Only merge with `gh stack merge <n> --yes [--squash]` on the human's explicit request.
 - Never use `gh pr merge` on stacked PRs; never commit unrelated features into an open stack.
 
 ## Architecture & conventions
