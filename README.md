@@ -104,6 +104,11 @@ Open `http://localhost:8080`. The SQLite database is stored in the `shortnr-data
 | `GeoIp__MaxMindAccountId` | *(empty)* | MaxMind account ID. **GeoIP enrichment is disabled until both account ID and license key are set.** |
 | `GeoIp__MaxMindLicenseKey` | *(empty)* | MaxMind license key. Enables downloading GeoLite2-City from MaxMind's official endpoint on startup + Wed/Sat 12:00 UTC. |
 | `GeoIp__DatabasePath` | `wwwroot/data/GeoLite2-City.mmdb` | Where the downloaded database is stored. |
+| `RateLimiting__TrustForwardedFor` | `false` | When `true`, resolve the client IP from the left-most `X-Forwarded-For` hop (for deployments behind a reverse proxy). |
+| `RateLimiting__Shorten__PerMinute` | `10` | Per-IP request cap per minute for the shorten form (`POST /`). Over-limit requests get `429`. |
+| `RateLimiting__Shorten__PerDay` | `200` | Per-IP daily cap for the shorten form. |
+| `RateLimiting__Redirect__PerMinute` | `300` | Per-IP request cap per minute for the redirect endpoint (`GET /{shortCode}`). Deliberately generous — add proxy/CDN limiting for very high redirect volume. |
+| `RateLimiting__Redirect__PerDay` | `10000` | Per-IP daily cap for the redirect endpoint. |
 
 ### GeoIP / MaxMind attribution
 
