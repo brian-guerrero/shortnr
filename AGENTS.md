@@ -32,7 +32,7 @@ All projects build and all tests pass.
 
 **Whenever dealing with multiple features at a time, use `gh stack` to split the work into a stack of small, dependent PRs** — one stack per distinct feature/project, one layer (branch → PR) per logical concern (e.g. `feat/auth-data-model` → `feat/auth-api` → `feat/auth-ui`). Each PR targets the branch below it, so reviewers see only that layer's diff. Do not open one giant PR or pile unrelated features onto a single branch.
 
-- The `gh stack` extension (`github/gh-stack`) is installed; stacked PRs on GitHub are in public preview. See the **`gh-stack` skill** (`.opencode/skills/gh-stack`) for the full non-interactive workflow, command reference, and exit-code handling.
+- The `gh stack` extension (`github/gh-stack`) is installed; stacked PRs on GitHub are in public preview. See the **`gh-stack` skill** (`.agents/skills/gh-stack`) for the full non-interactive workflow, command reference, and exit-code handling.
 - Branch names use this repo's existing `feat/...` convention and are used verbatim. Plan layers in dependency order (foundational changes lowest) before running `gh stack init`.
 - One-time git config (avoids interactive prompts): `git config rerere.enabled true` and `git config remote.pushDefault origin` (repo currently has a single `origin` remote).
 - **All `gh stack` commands must run non-interactively** or they hang: always pass branch names to `init`/`add`/`checkout`, `--auto` to `submit`, `--json` to `view`, `--yes` to `merge`.
