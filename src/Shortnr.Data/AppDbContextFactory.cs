@@ -9,6 +9,7 @@ public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite("Data Source=shortnr.db")
+            .UseOpenIddict()
             .Options;
 
         return new AppDbContext(options);
