@@ -61,7 +61,23 @@ builder.Services.AddAuthentication()
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(ApiKeyHandler.SchemeName, policy => policy
         .AddAuthenticationSchemes(ApiKeyHandler.SchemeName)
-        .RequireAuthenticatedUser());
+        .RequireAuthenticatedUser())
+    .AddPolicy(ApiKeyScopes.LinksRead, policy => policy
+        .AddAuthenticationSchemes(ApiKeyHandler.SchemeName)
+        .RequireAuthenticatedUser()
+        .RequireClaim(ApiKeyScopes.ScopeClaim, ApiKeyScopes.LinksRead))
+    .AddPolicy(ApiKeyScopes.LinksWrite, policy => policy
+        .AddAuthenticationSchemes(ApiKeyHandler.SchemeName)
+        .RequireAuthenticatedUser()
+        .RequireClaim(ApiKeyScopes.ScopeClaim, ApiKeyScopes.LinksWrite))
+    .AddPolicy(ApiKeyScopes.McpRead, policy => policy
+        .AddAuthenticationSchemes(ApiKeyHandler.SchemeName)
+        .RequireAuthenticatedUser()
+        .RequireClaim(ApiKeyScopes.ScopeClaim, ApiKeyScopes.McpRead))
+    .AddPolicy(ApiKeyScopes.McpWrite, policy => policy
+        .AddAuthenticationSchemes(ApiKeyHandler.SchemeName)
+        .RequireAuthenticatedUser()
+        .RequireClaim(ApiKeyScopes.ScopeClaim, ApiKeyScopes.McpWrite));
 
 // Per-key rate limiting: 60 requests/min burst + 1000/day cap. Partitioned by
 // the presented (hashed) key so it works independently of auth ordering.
