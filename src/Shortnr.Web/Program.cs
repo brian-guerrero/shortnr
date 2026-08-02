@@ -105,7 +105,8 @@ builder.Services.AddMcpServer(options =>
     };
 })
 .WithHttpTransport(options => options.Stateless = true)
-.WithToolsFromAssembly();
+.WithToolsFromAssembly()
+.WithResourcesFromAssembly();
 
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(ApiKeyHandler.SchemeName, policy => policy
