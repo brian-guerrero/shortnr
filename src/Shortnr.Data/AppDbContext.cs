@@ -12,6 +12,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<BioPage> BioPages => Set<BioPage>();
     public DbSet<BioPageLink> BioPageLinks => Set<BioPageLink>();
+    public DbSet<AiActivityLog> AiActivityLogs => Set<AiActivityLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -140,6 +141,26 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .WithMany()
                 .HasForeignKey(e => e.ShortenedUrlId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AiActivityLog>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Action).IsRequired().HasMaxLength(64);
+            entity.Property(e => e.Summary).IsRequired().HasMaxLength(512);
+            entity.Property(e => e.TargetEntityType).HasMaxLength(64);
+            entity.HasIndex(e => new { e.OwnerUserId, e.CreatedAtUtc });
+            entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
+
+            entity.HasOne(e => e.Owner)
+                .WithMany()
+                .HasForeignKey(e => e.OwnerUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.ApiKey)
+                .WithMany()
+                .HasForeignKey(e => e.ApiKeyId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

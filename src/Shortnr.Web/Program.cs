@@ -8,6 +8,8 @@ using Shortnr.Data;
 using Shortnr.Web.Extensions;
 using Shortnr.Web.Models;
 using Shortnr.Web.Services;
+using ModelContextProtocol.AspNetCore;
+using ModelContextProtocol.Protocol;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,6 +40,11 @@ builder.Services.AddSingleton(Channel.CreateUnbounded<PendingUserLogin>());
 builder.Services.AddSingleton(Channel.CreateUnbounded<object>());
 builder.Services.AddHostedService<UserProvisioningProcessor>();
 
+// AI/MCP activity queue — drained by AiActivityProcessor. Registered unconditionally
+// so DI is always consistent; nothing writes to it until an MCP tool is called.
+builder.Services.AddSingleton(Channel.CreateUnbounded<AiActivityRecord>());
+builder.Services.AddHostedService<AiActivityProcessor>();
+
 builder.Services.AddScoped<UserIdentityService>();
 builder.Services.AddHttpClient<DomainVerifierService>(client => client.Timeout = TimeSpan.FromSeconds(15));
 builder.Services.Configure<RateLimitingOptions>(builder.Configuration.GetSection("RateLimiting"));
@@ -58,6 +65,22 @@ builder.Services.AddAuthentication()
     .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, ApiKeyHandler>(
         ApiKeyHandler.SchemeName, _ => { });
 
+// Model Context Protocol server. The HTTP transport is stateless (each request
+// is an independent JSON-RPC invocation) and tools are discovered from this
+// assembly via the [McpServerTool] / [McpServerToolType] attributes.
+builder.Services.AddMcpServer(options =>
+{
+    options.ServerInstructions = "shortnr MCP server: manage short links and link-in-bio pages. Read tools require the mcp:read scope, write tools require mcp:write.";
+    options.ServerInfo = new Implementation
+    {
+        Name = "shortnr",
+        Version = "1.0.0",
+        Description = "URL shortener and link-in-bio management"
+    };
+})
+.WithHttpTransport(options => options.Stateless = true)
+.WithToolsFromAssembly();
+
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(ApiKeyHandler.SchemeName, policy => policy
         .AddAuthenticationSchemes(ApiKeyHandler.SchemeName)
@@ -77,7 +100,15 @@ builder.Services.AddAuthorizationBuilder()
     .AddPolicy(ApiKeyScopes.McpWrite, policy => policy
         .AddAuthenticationSchemes(ApiKeyHandler.SchemeName)
         .RequireAuthenticatedUser()
-        .RequireClaim(ApiKeyScopes.ScopeClaim, ApiKeyScopes.McpWrite));
+        .RequireClaim(ApiKeyScopes.ScopeClaim, ApiKeyScopes.McpWrite))
+    // The /mcp endpoint itself only needs one mcp scope; individual tools enforce
+    // read vs write granularity from the principal's scope claims.
+    .AddPolicy("mcp", policy => policy
+        .AddAuthenticationSchemes(ApiKeyHandler.SchemeName)
+        .RequireAuthenticatedUser()
+        .RequireAssertion(ctx =>
+            ctx.User.HasClaim(ApiKeyScopes.ScopeClaim, ApiKeyScopes.McpRead) ||
+            ctx.User.HasClaim(ApiKeyScopes.ScopeClaim, ApiKeyScopes.McpWrite)));
 
 // Per-key rate limiting: 60 requests/min burst + 1000/day cap. Partitioned by
 // the presented (hashed) key so it works independently of auth ordering.
@@ -85,14 +116,7 @@ builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.AddPolicy("api-key", context =>
-    {
-        var header = context.Request.Headers.Authorization.ToString();
-        var key = header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
-            ? header["Bearer ".Length..].Trim()
-            : "";
-        var partitionKey = key.Length == 0 ? "anonymous" : ApiKeyService.HashKey(key);
-
-        return RateLimitPartition.Get(partitionKey, _ => new ChainedRateLimiter(
+        RateLimitPartition.Get(RateLimitPartitionKey(context), _ => new ChainedRateLimiter(
         [
             new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
             {
@@ -108,8 +132,29 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true
             })
-        ]));
-    });
+        ])));
+
+    // Per-key limiter for the MCP endpoint: slightly higher burst than the REST
+    // API (an agent may enumerate tools + several reads in a minute) with the
+    // same daily cap.
+    options.AddPolicy("mcp-tools", context =>
+        RateLimitPartition.Get(RateLimitPartitionKey(context), _ => new ChainedRateLimiter(
+        [
+            new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 120,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }),
+            new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5000,
+                Window = TimeSpan.FromDays(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            })
+        ])));
 
     // IP-keyed limit on the public redirect endpoint. Deliberately far more generous
     // than the shorten one so legitimate traffic (including viral spikes) is never
@@ -151,11 +196,23 @@ app.MapAuthenticationEndpoints(app.Configuration);
 
 app.MapApiEndpoints();
 app.MapApiV1Endpoints();
+app.MapMcpEndpoints();
 
 app.MapOpenApi();
 app.MapScalarApiReference("/api/docs", options => options
     .WithTitle("shortnr API")
     .WithOpenApiRoutePattern("/openapi/{documentName}.json"));
+
+// Groups rate-limit partitions by the hashed bearer key so every request from a
+// key (REST or MCP) is throttled independently of auth ordering.
+static string RateLimitPartitionKey(HttpContext context)
+{
+    var header = context.Request.Headers.Authorization.ToString();
+    var key = header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+        ? header["Bearer ".Length..].Trim()
+        : "";
+    return key.Length == 0 ? "anonymous" : ApiKeyService.HashKey(key);
+}
 
 app.Run();
 
