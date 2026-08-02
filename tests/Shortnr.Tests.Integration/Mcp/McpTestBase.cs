@@ -120,6 +120,22 @@ public abstract class McpTestBase : IAsyncLifetime
         return page.Id;
     }
 
+    /// <summary>Polls until an AiActivityLog row matching the owner+action appears (the
+    /// processor drains its channel asynchronously) or fails after the timeout.</summary>
+    protected async Task WaitForActivityAsync(long ownerUserId, string action, int timeoutMs = 5000)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        while (DateTime.UtcNow < deadline)
+        {
+            if (await db.AiActivityLogs.AnyAsync(a => a.OwnerUserId == ownerUserId && a.Action == action))
+                return;
+            await Task.Delay(100);
+        }
+        Assert.Fail($"No AiActivityLog entry for owner {ownerUserId} action '{action}' within {timeoutMs}ms.");
+    }
+
     protected async Task AddBioPageLinkAsync(long bioPageId, long linkId, string title, int sortOrder, bool isVisible = true)
     {
         using var scope = Factory.Services.CreateScope();

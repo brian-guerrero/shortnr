@@ -1,9 +1,10 @@
 @{
     var theme = (string?)ViewData["BioTheme"] ?? "default";
     var title = (string?)ViewData["BioTitle"] ?? "shortnr";
+    var picoTheme = theme == "midnight" ? "dark" : "light";
 }
 <!DOCTYPE html>
-<html lang="en" data-bio-theme="@theme">
+<html lang="en" data-bio-theme="@theme" data-theme="@picoTheme">
 
 <head>
     <meta charset="utf-8" />
@@ -63,6 +64,7 @@
             text-align: center;
             font-size: 1.5rem;
             margin: 0 0 0.25rem;
+            color: var(--bio-fg);
         }
         .bio-text {
             text-align: center;

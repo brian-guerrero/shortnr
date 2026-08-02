@@ -1,8 +1,10 @@
 using System.Security.Claims;
 using System.Text.Json;
+using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
 using Shortnr.Data.Entities;
+using Shortnr.Web.Models;
 using Shortnr.Web.Services;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
@@ -11,7 +13,8 @@ namespace Shortnr.Web.Services.McpTools;
 
 /// <summary>
 /// Shared plumbing for MCP tools: scope checks against the authenticated
-/// principal, owner resolution, owned-link lookup, and JSON output formatting.
+/// principal, owner resolution, owned-link lookup, destructive-action
+/// confirmation, AI-activity audit logging, and JSON output formatting.
 /// </summary>
 public static class McpToolGuard
 {
@@ -35,6 +38,13 @@ public static class McpToolGuard
     public static async Task<long?> ResolveOwnerAsync<T>(RequestContext<T> context, UserIdentityService identity) =>
         await identity.ResolveOwnerUserIdAsync(context.User ?? new ClaimsPrincipal());
 
+    /// <summary>The real <c>ApiKeys.Id</c> behind this request's key (null when not API-key auth).</summary>
+    public static long? ResolveApiKeyId<T>(RequestContext<T> context) =>
+        context.User is not null &&
+        long.TryParse(context.User.FindFirst(ApiKeyHandler.ApiKeyIdValueClaim)?.Value, out var id)
+            ? id
+            : null;
+
     /// <summary>
     /// Resolves a link owned by <paramref name="ownerUserId"/> by short code. On an
     /// ambiguous multi-domain match, a default-domain link wins (mirrors
@@ -52,5 +62,51 @@ public static class McpToolGuard
             return matches.FirstOrDefault();
 
         return matches.FirstOrDefault(l => l.DomainId == null) ?? matches[0];
+    }
+
+    /// <summary>Enqueues an audit entry for an AI/MCP-initiated change (never blocks the call).</summary>
+    public static void LogActivity(Channel<AiActivityRecord> channel, long ownerUserId, long? apiKeyId,
+        string action, string? targetType, long? targetId, string summary) =>
+        channel.Writer.TryWrite(new AiActivityRecord
+        {
+            OwnerUserId = ownerUserId,
+            ApiKeyId = apiKeyId,
+            Action = action,
+            TargetEntityType = targetType,
+            TargetEntityId = targetId,
+            Summary = summary
+        });
+
+    public enum Confirmation { Approved, Declined, NeedsConfirmation }
+
+    /// <summary>
+    /// Resolves user confirmation for a destructive write using MRTR when the client
+    /// supports it (throw <see cref="InputRequiredException"/> so the client prompts
+    /// the user at the protocol level), the echoed <c>inputResponses</c> from an
+    /// already-accepted MRTR flow, or an explicit <c>confirmed=true</c> argument as
+    /// the safe down-level, session-less fallback (matching the PRD's compatibility table).
+    /// </summary>
+    public static Confirmation ResolveConfirmation(
+        McpServer server, RequestContext<CallToolRequestParams> context,
+        string inputKey, string message, string requestState, bool? confirmed)
+    {
+        if (confirmed == true)
+            return Confirmation.Approved;
+
+        if (context.Params?.InputResponses?.TryGetValue(inputKey, out var response) is true)
+        {
+            var elicited = response.Deserialize(InputResponse.ElicitResultJsonTypeInfo);
+            return elicited?.IsAccepted is true ? Confirmation.Approved : Confirmation.Declined;
+        }
+
+        if (server.IsMrtrSupported)
+            throw new InputRequiredException(
+                inputRequests: new Dictionary<string, InputRequest>
+                {
+                    [inputKey] = InputRequest.ForElicitation(new() { Message = message })
+                },
+                requestState: requestState);
+
+        return Confirmation.NeedsConfirmation;
     }
 }
