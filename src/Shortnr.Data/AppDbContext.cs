@@ -10,6 +10,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<User> Users => Set<User>();
     public DbSet<Domain> Domains => Set<Domain>();
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
+    public DbSet<BioPage> BioPages => Set<BioPage>();
+    public DbSet<BioPageLink> BioPageLinks => Set<BioPageLink>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -103,6 +105,41 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasOne(e => e.ShortenedUrl)
                 .WithMany(s => s.ClickEvents)
                 .HasForeignKey(e => e.ShortenedUrlId);
+        });
+
+        modelBuilder.Entity<BioPage>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Slug).IsRequired().HasMaxLength(64);
+            entity.HasIndex(e => e.Slug).IsUnique();
+            entity.Property(e => e.DisplayName).IsRequired().HasMaxLength(256);
+            entity.Property(e => e.AvatarUrl).HasMaxLength(512);
+            entity.Property(e => e.BioText).HasMaxLength(2000);
+            entity.Property(e => e.Theme).IsRequired().HasMaxLength(32);
+            entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
+
+            entity.HasOne(e => e.Owner)
+                .WithMany()
+                .HasForeignKey(e => e.OwnerUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BioPageLink>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(256);
+            entity.Property(e => e.IconUrl).HasMaxLength(512);
+            entity.HasIndex(e => new { e.BioPageId, e.ShortenedUrlId }).IsUnique();
+
+            entity.HasOne(e => e.BioPage)
+                .WithMany(b => b.Links)
+                .HasForeignKey(e => e.BioPageId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.ShortenedUrl)
+                .WithMany()
+                .HasForeignKey(e => e.ShortenedUrlId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
