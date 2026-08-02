@@ -9,6 +9,15 @@
         "mcp"
       ],
       "enabled": true
+    },
+    "shortnr": {
+      "type": "remote",
+      "url": "http://localhost:5156/mcp",
+      "enabled": true,
+      "headers": {
+        "Authorization": "Bearer {env:SHORTNR_MCP_API_KEY}"
+      }
     }
-  }
+  },
+  "lsp": true
 }
