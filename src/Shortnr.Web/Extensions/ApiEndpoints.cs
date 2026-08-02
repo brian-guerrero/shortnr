@@ -184,7 +184,7 @@ public static class ApiEndpoints
             logger.LogInformation("Redirect shortCode={ShortCode} host={Host} ip={Ip}", shortCode, host, ip);
 
             return Results.Redirect(link.LongUrl);
-        });
+        }).RequireRateLimiting("redirect-ip");
 
         return app;
     }

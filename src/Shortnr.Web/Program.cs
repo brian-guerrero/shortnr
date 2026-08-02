@@ -2,6 +2,7 @@ using System.Threading.Channels;
 using System.Threading.RateLimiting;
 using DnsClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
 using Shortnr.Data;
 using Shortnr.Web.Extensions;
@@ -92,6 +93,18 @@ builder.Services.AddRateLimiter(options =>
                 AutoReplenishment = true
             })
         ]));
+    });
+
+    // IP-keyed limit on the public redirect endpoint. Deliberately far more generous
+    // than the shorten one so legitimate traffic (including viral spikes) is never
+    // throttled; operators expecting very high redirect volume should additionally
+    // configure reverse-proxy/CDN limiting.
+    options.AddPolicy("redirect-ip", context =>
+    {
+        var limits = context.RequestServices.GetRequiredService<IOptions<RateLimitingOptions>>().Value;
+        return RateLimitPartition.Get(
+            IpRateLimitPolicies.ResolveKey(context, limits.TrustForwardedFor),
+            _ => IpRateLimitPolicies.Build(limits.Redirect.PerMinute, limits.Redirect.PerDay));
     });
 });
 
