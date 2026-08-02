@@ -12,15 +12,17 @@ public class IndexModel : PageModel
 {
     private readonly AppDbContext _db;
     private readonly UserIdentityService _identity;
+    private readonly ShortenRateLimiter _shortenLimiter;
 
     public List<ShortenedUrl> RecentLinks { get; set; } = [];
     public bool IsHtmxRequest { get; set; }
     public string? DefaultHostname { get; set; }
 
-    public IndexModel(AppDbContext db, UserIdentityService identity)
+    public IndexModel(AppDbContext db, UserIdentityService identity, ShortenRateLimiter shortenLimiter)
     {
         _db = db;
         _identity = identity;
+        _shortenLimiter = shortenLimiter;
     }
 
     public async Task OnGet()
@@ -34,6 +36,11 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnPost()
     {
+        // Per-IP shorten limit, enforced manually (see ShortenRateLimiter). Returns 429
+        // before any form parsing or DB work once the client exceeds its window.
+        if (!await _shortenLimiter.TryAcquireAsync(HttpContext))
+            return new StatusCodeResult(StatusCodes.Status429TooManyRequests);
+
         var url = Request.Form["url"].FirstOrDefault() ?? "";
         var slug = Request.Form["slug"].FirstOrDefault()?.Trim() ?? "";
 

@@ -39,6 +39,12 @@ builder.Services.AddHostedService<UserProvisioningProcessor>();
 
 builder.Services.AddScoped<UserIdentityService>();
 builder.Services.AddHttpClient<DomainVerifierService>(client => client.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.Configure<RateLimitingOptions>(builder.Configuration.GetSection("RateLimiting"));
+
+// Enforces the per-IP shorten-form limit inside IndexModel.OnPost. Razor Pages do not honor
+// [EnableRateLimiting] on handler methods (see dotnet/AspNetCore.Docs#28714) and a class-level
+// attribute would also throttle the landing-page GET, so the shorten limit is applied manually.
+builder.Services.AddSingleton<ShortenRateLimiter>();
 builder.Services.AddSingleton<IDnsQuery>(new LookupClient());
 builder.Services.AddSingleton<ITxtDnsResolver, DnsClientTxtResolver>();
 
