@@ -1,0 +1,39 @@
+@page "/bio/{slug}"
+@model Shortnr.Web.Pages.Bio.IndexModel
+@{
+    Layout = "_BioLayout";
+    ViewData["BioTheme"] = Model.BioPage?.Theme ?? "default";
+    ViewData["BioTitle"] = Model.BioPage?.DisplayName ?? "Not found";
+}
+@if (Model.BioPage is null)
+{
+    <div class="bio-card bio-404">
+        <p>This bio page doesn't exist.</p>
+    </div>
+}
+else
+{
+    <div class="bio-card">
+        @if (Model.BioPage.AvatarUrl is not null)
+        {
+            <img class="bio-avatar" src="@Model.BioPage.AvatarUrl" alt="@Model.BioPage.DisplayName" referrerpolicy="no-referrer">
+        }
+        <h1 class="bio-name">@Model.BioPage.DisplayName</h1>
+        @if (Model.BioPage.BioText is { Length: > 0 })
+        {
+            <p class="bio-text">@Model.BioPage.BioText</p>
+        }
+        <ul class="bio-links">
+            @foreach (var entry in Model.BioPage.Links)
+            {
+                var link = entry.ShortenedUrl;
+                <li>
+                    <a href="@Shortnr.Web.Helpers.ShortUrlHelper.DisplayHref(Request.Scheme, link?.Domain?.Hostname, link?.ShortCode ?? "")"
+                       target="_blank" rel="noopener">
+                        @entry.Title
+                    </a>
+                </li>
+            }
+        </ul>
+    </div>
+}
