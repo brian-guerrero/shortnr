@@ -356,4 +356,76 @@ public class McpWriteToolsTests : McpTestBase
         var text = ToolText(json.RootElement.GetProperty("result"));
         Assert.Contains("unknown theme", text);
     }
+
+    [Fact]
+    public async Task SetBioPageText_ValidText_Updates_AndLogsActivity()
+    {
+        var owner = await SeedUserAndKeyAsync("bio-write", TestKey, ApiKeyScopes.McpWrite);
+        await SeedBioPageAsync(owner, "bio1", "Bio Owner");
+        var client = CreateAuthorizedClient(TestKey);
+
+        var response = await PostJsonRpcAsync(client, "tools/call",
+            """{"name":"set_bio_page_text","arguments":{"text":"Building side projects with .NET."}}""");
+
+        using (var json = await ReadJsonAsync(response))
+        {
+            var text = ToolText(json.RootElement.GetProperty("result"));
+            Assert.Contains("updated", text);
+        }
+
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var page = await db.BioPages.SingleAsync(b => b.OwnerUserId == owner);
+            Assert.Equal("Building side projects with .NET.", page.BioText);
+        }
+
+        await WaitForActivityAsync(owner, "set_bio_page_text");
+    }
+
+    [Fact]
+    public async Task SetBioPageText_EmptyText_Clears()
+    {
+        var owner = await SeedUserAndKeyAsync("bio-write", TestKey, ApiKeyScopes.McpWrite);
+        await SeedBioPageAsync(owner, "bio1", "Bio Owner");
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var page = await db.BioPages.SingleAsync(b => b.OwnerUserId == owner);
+            page.BioText = "Existing text";
+            await db.SaveChangesAsync();
+        }
+        var client = CreateAuthorizedClient(TestKey);
+
+        var response = await PostJsonRpcAsync(client, "tools/call",
+            """{"name":"set_bio_page_text","arguments":{"text":"  "}}""");
+
+        using (var json = await ReadJsonAsync(response))
+        {
+            var text = ToolText(json.RootElement.GetProperty("result"));
+            Assert.Contains("cleared", text);
+        }
+
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var page = await db.BioPages.SingleAsync(b => b.OwnerUserId == owner);
+            Assert.Null(page.BioText);
+        }
+    }
+
+    [Fact]
+    public async Task SetBioPageText_TooLong_ReturnsError()
+    {
+        await SeedUserAndKeyAsync("bio-write", TestKey, ApiKeyScopes.McpWrite);
+        var client = CreateAuthorizedClient(TestKey);
+
+        var tooLong = new string('x', 2001);
+        var response = await PostJsonRpcAsync(client, "tools/call",
+            """{"name":"set_bio_page_text","arguments":{"text":"BIO_TEXT"}}""".Replace("BIO_TEXT", tooLong));
+
+        using var json = await ReadJsonAsync(response);
+        var text = ToolText(json.RootElement.GetProperty("result"));
+        Assert.Contains("2000", text);
+    }
 }

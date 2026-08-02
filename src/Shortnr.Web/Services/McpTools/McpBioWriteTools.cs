@@ -212,5 +212,38 @@ public static class McpBioWriteTools
 
             return $"Bio page theme is now '{normalized}'.";
         }
+
+        [McpServerTool(Name = "set_bio_page_text", Title = "Set the bio page text")]
+        public static async Task<string> SetBioPageText(
+            RequestContext<CallToolRequestParams> context,
+            AppDbContext db,
+            UserIdentityService identity,
+            Channel<AiActivityRecord> activity,
+            [Description("The bio text shown on the page; empty string clears it")] string text,
+            CancellationToken ct = default)
+        {
+            var ownerUserId = await McpToolGuard.ResolveOwnerAsync(context, identity);
+            if (ownerUserId is null) return McpToolGuard.OwnerError;
+            if (!McpToolGuard.HasScope(context, ApiKeyScopes.McpWrite)) return McpToolGuard.WriteScopeError;
+
+            var normalized = text.Trim();
+            if (normalized.Length > 2000)
+                return "Error: bio text must be 2000 characters or fewer.";
+
+            var bioPage = await db.BioPages.FirstOrDefaultAsync(b => b.OwnerUserId == ownerUserId, ct);
+            if (bioPage is null)
+                return "Error: no bio page exists yet.";
+
+            bioPage.BioText = normalized.Length > 0 ? normalized : null;
+            await db.SaveChangesAsync(ct);
+
+            McpToolGuard.LogActivity(activity, ownerUserId.Value, McpToolGuard.ResolveApiKeyId(context),
+                "set_bio_page_text", nameof(BioPage), bioPage.Id,
+                normalized.Length > 0 ? $"Set bio page text ({normalized.Length} chars)" : "Cleared bio page text");
+
+            return normalized.Length > 0
+                ? "Bio page text updated."
+                : "Bio page text cleared.";
+        }
     }
 }
