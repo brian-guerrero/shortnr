@@ -1,0 +1,174 @@
+@model Shortnr.Web.Pages.Bio.EditModel
+@if (Model.ErrorMessage is not null)
+{
+    <mark class="pico-background-red-100" style="display:block; margin-bottom: 1rem;">
+        <strong>@Model.ErrorMessage</strong>
+    </mark>
+}
+@if (Model.StatusMessage is not null)
+{
+    <mark class="pico-background-green-100" style="display:block; margin-bottom: 1rem;">
+        <strong>@Model.StatusMessage</strong>
+    </mark>
+}
+@if (Model.BioPage is null)
+{
+    <p>Your bio page is one shareable URL that fans out to your links. It is powered by real short links, so every button gets click tracking and a QR code for free.</p>
+    <form hx-post="/bio/edit?handler=Create" hx-target="#bio-editor" hx-swap="innerHTML">
+        @Html.AntiForgeryToken()
+        <label for="bio-slug">Bio page code</label>
+        <input type="text" name="slug" id="bio-slug" placeholder="myhandle" required
+               pattern="[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}" maxlength="64">
+        <label for="bio-display-name">Display name</label>
+        <input type="text" name="displayName" id="bio-display-name" placeholder="Casey's Corner" maxlength="256">
+        <label for="bio-avatar">Avatar URL <small>(optional)</small></label>
+        <input type="url" name="avatarUrl" id="bio-avatar" placeholder="https://example.com/avatar.png">
+        <label for="bio-text">Bio text <small>(optional)</small></label>
+        <textarea name="bioText" id="bio-text" rows="3" maxlength="2000"></textarea>
+        <label for="bio-theme">Theme</label>
+        <select name="theme" id="bio-theme">
+            @foreach (var theme in Shortnr.Web.Services.BioThemes.All)
+            {
+                <option value="@theme">@theme</option>
+            }
+        </select>
+        <button type="submit">Create bio page</button>
+    </form>
+}
+else
+{
+    <p>
+        Your bio page is live at
+        <a href="/bio/@Model.BioPage.Slug" target="_blank" rel="noopener">/bio/@Model.BioPage.Slug</a>.
+    </p>
+    <details>
+        <summary role="button" class="secondary">Edit page settings</summary>
+        <div>
+            <form hx-post="/bio/edit?handler=Update" hx-target="#bio-editor" hx-swap="innerHTML">
+                @Html.AntiForgeryToken()
+                <label for="bio-display-name">Display name</label>
+                <input type="text" name="displayName" id="bio-display-name" value="@Model.BioPage.DisplayName" maxlength="256">
+                <label for="bio-avatar">Avatar URL <small>(optional)</small></label>
+                <input type="url" name="avatarUrl" id="bio-avatar" value="@Model.BioPage.AvatarUrl" placeholder="https://example.com/avatar.png">
+                <label for="bio-text">Bio text <small>(optional)</small></label>
+                <textarea name="bioText" id="bio-text" rows="3" maxlength="2000">@Model.BioPage.BioText</textarea>
+                <label for="bio-theme">Theme</label>
+                <select name="theme" id="bio-theme">
+                    @foreach (var theme in Shortnr.Web.Services.BioThemes.All)
+                    {
+                        <option value="@theme" selected="@(Model.BioPage.Theme == theme)">@theme</option>
+                    }
+                </select>
+                <button type="submit">Save settings</button>
+            </form>
+        </div>
+    </details>
+
+    <details open>
+        <summary role="button" class="secondary">Add a link</summary>
+        <div>
+            <form hx-post="/bio/edit?handler=AddLink" hx-target="#bio-editor" hx-swap="innerHTML">
+                @Html.AntiForgeryToken()
+                <label for="bio-title">Title <small>(optional)</small></label>
+                <input type="text" name="title" id="bio-title" placeholder="My latest remix" maxlength="256">
+                <label for="bio-link-pick">Existing link</label>
+                <select name="linkId" id="bio-link-pick">
+                    <option value="">— choose an existing link —</option>
+                    @foreach (var link in Model.OwnerLinks)
+                    {
+                        <option value="@link.Id">
+                            @link.ShortCode — @(link.Domain?.Hostname ?? "default") — @link.LongUrl
+                        </option>
+                    }
+                </select>
+                <p><small>or create a new short link:</small></p>
+                <input type="url" name="newUrl" placeholder="https://example.com/very/long/path">
+                <input type="text" name="newSlug" placeholder="Custom code (optional)" maxlength="64"
+                       pattern="[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}">
+                <button type="submit">Add link</button>
+            </form>
+        </div>
+    </details>
+
+    @if (Model.BioPage.Links.Count == 0)
+    {
+        <p>No links yet. Add your first one above.</p>
+    }
+    else
+    {
+        var bioLinks = Model.BioPage.Links.ToList();
+        <div class="overflow-auto">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Short URL</th>
+                        <th>Clicks</th>
+                        <th>Visible</th>
+                        <th>Order</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var i = 0; i < bioLinks.Count; i++)
+                    {
+                        var entry = bioLinks[i];
+                        var link = entry.ShortenedUrl;
+                        <tr>
+                            <td>
+                                @if (!entry.IsVisible)
+                                {
+                                    <mark>hidden</mark>
+                                }
+                                @entry.Title
+                            </td>
+                            <td>
+                                <a href="@Shortnr.Web.Helpers.ShortUrlHelper.DisplayHref(Context.Request.Scheme, link?.Domain?.Hostname, link?.ShortCode ?? "")"
+                                   target="_blank" rel="noopener">
+                                    @Shortnr.Web.Helpers.ShortUrlHelper.DisplayText(link?.Domain?.Hostname, link?.ShortCode ?? "")
+                                </a>
+                            </td>
+                            <td>@(link?.ClickCount ?? 0)</td>
+                            <td>
+                                <form hx-post="/bio/edit?handler=ToggleLink" hx-target="#bio-editor" hx-swap="innerHTML" style="display:inline;">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@entry.Id">
+                                    <button type="submit" class="secondary" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">
+                                        @(entry.IsVisible ? "Hide" : "Show")
+                                    </button>
+                                </form>
+                            </td>
+                            <td>
+                                @if (i > 0)
+                                {
+                                    <form hx-post="/bio/edit?handler=MoveLink" hx-target="#bio-editor" hx-swap="innerHTML" style="display:inline;">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@entry.Id">
+                                        <input type="hidden" name="direction" value="up">
+                                        <button type="submit" class="secondary" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">↑</button>
+                                    </form>
+                                }
+                                @if (i < bioLinks.Count - 1)
+                                {
+                                    <form hx-post="/bio/edit?handler=MoveLink" hx-target="#bio-editor" hx-swap="innerHTML" style="display:inline;">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@entry.Id">
+                                        <input type="hidden" name="direction" value="down">
+                                        <button type="submit" class="secondary" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">↓</button>
+                                    </form>
+                                }
+                            </td>
+                            <td>
+                                <form hx-post="/bio/edit?handler=RemoveLink" hx-target="#bio-editor" hx-swap="innerHTML" style="display:inline;">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@entry.Id">
+                                    <button type="submit" class="secondary" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Remove</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}

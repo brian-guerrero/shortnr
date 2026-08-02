@@ -1,0 +1,11 @@
+@page "/bio/edit"
+@model Shortnr.Web.Pages.Bio.EditModel
+@{
+    Layout = Model.IsHtmxRequest ? null : "_Layout";
+}
+<article>
+    <header><h1>Bio page</h1></header>
+    <div id="bio-editor">
+        @await Html.PartialAsync("Shared/_BioEditor", Model)
+    </div>
+</article>
