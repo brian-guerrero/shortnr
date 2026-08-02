@@ -9,7 +9,10 @@ using Shortnr.Web.Extensions;
 using Shortnr.Web.Models;
 using Shortnr.Web.Services;
 using ModelContextProtocol.AspNetCore;
+using ModelContextProtocol.AspNetCore.Authentication;
+using ModelContextProtocol.Authentication;
 using ModelContextProtocol.Protocol;
+using OpenIddict.Validation.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,7 +20,7 @@ builder.AddServiceDefaults();
 
 builder.Services.AddRazorPages();
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")).UseOpenIddict());
 builder.Services.AddSingleton(Channel.CreateUnbounded<ClickRecord>());
 builder.Services.AddSingleton(sp =>
 {
@@ -58,12 +61,35 @@ builder.Services.AddSingleton<ITxtDnsResolver, DnsClientTxtResolver>();
 
 builder.Services.AddOidcAuthentication(builder.Configuration, builder.Environment);
 
+// OAuth 2.1 authorization server for MCP clients (OpenIddict), fronting the
+// OIDC/Dex login above. No-ops when auth is disabled.
+builder.Services.AddOAuthServer(builder.Configuration, builder.Environment);
+
 // API-key authentication for /api/v1. Registered unconditionally so the
 // policy resolves even when OIDC is disabled; with no keys in the database
 // the endpoints simply always return 401 in that mode.
+var oauthResource = OAuthServerExtensions.ResolveResource(builder.Configuration);
+var oauthIssuer = OAuthServerExtensions.ResolveIssuer(builder.Configuration);
 builder.Services.AddAuthentication()
     .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, ApiKeyHandler>(
-        ApiKeyHandler.SchemeName, _ => { });
+        ApiKeyHandler.SchemeName, _ => { })
+    // The MCP scheme handles *challenges* (401 + WWW-Authenticate + serving the
+    // RFC 9728 protected-resource-metadata document); OpenIddict validation and
+    // ApiKeyHandler handle *authentication* of presented credentials.
+    .AddMcp(options =>
+    {
+        // McpAuthenticationOptions forwards authentication to a "Bearer" scheme
+        // by default; we have none (OpenIddict validation plays that role), so
+        // the Mcp scheme only handles challenges (401 + WWW-Authenticate +
+        // protected-resource metadata) while ApiKey/OpenIddict do the auth.
+        options.ForwardAuthenticate = null;
+        options.ResourceMetadata = new ProtectedResourceMetadata
+        {
+            Resource = oauthResource,
+            AuthorizationServers = { oauthIssuer },
+            ScopesSupported = [ApiKeyScopes.McpRead, ApiKeyScopes.McpWrite]
+        };
+    });
 
 // Model Context Protocol server. The HTTP transport is stateless (each request
 // is an independent JSON-RPC invocation) and tools are discovered from this
@@ -102,13 +128,25 @@ builder.Services.AddAuthorizationBuilder()
         .RequireAuthenticatedUser()
         .RequireClaim(ApiKeyScopes.ScopeClaim, ApiKeyScopes.McpWrite))
     // The /mcp endpoint itself only needs one mcp scope; individual tools enforce
-    // read vs write granularity from the principal's scope claims.
-    .AddPolicy("mcp", policy => policy
-        .AddAuthenticationSchemes(ApiKeyHandler.SchemeName)
-        .RequireAuthenticatedUser()
-        .RequireAssertion(ctx =>
-            ctx.User.HasClaim(ApiKeyScopes.ScopeClaim, ApiKeyScopes.McpRead) ||
-            ctx.User.HasClaim(ApiKeyScopes.ScopeClaim, ApiKeyScopes.McpWrite)));
+    // read vs write granularity from the principal's scope claims. When auth is
+    // enabled the endpoint also accepts OAuth bearer tokens (OpenIddict
+    // validation) and, on failure, challenges the MCP scheme so clients get the
+    // RFC 9728 401 + WWW-Authenticate + protected-resource metadata.
+    .AddPolicy("mcp", policy =>
+    {
+        policy.RequireAuthenticatedUser()
+              .RequireAssertion(ctx =>
+                  ctx.User.HasClaim(ApiKeyScopes.ScopeClaim, ApiKeyScopes.McpRead) ||
+                  ctx.User.HasClaim(ApiKeyScopes.ScopeClaim, ApiKeyScopes.McpWrite));
+
+        if (builder.Configuration.GetValue<bool>("Authentication:Enabled", defaultValue: true))
+            policy.AddAuthenticationSchemes(
+                ApiKeyHandler.SchemeName,
+                OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme,
+                McpAuthenticationDefaults.AuthenticationScheme);
+        else
+            policy.AddAuthenticationSchemes(ApiKeyHandler.SchemeName);
+    });
 
 // Per-key rate limiting: 60 requests/min burst + 1000/day cap. Partitioned by
 // the presented (hashed) key so it works independently of auth ordering.
@@ -181,10 +219,12 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
+    await OAuthServerExtensions.EnsureOAuthScopesAsync(scope.ServiceProvider, app.Configuration);
 }
 
 app.UseStaticFiles();
 app.UseRouting();
+app.UseCors();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -197,6 +237,7 @@ app.MapAuthenticationEndpoints(app.Configuration);
 app.MapApiEndpoints();
 app.MapApiV1Endpoints();
 app.MapMcpEndpoints();
+app.MapOAuthEndpoints(app.Configuration);
 
 app.MapOpenApi();
 app.MapScalarApiReference("/api/docs", options => options
