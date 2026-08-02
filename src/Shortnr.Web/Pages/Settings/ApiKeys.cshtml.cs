@@ -45,6 +45,10 @@ public class ApiKeysModel : PageModel
         if (label.Length == 0)
             return await ListPartialAsync(error: "Enter a label so you can recognise this key.");
 
+        var selectedScopes = Request.Form["scope"].ToArray();
+        if (!ApiKeyScopes.IsValidSelection(selectedScopes))
+            return await ListPartialAsync(error: "Select at least one valid scope.");
+
         var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
         if (ownerUserId is null)
             return await ListPartialAsync(error: "Unable to determine the key owner.");
@@ -56,6 +60,7 @@ public class ApiKeysModel : PageModel
             KeyHash = ApiKeyService.HashKey(key),
             KeyPrefix = key[..ApiKeyService.KeyPrefix.Length],
             Label = label,
+            Scopes = ApiKeyScopes.Format(selectedScopes),
             CreatedAtUtc = DateTime.UtcNow
         });
         await _db.SaveChangesAsync();

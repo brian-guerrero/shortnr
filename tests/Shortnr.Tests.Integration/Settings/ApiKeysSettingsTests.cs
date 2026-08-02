@@ -45,7 +45,10 @@ public class ApiKeysSettingsTests : IAsyncLifetime
         var client = _factory.CreateClient();
         var token = await GetAntiforgeryTokenAsync(client);
 
-        var response = await PostFormAsync(client, "/settings/api-keys", token, ("label", "CI pipeline"));
+        var response = await PostFormAsync(client, "/settings/api-keys", token,
+            ("label", "CI pipeline"),
+            ("scope", ApiKeyScopes.LinksRead),
+            ("scope", ApiKeyScopes.LinksWrite));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();

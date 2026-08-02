@@ -23,6 +23,7 @@ public static class ApiV1Endpoints
             .WithName("CreateLink")
             .WithSummary("Create a short link")
             .WithDescription("Accepts a long URL plus optional custom slug and verified custom domain.")
+            .RequireAuthorization(ApiKeyScopes.LinksWrite)
             .Produces<LinkResponse>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .Produces(StatusCodes.Status409Conflict);
@@ -31,11 +32,13 @@ public static class ApiV1Endpoints
             .WithName("ListLinks")
             .WithSummary("List short links")
             .WithDescription("Paginated list scoped to the authenticated key's owner. Filters: domain (hostname or 'default'), from, to.")
+            .RequireAuthorization(ApiKeyScopes.LinksRead)
             .Produces<LinkListResponse>();
 
         group.MapGet("/links/{shortCode}", GetLinkAsync)
             .WithName("GetLink")
             .WithSummary("Get a short link by code")
+            .RequireAuthorization(ApiKeyScopes.LinksRead)
             .Produces<LinkResponse>()
             .Produces(StatusCodes.Status404NotFound);
 
@@ -43,6 +46,7 @@ public static class ApiV1Endpoints
             .WithName("UpdateLink")
             .WithSummary("Update a short link")
             .WithDescription("Omitted fields keep their current value. Changing the slug or domain is subject to the same uniqueness rules as creation.")
+            .RequireAuthorization(ApiKeyScopes.LinksWrite)
             .Produces<LinkResponse>()
             .ProducesValidationProblem()
             .Produces(StatusCodes.Status404NotFound)
@@ -51,6 +55,7 @@ public static class ApiV1Endpoints
         group.MapDelete("/links/{shortCode}", DeleteLinkAsync)
             .WithName("DeleteLink")
             .WithSummary("Delete a short link")
+            .RequireAuthorization(ApiKeyScopes.LinksWrite)
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status404NotFound);
 
@@ -58,6 +63,7 @@ public static class ApiV1Endpoints
             .WithName("GetLinkClicks")
             .WithSummary("List click events for a short link")
             .WithDescription("Paginated click events, newest first.")
+            .RequireAuthorization(ApiKeyScopes.LinksRead)
             .Produces<ClickListResponse>()
             .Produces(StatusCodes.Status404NotFound);
     }

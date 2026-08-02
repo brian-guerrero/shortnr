@@ -22,6 +22,9 @@ public class ApiKeyHandler(
 {
     public const string SchemeName = "ApiKey";
     public const string ApiKeyIdClaim = "snr_api_key";
+    /// <summary>Carries the real <c>ApiKeys.Id</c> (unlike <see cref="ApiKeyIdClaim"/> which
+    /// carries the owner id as a marker for <see cref="UserIdentityService"/>).</summary>
+    public const string ApiKeyIdValueClaim = "snr_api_key_id";
 
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
@@ -42,11 +45,15 @@ public class ApiKeyHandler(
         apiKey.LastUsedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 
-        var claims = new[]
+        var claims = new List<Claim>
         {
-            new Claim(ClaimTypes.NameIdentifier, apiKey.OwnerUserId.ToString()),
-            new Claim(ApiKeyIdClaim, apiKey.OwnerUserId.ToString())
+            new(ClaimTypes.NameIdentifier, apiKey.OwnerUserId.ToString()),
+            new(ApiKeyIdClaim, apiKey.OwnerUserId.ToString()),
+            new(ApiKeyIdValueClaim, apiKey.Id.ToString())
         };
+        foreach (var scope in ApiKeyScopes.Resolve(apiKey.Scopes))
+            claims.Add(new Claim(ApiKeyScopes.ScopeClaim, scope));
+
         var identity = new ClaimsIdentity(claims, Scheme.Name);
         var principal = new ClaimsPrincipal(identity);
         return AuthenticateResult.Success(new AuthenticationTicket(principal, Scheme.Name));
