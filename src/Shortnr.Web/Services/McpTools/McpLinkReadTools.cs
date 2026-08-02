@@ -76,16 +76,16 @@ public static class McpLinkReadTools
         RequestContext<CallToolRequestParams> context,
         AppDbContext db,
         UserIdentityService identity,
-        [Description("The short code of the link")] string shortCode,
+        [Description("The short code of the link")] string short_code,
         CancellationToken ct = default)
     {
         var ownerUserId = await McpToolGuard.ResolveOwnerAsync(context, identity);
         if (ownerUserId is null) return McpToolGuard.OwnerError;
         if (!McpToolGuard.HasScope(context, ApiKeyScopes.McpRead)) return McpToolGuard.ReadScopeError;
 
-        var link = await McpToolGuard.ResolveOwnedLinkAsync(db, ownerUserId.Value, shortCode.Trim(), ct);
+        var link = await McpToolGuard.ResolveOwnedLinkAsync(db, ownerUserId.Value, short_code.Trim(), ct);
         if (link is null)
-            return $"Error: no link with short code '{shortCode}' found.";
+            return $"Error: no link with short code '{short_code}' found.";
 
         var clickQuery = db.ClickEvents.Where(e => e.ShortenedUrlId == link.Id);
         var total = await clickQuery.CountAsync(ct);

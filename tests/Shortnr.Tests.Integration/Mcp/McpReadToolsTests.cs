@@ -129,7 +129,7 @@ public class McpReadToolsTests : McpTestBase
 
         var client = CreateAuthorizedClient(TestKey);
         var response = await PostJsonRpcAsync(client, "tools/call",
-            """{"name":"get_link_stats","arguments":{"shortCode":"stats1"}}""");
+            """{"name":"get_link_stats","arguments":{"short_code":"stats1"}}""");
 
         using var json = await ReadJsonAsync(response);
         var text = ToolText(json.RootElement.GetProperty("result"));
@@ -153,7 +153,7 @@ public class McpReadToolsTests : McpTestBase
         var client = CreateAuthorizedClient(TestKey);
 
         var response = await PostJsonRpcAsync(client, "tools/call",
-            """{"name":"get_link_stats","arguments":{"shortCode":"nope1"}}""");
+            """{"name":"get_link_stats","arguments":{"short_code":"nope1"}}""");
 
         using var json = await ReadJsonAsync(response);
         var text = ToolText(json.RootElement.GetProperty("result"));
