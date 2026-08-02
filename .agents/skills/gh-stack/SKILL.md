@@ -1,6 +1,6 @@
 ---
 name: gh-stack
-description: Use when working on multiple features at once and the work should be split into stacked branches/PRs via the gh-stack GitHub CLI extension. Triggers on tasks involving stacked diffs, dependent pull requests, branch chains, breaking a large feature into reviewable layers, or any "dealing with multiple features at a time" workflow. Covers creating, pushing, submitting, syncing, rebasing, navigating, restructuring, and merging stacks non-interactively.
+description: Use when working on multiple features at once and the work should be split into stacked branches/PRs via the gh-stack GitHub CLI extension. Triggers on tasks involving stacked diffs, dependent pull requests, branch chains, or any "dealing with multiple features at a time" workflow. Each stack layer is one feature (branch → PR); the feature is broken into logical units of work as commits. Covers creating, pushing, submitting, syncing, rebasing, navigating, restructuring, and merging stacks non-interactively.
 ---
 
 # gh-stack — Stacked PRs for multiple features
@@ -9,9 +9,8 @@ description: Use when working on multiple features at once and the work should b
 
 ```
 main (trunk)
- └── feat/data-models     → PR #1 (base: main)
-  └── feat/api-endpoints  → PR #2 (base: feat/data-models)
-   └── feat/frontend      → PR #3 (base: feat/api-endpoints)  - top (furthest from trunk)
+ └── feat/bio-pages      → PR #1 (base: main)
+  └── feat/mcp-tools     → PR #2 (base: feat/bio-pages)  - top (furthest from trunk)
 ```
 
 The **bottom** of the stack is the branch closest to the trunk, the **top** the furthest from it. Navigation (`up`, `down`, `top`, `bottom`) follows that model: `up` moves away from trunk, `down` toward it.
@@ -59,10 +58,10 @@ git config remote.pushDefault origin     # skip the remote picker if multiple re
 3. **Always use `--json` with `gh stack view`.** Without it, `view` launches an interactive TUI that cannot be operated by an agent. There is no other appropriate flag — always pass `--json`.
 4. **Handle remotes.** This repo has a single remote (`origin`), so commands work by default. If a second remote appears, set `git config remote.pushDefault origin`, or pass `--remote origin` to the commands that accept it (`push`, `submit`, `sync`, `rebase`, `link`). `checkout`, `modify`, and `trunk` have no `--remote` flag — they rely on `remote.pushDefault`.
 5. **Avoid branches shared across multiple stacks.** If a branch belongs to multiple stacks, commands exit with code 6. Check out a non-shared branch first.
-6. **Plan stack layers by dependency order before writing code.** Foundational changes (models, migrations, shared utilities) go in lower branches; dependent changes (APIs, UI, consumers) go in higher branches. Think the chain through before running `gh stack init`.
-7. **Use standard `git add` and `git commit` for staging and committing.** The `-Am` shortcut is available but should not be the default — stacked PRs are most effective when each branch contains a deliberate, logical set of changes. When starting a new layer after the first, uncommitted changes carry over to the new branch, so commit or stash before `gh stack add` if you want a clean starting point.
+6. **Plan stack layers by dependency order before writing code.** Foundational features (models, migrations, shared utilities) go in lower branches; dependent features (APIs, UI, consumers) go in higher branches. Think the chain through before running `gh stack init`.
+7. **Break each feature layer into multiple logical commits.** Use standard `git add` and `git commit` for staging and committing; each commit is one logical unit of work (e.g. "Add user data model", "Wire up OIDC", "Add login UI"). Do not squash a whole feature into a single commit, and do not split one feature across multiple branches. When starting a new layer after the first, uncommitted changes carry over to the new branch, so commit or stash before `gh stack add` if you want a clean starting point.
 8. **Navigate down to change a lower layer.** If you're working on a higher layer and realize a lower layer needs changes, don't hack around it: `gh stack down` (or `gh stack checkout <branch>`), make and commit the change there, run `gh stack rebase --upstack`, then navigate back up. Otherwise the changes land in the wrong PR.
-9. **Use `gh stack merge --yes` to merge stacked PRs** — `gh pr merge` does not work with stacked PRs. Scope with a PR number (`gh stack merge 42 --yes`) or stack number (`gh stack merge 7 --yes`). Choose the method with `--squash`, `--rebase`, `--merge`, or `--merge-method <method>`.
+9. **Never auto-merge a stack — a human reviews every PR first.** `gh stack merge --yes` is for merging *after* a human has reviewed and approved each PR in the stack. Do not run it in the same session that creates the stack, and do not gate merging on CI alone. Stacked PRs in this repo are always reviewed by a human before they land. Wait for the human to review the open PRs (optionally use `gh pr view <number>` to check review status) and only merge on their explicit request.
 10. **Use `gh stack link` for external-tool workflows.** When branches are managed outside `gh stack` local tracking (jj, Sapling, git-town), use `gh stack link branch-a branch-b` to push, create PRs, and link a stack via the API. Provide at least two branches/PRs, or a stack number followed by arguments to append to an existing stack.
 
 **Never do any of the following — each triggers an interactive prompt or TUI that will hang:**
@@ -75,34 +74,58 @@ git config remote.pushDefault origin     # skip the remote picker if multiple re
 
 ## Thinking about stack structure
 
-Each branch in a stack should represent a **discrete, logical unit of work** that can be reviewed independently. The changes within a branch should be cohesive — they belong together and make sense as a single PR.
+### Each layer is a feature; commits are the units of work
 
-### Dependency chain
+A stack layer (branch → PR) represents a **feature** — a cohesive, reviewable chunk of functionality that builds on the layers below it. Within a layer, **commits** break the feature into logical units of work (models, migrations, API routes, UI, tests). Do not split one feature across multiple layers, and do not collapse a layer into a single commit.
 
-Stacked branches form a dependency chain: each branch builds on the one below it. **Foundational changes must go in lower (earlier) branches**; code that depends on them goes in higher (later) branches.
-
-Plan your layers before writing code. For example, a full-stack feature in this repo might be structured as:
+The mistake to avoid: turning each unit of a feature (data model, API, UI) into its own branch/PR. That fragments the feature and makes the stack harder to review and merge. Instead, one layer holds the whole feature, and its commits are the smaller tasks:
 
 ```
 main (trunk)
- └── feat/data-models      ← Shortnr.Data entities, EF Core migration
-  └── feat/api-endpoints   ← /api/v1 routes that use the models
-   └── feat/frontend       ← Razor Pages / HTMX UI that calls the APIs
-    └── feat/integration   ← integration tests exercising the full stack
+ └── feat/auth            → PR #1 — the whole auth feature
+  └── feat/api-keys       → PR #2 — the whole API-keys feature (depends on auth)
 ```
 
-These names are illustrative — choose branch names and layer boundaries that reflect the actual work. The key principle: if code in one layer depends on code in another, the dependency must be in the same branch or a lower one.
+Within `feat/auth`, commits are the smaller tasks:
+
+```bash
+git add src/Shortnr.Data/Entities/User.cs src/Shortnr.Data/Migrations/...
+git commit -m "Add user data model and migration"
+
+git add src/Shortnr.Web/Extensions/AuthenticationServiceExtensions.cs
+git commit -m "Wire up OIDC authentication"
+
+git add src/Shortnr.Web/Pages/Account/...
+git commit -m "Add login and logout UI"
+```
+
+A reviewer reads the feature PR and its commits in sequence: each commit is a small, logical piece of the feature.
+
+### Dependency chain
+
+Stacked branches form a dependency chain: each branch builds on the one below it. **Foundational features must go in lower (earlier) branches**; features that depend on them go in higher (later) branches.
+
+Plan your layers before writing code. For example, a multi-feature project in this repo might be structured as:
+
+```
+main (trunk)
+ └── feat/domain-models      ← feature: domain model + migration
+  └── feat/branded-domains   ← feature: branded domains (depends on models)
+   └── feat/public-api       ← feature: public API v1 (depends on domains)
+```
+
+These names are illustrative — choose branch names and layer boundaries that reflect the actual work. The key principle: if one feature depends on another, the dependency must be in the same branch or a lower one. The lower the layer, the more foundational the feature.
 
 ### Branch naming
 
-Follow this repo's existing convention: feature branches are prefixed with `feat/` (e.g. `feat/prd-001-branded-domains`, `feat/prd-003-public-api`). Name each layer descriptively, e.g. `feat/auth-data-model`, `feat/auth-api`, `feat/auth-ui`. Slashes are allowed and treated as part of the name. Branch names are used verbatim by `init`/`add`.
+Follow this repo's existing convention: feature branches are prefixed with `feat/` and named after the feature they deliver (e.g. `feat/prd-001-branded-domains`, `feat/prd-003-public-api`, `feat/prd-007-api-key-scopes`). Slashes are allowed and treated as part of the name. Branch names are used verbatim by `init`/`add`.
 
 ### One stack, one story
 
-A stack's PRs should tell a cohesive story about a feature or project; a reviewer should be able to read them in sequence, each PR a small, logical piece of the whole.
+A stack's PRs should tell a cohesive story about a project or feature set; a reviewer should be able to read them in sequence, each PR one feature, each feature built from several logical commits.
 
-- **Single stack:** all branches are part of the same feature/project, even across concerns (models, API, frontend).
-- **Separate stacks:** unrelated work — a different feature, an independent bug fix or refactor. Don't mix unrelated work into one stack just because both are in flight. Start a new stack with `gh stack init` (from the trunk) or switch with `gh stack checkout`.
+- **Single stack:** all branches are features of the same project, even across concerns (models, API, frontend). Each feature is its own layer; its sub-tasks live in that layer's commits.
+- **Separate stacks:** unrelated work — an independent feature, a bug fix or refactor with no dependency on the stack. Don't mix unrelated work into one stack just because both are in flight. Start a new stack with `gh stack init` (from the trunk) or switch with `gh stack checkout`.
 
 Trivial incidental fixes (a typo you noticed) can ride in the current stack; if a change grows into its own project it deserves its own stack.
 
@@ -111,11 +134,11 @@ Trivial incidental fixes (a typo you noticed) can ride in the current stack; if 
 | Task | Command |
 |------|---------|
 | Create a stack | `gh stack init feat/auth` |
-| Create a stack of multiple branches | `gh stack init feat/auth feat/api feat/ui` |
+| Create a stack of multiple feature layers | `gh stack init feat/auth feat/api-keys` |
 | Adopt existing branches | `gh stack init existing-branch-a existing-branch-b` |
 | Set custom trunk | `gh stack init --base develop feat/auth` |
-| Add a branch to stack | `gh stack add feat/api` |
-| Add branch + stage all + commit | `gh stack add -Am "message" feat/api` |
+| Add a feature branch to stack | `gh stack add feat/api-keys` |
+| Add branch + stage all + commit | `gh stack add -Am "message" feat/api-keys` |
 | Push branches to remote | `gh stack push` |
 | Push branches + create PRs (drafts) | `gh stack submit --auto` |
 | Create PRs as ready for review | `gh stack submit --auto --open` |
@@ -144,67 +167,81 @@ Trivial incidental fixes (a typo you noticed) can ride in the current stack; if 
 
 ### End-to-end: create a stack from scratch
 
+Each layer is one feature. Build the feature in multiple logical commits, then start the next feature layer on top:
+
 ```bash
-# 1. Initialize a stack with the first layer
-gh stack init feat/data-models
+# 1. Initialize a stack with the first feature layer
+gh stack init feat/auth
 # → creates the branch and checks it out
 
-# 2. Write code for the first layer, then stage and commit deliberately
-git add src/Shortnr.Data/Entities/...
-git commit -m "Add user and session models"
+# 2. Build the feature in logical commits
+git add src/Shortnr.Data/Entities/User.cs src/Shortnr.Data/Migrations/...
+git commit -m "Add user data model and migration"
 
-git add src/Shortnr.Data/Migrations/...
-git commit -m "Add user table migration"
+git add src/Shortnr.Web/Extensions/AuthenticationServiceExtensions.cs
+git commit -m "Wire up OIDC authentication"
 
-# 3. When you start a new concern, add the next branch
-gh stack add feat/api-endpoints
-# → creates feat/api-endpoints on top
+git add src/Shortnr.Web/Pages/Account/...
+git commit -m "Add login and logout UI"
 
-git add src/Shortnr.Web/Extensions/...
-git commit -m "Add user API routes"
+# 3. When the next feature depends on this one, add it as a layer on top
+gh stack add feat/api-keys
+# → creates feat/api-keys on top of feat/auth
 
-# 4. Add a third layer
-gh stack add feat/frontend
-git add src/Shortnr.Web/Pages/...
-git commit -m "Add dashboard frontend"
+git add src/Shortnr.Data/Entities/ApiKey.cs src/Shortnr.Data/Migrations/...
+git commit -m "Add API key model"
 
-# ── Stack complete: feat/data-models → feat/api-endpoints → feat/frontend ──
+git add src/Shortnr.Web/Services/ApiKeyService.cs
+git commit -m "Add API key hashing and issuance"
 
-# 5. Push everything and create PRs (drafts by default)
+git add src/Shortnr.Web/Pages/Settings/ApiKeys.cshtml...
+git commit -m "Add API key management UI"
+
+# ── Stack complete: feat/auth → feat/api-keys ──
+
+# 4. Push everything and create PRs (drafts by default)
 gh stack submit --auto
 
-# 6. Verify
+# 5. Verify
 gh stack view --json
 ```
 
-> **Shortcut:** `gh stack add -Am "message" feat/branch` combines staging, committing, and branch creation. Useful for single-commit layers, but it bypasses deliberate staging.
+> **Shortcut:** `gh stack add -Am "message" feat/branch` combines staging, committing, and branch creation. Useful for a single-commit layer, but it bypasses deliberate staging — prefer several `git commit`s per feature so the PR's commits stay small and logical.
 
 ### Making mid-stack changes
 
-When working on a higher layer and you need to change a lower layer (e.g. building frontend but need a new API endpoint), **navigate down to the correct branch, make the change there, and rebase**:
+When working on a higher layer and you need to change a lower layer (e.g. building API keys but need something from auth), **navigate down to the correct branch, make the change there, and rebase**:
 
 ```bash
-# You're on feat/frontend but need to add an endpoint
+# You're on feat/api-keys but need a change in the auth layer
 
-# 1. Navigate to the API branch
+# 1. Navigate to the auth branch
 gh stack down
-# or: gh stack checkout feat/api-endpoints
+# or: gh stack checkout feat/auth
 
 # 2. Make the change where it belongs
-git add src/Shortnr.Web/Extensions/ApiV1Endpoints.cs
-git commit -m "Add get-user endpoint"
+git add src/Shortnr.Web/Extensions/AuthenticationServiceExtensions.cs
+git commit -m "Add session refresh to auth"
 
 # 3. Rebase everything above to pick up the change
 gh stack rebase --upstack
 
 # 4. Navigate back to where you were working
 gh stack top
-# or: gh stack checkout feat/frontend
+# or: gh stack checkout feat/api-keys
 
-# 5. Continue — the API change is now available to the frontend layer
+# 5. Continue — the auth change is now available to the API-keys layer
 ```
 
-If you make the API change on the frontend branch, it ends up in the wrong PR. Always put changes in the branch where they logically belong.
+If you make the auth change on the API-keys branch, it ends up in the wrong PR. Always put changes in the branch where they logically belong.
+
+### Human review before merge (no auto-merge)
+
+**Stacks are never auto-merged.** Every PR in a stack is reviewed by a human before it lands. The agent's job stops at submitting the stack; merging happens only after a human has reviewed and approved the PRs, on their explicit request.
+
+- After `gh stack submit --auto`, hand off to the human: give them the stack number / PR URLs (from `gh stack view --json`) and a summary of each layer's feature.
+- If the human asks for changes, respond via the "Responding to review feedback" workflow below.
+- When the human explicitly asks to merge, use `gh stack merge <number> --yes [--method]`. Do not merge proactively, on CI success alone, or in the same session that opened the stack.
 
 ### Responding to review feedback
 
@@ -270,7 +307,7 @@ gh stack unstack
 git branch -m feat/old-name feat/new-name
 
 # 3. Re-create the stack with the new structure
-gh stack init --base main feat/new-name feat/api feat/ui
+gh stack init --base main feat/new-name feat/api-keys feat/bio-pages
 ```
 
 ### Parsing `gh stack view --json` output
