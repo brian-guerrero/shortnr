@@ -193,7 +193,7 @@ public static class ApiEndpoints
     private static IQueryable<ShortenedUrl> ApplyMetricsScoping(IQueryable<ShortenedUrl> query, long? ownerUserId, long? workspaceId)
     {
         if (workspaceId is not null)
-            return query.Where(l => l.OwnerUserId == ownerUserId || l.WorkspaceId == workspaceId);
+            return query.Where(l => l.WorkspaceId == workspaceId);
         if (ownerUserId is not null)
             return query.Where(l => l.OwnerUserId == ownerUserId);
         return query;
@@ -202,7 +202,7 @@ public static class ApiEndpoints
     private static IQueryable<ClickEvent> ApplyClickMetricsScoping(IQueryable<ClickEvent> query, long? ownerUserId, long? workspaceId)
     {
         if (workspaceId is not null)
-            return query.Where(e => e.ShortenedUrl.OwnerUserId == ownerUserId || e.ShortenedUrl.WorkspaceId == workspaceId);
+            return query.Where(e => e.ShortenedUrl.WorkspaceId == workspaceId);
         if (ownerUserId is not null)
             return query.Where(e => e.ShortenedUrl.OwnerUserId == ownerUserId);
         return query;

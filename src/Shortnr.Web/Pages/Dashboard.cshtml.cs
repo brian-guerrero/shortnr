@@ -180,7 +180,7 @@ public class DashboardModel : PageModel
     private static IQueryable<ShortenedUrl> ApplyScoping(IQueryable<ShortenedUrl> query, long? ownerUserId, long? workspaceId)
     {
         if (workspaceId is not null)
-            return query.Where(l => l.OwnerUserId == ownerUserId || l.WorkspaceId == workspaceId);
+            return query.Where(l => l.WorkspaceId == workspaceId);
         if (ownerUserId is not null)
             return query.Where(l => l.OwnerUserId == ownerUserId);
         return query;
@@ -189,7 +189,7 @@ public class DashboardModel : PageModel
     private static IQueryable<ClickEvent> ApplyClickScoping(IQueryable<ClickEvent> query, long? ownerUserId, long? workspaceId)
     {
         if (workspaceId is not null)
-            return query.Where(e => e.ShortenedUrl.OwnerUserId == ownerUserId || e.ShortenedUrl.WorkspaceId == workspaceId);
+            return query.Where(e => e.ShortenedUrl.WorkspaceId == workspaceId);
         if (ownerUserId is not null)
             return query.Where(e => e.ShortenedUrl.OwnerUserId == ownerUserId);
         return query;

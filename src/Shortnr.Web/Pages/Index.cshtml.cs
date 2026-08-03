@@ -120,7 +120,7 @@ public class IndexModel : PageModel
         var query = _db.ShortenedUrls.Include(l => l.Domain).AsQueryable();
 
         if (workspaceId is not null)
-            query = query.Where(l => l.OwnerUserId == ownerUserId || l.WorkspaceId == workspaceId);
+            query = query.Where(l => l.WorkspaceId == workspaceId);
         else if (ownerUserId is not null)
             query = query.Where(l => l.OwnerUserId == ownerUserId);
         else
