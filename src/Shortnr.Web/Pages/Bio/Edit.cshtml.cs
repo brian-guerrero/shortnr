@@ -114,6 +114,8 @@ public class EditModel : PageModel
         if (bioPage is null)
             return await EditorPartialAsync(error: "Create your bio page first.");
 
+        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+        var workspaceId = Workspace?.WorkspaceId;
         var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
         var linkId = long.TryParse(Request.Form["linkId"].FirstOrDefault(), out var id) ? id : (long?)null;
         var newUrl = (Request.Form["newUrl"].FirstOrDefault() ?? "").Trim();
@@ -122,14 +124,18 @@ public class EditModel : PageModel
         ShortenedUrl? link;
         if (linkId is not null)
         {
-            link = await _db.ShortenedUrls.FirstOrDefaultAsync(l =>
-                l.Id == linkId.Value && l.OwnerUserId == ownerUserId);
+            var linkQuery = _db.ShortenedUrls.Where(l => l.Id == linkId.Value);
+            if (workspaceId is not null)
+                linkQuery = linkQuery.Where(l => l.OwnerUserId == ownerUserId || l.WorkspaceId == workspaceId);
+            else
+                linkQuery = linkQuery.Where(l => l.OwnerUserId == ownerUserId);
+            link = await linkQuery.FirstOrDefaultAsync();
             if (link is null)
                 return await EditorPartialAsync(error: "Link not found.");
         }
         else if (newUrl.Length > 0)
         {
-            var created = await CreateLinkAsync(newUrl, newSlug, ownerUserId);
+            var created = await CreateLinkAsync(newUrl, newSlug, ownerUserId, workspaceId);
             if (created.Error is not null)
                 return await EditorPartialAsync(error: created.Error);
             link = created.Link;
@@ -252,6 +258,9 @@ public class EditModel : PageModel
     private async Task LoadEditorAsync()
     {
         var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+        var workspaceId = Workspace?.WorkspaceId;
+
         BioPage = ownerUserId is null
             ? null
             : await _db.BioPages
@@ -268,14 +277,20 @@ public class EditModel : PageModel
                 .ToList();
         }
 
-        OwnerLinks = ownerUserId is null
-            ? []
-            : await _db.ShortenedUrls
-                .Include(l => l.Domain)
-                .Where(l => l.OwnerUserId == ownerUserId)
-                .OrderByDescending(l => l.CreatedAtUtc)
-                .Take(100)
-                .ToListAsync();
+        if (ownerUserId is null)
+        {
+            OwnerLinks = [];
+        }
+        else
+        {
+            var linkQuery = _db.ShortenedUrls.Include(l => l.Domain).AsQueryable();
+            if (workspaceId is not null)
+                linkQuery = linkQuery.Where(l => l.OwnerUserId == ownerUserId || l.WorkspaceId == workspaceId);
+            else
+                linkQuery = linkQuery.Where(l => l.OwnerUserId == ownerUserId);
+
+            OwnerLinks = await linkQuery.OrderByDescending(l => l.CreatedAtUtc).Take(100).ToListAsync();
+        }
     }
 
     private async Task<BioPage?> FindOwnedPageAsync()
@@ -291,7 +306,7 @@ public class EditModel : PageModel
     /// Index page's creation rules (valid http(s) URL, slug rules via
     /// <see cref="ShortLinkCodes"/>). Returns an error message on failure.
     /// </summary>
-    private async Task<(ShortenedUrl? Link, string? Error)> CreateLinkAsync(string url, string slug, long? ownerUserId)
+    private async Task<(ShortenedUrl? Link, string? Error)> CreateLinkAsync(string url, string slug, long? ownerUserId, long? workspaceId)
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)
             || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
@@ -317,7 +332,8 @@ public class EditModel : PageModel
             LongUrl = url,
             ShortCode = code,
             DomainId = null,
-            OwnerUserId = ownerUserId,
+            OwnerUserId = workspaceId is not null ? null : ownerUserId,
+            WorkspaceId = workspaceId,
             CreatedAtUtc = DateTime.UtcNow
         };
         _db.ShortenedUrls.Add(link);
