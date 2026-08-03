@@ -57,7 +57,7 @@ public static class AuthenticationEndpointExtensions
                 MaxAge = TimeSpan.FromDays(30)
             });
             return Results.Redirect("/");
-        });
+        }).DisableAntiforgery();
 
         return app;
     }
