@@ -28,7 +28,6 @@
             {
                 <li>
                     <form method="post" action="/workspace/switch" style="margin: 0; display: inline;">
-                        @Html.AntiForgeryToken()
                         <input type="hidden" name="slug" value="@ws.Slug">
                         <button type="submit" class="secondary" style="padding: 0.25rem 0.75rem; border: none; background: none; width: 100%; text-align: left; font-size: 0.85rem; @(workspaceCtx?.WorkspaceId == ws.Id ? "font-weight: bold;" : "")">@ws.Name</button>
                     </form>
@@ -36,7 +35,6 @@
             }
             <li>
                 <form method="post" action="/workspace/switch" style="margin: 0; display: inline;">
-                    @Html.AntiForgeryToken()
                     <input type="hidden" name="slug" value="personal">
                     <button type="submit" class="secondary" style="padding: 0.25rem 0.75rem; border: none; background: none; width: 100%; text-align: left; font-size: 0.85rem; @(workspaceCtx is null ? "font-weight: bold;" : "")">Personal</button>
                 </form>
