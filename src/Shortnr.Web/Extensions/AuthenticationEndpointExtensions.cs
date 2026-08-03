@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Mvc;
 using Shortnr.Web.Services;
 
 namespace Shortnr.Web.Extensions;
@@ -31,7 +32,7 @@ public static class AuthenticationEndpointExtensions
                 new AuthenticationProperties { RedirectUri = "/" },
                 [CookieAuthenticationDefaults.AuthenticationScheme]));
 
-        app.MapPost("/workspace/switch", async (string slug, HttpContext ctx, WorkspaceService workspaceService, UserIdentityService identity) =>
+        app.MapPost("/workspace/switch", async ([FromForm] string slug, HttpContext ctx, WorkspaceService workspaceService, UserIdentityService identity) =>
         {
             var userId = await identity.ResolveOwnerUserIdAsync(ctx.User);
             if (userId is null)

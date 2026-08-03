@@ -92,7 +92,7 @@ public partial class WorkspaceService(AppDbContext db)
             db.WorkspaceMembers.Add(new WorkspaceMember
             {
                 WorkspaceId = workspaceId,
-                UserId = 0,
+                UserId = null,
                 Role = role,
                 InviteEmail = normalizedEmail,
                 InvitedAtUtc = DateTime.UtcNow,

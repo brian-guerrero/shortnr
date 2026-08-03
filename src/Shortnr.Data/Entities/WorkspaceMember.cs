@@ -4,7 +4,7 @@ public class WorkspaceMember
 {
     public long Id { get; set; }
     public long WorkspaceId { get; set; }
-    public long UserId { get; set; }
+    public long? UserId { get; set; }
     public WorkspaceRole Role { get; set; }
     public string? InviteEmail { get; set; }
     public DateTime InvitedAtUtc { get; set; }

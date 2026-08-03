@@ -24,6 +24,7 @@ public class ActivityModel : PageModel
     }
 
     public List<AiActivityRow> Activity { get; set; } = [];
+    public ActiveWorkspaceContext? Workspace { get; set; }
 
     public async Task<IActionResult> OnGet()
     {
@@ -36,6 +37,7 @@ public class ActivityModel : PageModel
         }
 
         var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
 
         if (Request.Headers["HX-Request"].Count > 0)
         {
