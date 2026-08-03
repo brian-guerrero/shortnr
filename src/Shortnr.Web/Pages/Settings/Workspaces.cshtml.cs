@@ -140,20 +140,18 @@ public class WorkspacesModel : PageModel
         if (ownerUserId is null)
             return Content("Unauthorized");
 
-        var workspace = await _workspaceService.GetWorkspaceBySlugAsync(id.ToString());
-        if (workspace is null)
-        {
-            var workspaces = await _workspaceService.GetWorkspacesForUserAsync(ownerUserId.Value);
-            workspace = workspaces.FirstOrDefault(w => w.Id == id);
-        }
+        var workspaces = await _workspaceService.GetWorkspacesForUserAsync(ownerUserId.Value);
+        var workspace = workspaces.FirstOrDefault(w => w.Id == id);
         if (workspace is null)
             return Content("Not found");
 
         var members = await _workspaceService.GetMembersAsync(id);
-        ViewData["Members"] = members;
-        ViewData["WorkspaceId"] = id;
-        ViewData["WorkspaceSlug"] = workspace.Slug;
-        return Partial("Shared/_WorkspaceDetail");
+        return Partial("Shared/_WorkspaceDetail", new WorkspaceDetailViewModel
+        {
+            WorkspaceId = id,
+            WorkspaceSlug = workspace.Slug,
+            Members = members
+        });
     }
 
     private IActionResult? EnforceAccess()

@@ -1,7 +1,7 @@
 @using Shortnr.Data.Entities
 @model WorkspaceMember
 @{
-    var workspaceId = (long)ViewData["WorkspaceId"]!;
+    var workspaceId = (long?)ViewData["WorkspaceId"] ?? 0;
     var isPending = Model.JoinedAtUtc is null;
     var displayName = Model.User?.Name ?? Model.User?.Email ?? (isPending ? "Pending invite" : "Unknown");
 }

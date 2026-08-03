@@ -1,8 +1,9 @@
 @using Shortnr.Data.Entities
+@model Shortnr.Web.Pages.Settings.WorkspaceDetailViewModel
 @{
-    var members = ViewData["Members"] as List<WorkspaceMember> ?? [];
-    var workspaceId = (long)ViewData["WorkspaceId"]!;
-    var workspaceSlug = ViewData["WorkspaceSlug"] as string ?? "";
+    var members = Model.Members;
+    var workspaceId = Model.WorkspaceId;
+    var workspaceSlug = Model.WorkspaceSlug;
 }
 <table>
     <thead>
@@ -16,7 +17,7 @@
     <tbody>
         @foreach (var m in members)
         {
-            @await Html.PartialAsync("Shared/_MemberRow", m)
+            @await Html.PartialAsync("Shared/_MemberRow", m, new ViewDataDictionary(ViewData) { ["WorkspaceId"] = workspaceId })
         }
     </tbody>
 </table>
