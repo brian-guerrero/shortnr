@@ -4,15 +4,15 @@ URL shortener with a dashboard. .NET minimal APIs, HTMX frontend, EF Core + SQLi
 
 ## Project state
 
-Six projects under `src/` and `tests/`:
-- **Shortnr.Data** — class library: entities (`ShortenedUrl`, `ClickEvent`, `User`, `ApiKey`, `Domain`), `AppDbContext`, EF Core migrations (SQLite)
-- **Shortnr.Web** — ASP.NET Core Razor Pages (`Pages/`), plus minimal API endpoints: redirect, JSON metrics/QR, a versioned REST API (`/api/v1`), and branded-domain support (`/settings/domains`). OIDC login/signup wired against a test IdP (Dex); API keys are a separate bearer-auth scheme. Auth is opt-in via `Authentication:Enabled`.
-- **Shortnr.AppHost** — .NET Aspire orchestrator for local dev: runs `Shortnr.Web` plus a Dex container together. See the `dotnet-aspire` skill (`.claude/skills/dotnet-aspire`).
+Seven projects under `src/` and `tests/`:
+- **Shortnr.Data** — class library: entities (`ShortenedUrl`, `ClickEvent`, `User`, `ApiKey`, `Domain`, `BioPage`, `BioPageLink`, `AiActivityLog`, `Workspace`, `WorkspaceMember`), `AppDbContext`, EF Core migrations (SQLite)
+- **Shortnr.Web** — ASP.NET Core Razor Pages (`Pages/`), plus minimal API endpoints: redirect, JSON metrics/QR, a versioned REST API (`/api/v1`), branded-domain support (`/settings/domains`), team workspaces (`/settings/workspaces`), and bio-page editing (`/bio/edit`). OIDC login/signup wired against a test IdP (Dex); API keys are a separate bearer-auth scheme. Auth is opt-in via `Authentication:Enabled`.
+- **Shortnr.AppHost** — .NET Aspire orchestrator for local dev: runs `Shortnr.Web` plus Dex and MailPit containers together. See the `dotnet-aspire` skill (`.claude/skills/dotnet-aspire`).
 - **Shortnr.ServiceDefaults** — shared `AddServiceDefaults()`/`MapDefaultEndpoints()` extensions (health checks, OpenTelemetry, service discovery) referenced by `Shortnr.Web`.
 - **Shortnr.Tests.Unit** (`tests/`) — xUnit unit tests for services (no HTTP stack, EF Core InMemory).
 - **Shortnr.Tests.Integration** (`tests/`) — xUnit integration tests using `WebApplicationFactory<Program>` with a real SQLite DB and a `TestAuthHandler` that replaces OIDC.
 
-`dex/config.yaml` configures the Dex test IdP — see the `dex-oidc` skill (`.claude/skills/dex-oidc`) before editing it or `Shortnr.Web`'s `Authentication:Oidc:*` config.
+`dex/config.yaml` configures the Dex test IdP — see the `dex-oidc` skill (`.claude/skills/dex-oidc`) before editing it or `Shortnr.Web`'s `Authentication:Oidc:*` config. Two test users are provisioned (`test@example.com` and `test2@example.com`, both password `password`) for multi-user workspace testing.
 
 All projects build and all tests pass.
 
@@ -62,7 +62,7 @@ All projects build and all tests pass.
 - **Ownership** — `ShortenedUrl.OwnerUserId` (nullable FK to `Users`) is set on creation from the current authenticated principal, best-effort: if the user's very first action follows immediately after their very first login, the provisioning queue may not have inserted their `Users` row yet, so ownership is simply left unset for that request rather than duplicating the upsert on the request path.
 - **`UserIdentityService`** — scoped service (`Services/UserIdentityService.cs`) that centralises `IsAuthEnabled` and `ResolveOwnerUserIdAsync(ClaimsPrincipal)`. Injected into `DashboardModel`, `IndexModel`, the `/api/metrics` handler, and the `/api/v1` handlers. API-key principals carry the owner id directly in a marker claim, so `ResolveOwnerUserIdAsync` short-circuits the OIDC `(Issuer, Subject)` lookup. Never duplicate owner-resolution logic in page models.
 - **Dashboard access control** — when auth is enabled, unauthenticated full-page requests to `/dashboard` redirect to `/`; unauthenticated HTMX partial requests return `401` (so the browser doesn't silently swap the page with a login redirect mid-poll). The Dashboard link is hidden in the nav when auth is enabled and the user is not signed in.
-- **Dashboard data scoping** — all three dashboard query branches (metrics summary, recent clicks, search/link list) filter by `OwnerUserId` when auth is enabled. `/api/metrics` returns zeros for anonymous requests when auth is enabled rather than leaking all records.
+- **Dashboard data scoping** — all three dashboard query branches (metrics summary, recent clicks, search/link list) filter by `OwnerUserId` when auth is enabled, or by `WorkspaceId` when a workspace is active. `/api/metrics` returns zeros for anonymous requests when auth is enabled rather than leaking all records. Workspace scoping is exclusive — when a workspace is active, personal links are not included.
 - **Dashboard domain filter** — search/link list filters by `domain` query param: `default` means `DomainId == null`, otherwise matches the verified domain hostname. Filter options come from `LoadDomainOptionsAsync` (owner's domains, `default` label first).
 - **Gravatar** — `Helpers/GravatarHelper.cs` generates avatar URLs via MD5 hash of the normalised email. Falls back to the mystery-person silhouette (`d=mp`). Used in `Pages/Shared/_UserMenu.cshtml`.
 - **Nav user menu** — uses Pico CSS's native `<details class="dropdown">` pattern. No custom dropdown CSS. The `_UserMenu.cshtml` partial reads claims from the current principal.
@@ -72,6 +72,8 @@ All projects build and all tests pass.
 - **API keys** — `snr_`-prefixed, 32 random bytes, only the SHA-256 hash persisted (`ApiKeyService`). Created at `/settings/api-keys` (`Pages/Settings/ApiKeys.cshtml.cs`); the plaintext key is shown exactly once. Authenticated by `ApiKeyHandler` (`Services/ApiKeyHandler.cs`) reading `Authorization: Bearer <key>`; on success the principal carries `Users.Id` as `NameIdentifier` plus the `snr_api_key` marker claim.
 - **Public API v1** — `/api/v1/links` CRUD + `/links/{code}/clicks` (`Extensions/ApiV1Endpoints.cs`). Whole group requires the `ApiKey` policy and the `api-key` rate-limiter. `CreateLinkAsync` accepts an optional `Domain` (must be owned + verified); omitted it falls back to the owner's default domain. OpenAPI is restricted to `api/v1*` paths; Scalar UI at `/api/docs`.
 - **Rate limiting** — `ChainedRateLimiter` (`Services/ChainedRateLimiter.cs`) stacks two fixed windows per key: 60 req/min burst + 1000/day cap. Partitioned by hashed key (`Program.cs`), returns `429`.
+
+- **Team workspaces** — `Workspace` (`Slug`-keyed) + `WorkspaceMember` (role enum: Owner/Editor/Viewer, `InviteEmail` for pending invites). `ShortenedUrl` and `Domain` each have a nullable `WorkspaceId` FK; a link or domain has exactly one of {personal owner, workspace}. Workspace context is resolved via `snr_workspace` cookie by `UserIdentityService.ResolveActiveWorkspaceContextAsync`. `WorkspaceService` handles CRUD and membership; `WorkspaceAuthorizationService` is the single role-enforcement gate. Pending invites are auto-accepted on next OIDC login by `UserProvisioningProcessor` matching email claims against `InviteEmail`. Invite emails are sent via `EmailService` (MailKit SMTP, fire-and-forget) to a MailPit container in the AppHost. Workspace switcher lives in `_UserMenu.cshtml` as dropdown forms; switch endpoint is `/workspace/switch` (POST). Dashboard, Index, `/api/metrics`, Domains and Bio Edit pages are all workspace-scoped. AI Activity stays personal-only (no workspace FK on `AiActivityLog`). Workspaces require auth to be enabled.
 
 ## Testing conventions
 

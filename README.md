@@ -6,12 +6,17 @@ A URL shortener with a real-time dashboard. Built with ASP.NET Core Razor Pages,
 
 - Shorten any URL to a 6-character code
 - Duplicate URL detection — shortening the same URL returns the existing code
-- Click tracking with IP, user agent, and referrer capture (async batch processing)
-- Real-time dashboard with metrics, sortable link/click tables, and a Chart.js bar chart
-- QR code generation — inline on the index page, shareable page at `/qr/{shortCode}`, downloadable PNG at `/api/qr/{shortCode}`
-- Optional authentication — OIDC login via Dex (or any OIDC provider); disable entirely with one config flag
-- Per-user dashboard — when auth is enabled, the dashboard and `/api/metrics` show only the signed-in user's links
-- User menu with Gravatar avatar and sign-out dropdown in the nav
+- Click tracking with IP, user agent, referrer, and geographic enrichment (async batch processing)
+- Real-time dashboard with metrics, sortable link/click tables, and Chart.js charts
+- QR code generation — inline on index page, shareable page at `/qr/{shortCode}`, downloadable PNG at `/api/qr/{shortCode}`
+- Link-in-bio pages — personal bio page with theme picker, link reordering, and avatar support
+- Optional OIDC authentication via Dex (or any OIDC provider); disable entirely with one config flag
+- Per-user dashboard — when auth is enabled, dashboard and `/api/metrics` show only the signed-in user's links
+- Team workspaces — create workspaces, invite members by email, assign roles (Owner/Editor/Viewer), and switch between workspaces to scope dashboards and link creation
+- Branded domains — add and verify custom domains for vanity links
+- REST API v1 — create, list, update, and delete links with API keys at `/api/v1`
+- MCP server — AI agents can manage links and bio pages via the Model Context Protocol
+- User menu with Gravatar avatar, workspace switcher, and sign-out dropdown
 - Docker-ready with a persistent SQLite volume
 
 ## Project structure
@@ -23,9 +28,11 @@ shortnr/
 │   ├── Shortnr.Web/           # Razor Pages app
 │   │   ├── Extensions/        # Auth service + endpoint extension methods
 │   │   ├── Helpers/           # GravatarHelper
-│   │   ├── Pages/             # Index, Dashboard, QR pages + Shared partials
+│   │   ├── Pages/             # Index, Dashboard, QR, Bio, Settings pages + Shared partials
 │   │   ├── Services/          # ClickBatchProcessor, QrService, UserIdentityService,
-│   │   │                      #   UserProvisioningProcessor
+│   │   │                      #   UserProvisioningProcessor, WorkspaceService,
+│   │   │                      #   WorkspaceAuthorizationService, DomainVerifierService,
+│   │   │                      #   EmailService, ApiKeyService, ChainedRateLimiter, ...
 │   │   ├── Models/            # ViewModels and DTOs
 │   │   ├── wwwroot/           # Static files (lib/ is gitignored, restored by LibMan)
 │   │   ├── libman.json        # Frontend dependency manifest
@@ -155,11 +162,19 @@ dotnet run --project src/Shortnr.Web -- \
 
 - **`/`** — Index page. POST shortens a URL and returns an HTMX partial with the short URL, a "Show QR" button, and an OOB swap of the recent links table.
 - **`/{shortCode}`** — Redirect endpoint (minimal API). Writes a `ClickRecord` to an in-memory channel and returns `302` immediately.
-- **`/dashboard`** — Dashboard page. When auth is enabled, requires authentication (redirects to `/` for full-page requests; returns `401` for HTMX partial requests). Metrics, sortable search results, and recent clicks are all scoped to the signed-in user.
+- **`/dashboard`** — Dashboard page. When auth is enabled, requires authentication. Metrics, sortable search results, and recent clicks are all scoped to the signed-in user or active workspace.
+- **`/dashboard/activity`** — AI activity dashboard showing MCP tool actions performed on behalf of the user.
+- **`/bio/edit`** — Bio page editor with link management and theme picker.
+- **`/bio/{slug}`** — Public bio page with the owner's links rendered as buttons.
+- **`/settings/domains`** — Branded domain management (add, verify via file or DNS TXT record, set default, delete).
+- **`/settings/workspaces`** — Team workspace management (create, invite members, manage roles, delete).
+- **`/settings/api-keys`** — API key creation and revocation.
 - **`/qr/{shortCode}`** — Full shareable QR page with download link.
 - **`/api/qr/{shortCode}`** — Raw PNG download endpoint.
-- **`/api/metrics`** — JSON endpoint consumed by the Chart.js dashboard chart. Scoped to the current user when auth is enabled; returns zeros for anonymous requests.
+- **`/api/metrics`** — JSON endpoint consumed by the Chart.js dashboard chart. Scoped to current user/workspace when auth is enabled; returns zeros for anonymous requests.
+- **`/api/v1/links`** — Versioned REST CRUD for short links with API-key auth and rate limiting.
 - **`/account/login`** / **`/account/logout`** — OIDC challenge / cookie sign-out. Only registered when `Authentication:Enabled` is `true`.
+- **`/workspace/switch`** — POST endpoint that sets the active workspace cookie.
 
 ### Authentication
 
@@ -170,7 +185,7 @@ Auth wiring follows SRP via two extension classes:
 
 Both are no-ops when `Authentication:Enabled` is `false`.
 
-`UserIdentityService` (scoped) is the single source of truth for `IsAuthEnabled` and `ResolveOwnerUserIdAsync(ClaimsPrincipal)`, used by `DashboardModel`, `IndexModel`, and the `/api/metrics` handler.
+`UserIdentityService` (scoped) is the single source of truth for `IsAuthEnabled`, `ResolveOwnerUserIdAsync(ClaimsPrincipal)`, and `ResolveActiveWorkspaceContextAsync(ClaimsPrincipal)`, used by `DashboardModel`, `IndexModel`, `ActivityModel`, `DomainsModel`, `EditModel` (bio), and the `/api/metrics` handler.
 
 ### User provisioning
 
