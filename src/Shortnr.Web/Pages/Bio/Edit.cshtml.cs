@@ -18,6 +18,7 @@ public class EditModel : PageModel
     public string? StatusMessage { get; set; }
     public string? ErrorMessage { get; set; }
     public bool IsHtmxRequest { get; set; }
+    public ActiveWorkspaceContext? Workspace { get; set; }
 
     public EditModel(AppDbContext db, UserIdentityService identity, ShortenRateLimiter shortenLimiter)
     {
@@ -33,6 +34,7 @@ public class EditModel : PageModel
             return gate;
 
         IsHtmxRequest = Request.Headers["HX-Request"].Count > 0;
+        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
         await LoadEditorAsync();
         return Page();
     }

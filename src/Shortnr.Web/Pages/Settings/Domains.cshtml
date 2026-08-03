@@ -4,7 +4,7 @@
     Layout = Model.IsHtmxRequest ? null : "_Layout";
 }
 <article>
-    <header><h1>Domains</h1></header>
+    <header><h1>Domains @if (Model.Workspace is not null) { @await Html.PartialAsync("Shared/_WorkspaceBadge", Model.Workspace) }</h1></header>
     <form hx-post="/settings/domains" hx-target="#domains-list" hx-swap="innerHTML"
           hx-on::after-request="if (event.detail.successful) this.querySelector('input[name=hostname]').value = ''">
         @Html.AntiForgeryToken()

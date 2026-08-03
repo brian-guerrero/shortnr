@@ -1,11 +1,12 @@
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
 using Shortnr.Data.Entities;
 
 namespace Shortnr.Web.Services;
 
-public partial class WorkspaceService(AppDbContext db)
+public partial class WorkspaceService(AppDbContext db, EmailService emailService, IHttpContextAccessor httpContextAccessor)
 {
     [GeneratedRegex(@"^[a-zA-Z0-9][a-zA-Z0-9_-]{2,31}$")]
     private static partial Regex SlugPattern();
@@ -69,6 +70,12 @@ public partial class WorkspaceService(AppDbContext db)
             return false;
 
         var normalizedEmail = email.Trim().ToLowerInvariant();
+        var workspace = await db.Workspaces.FindAsync(workspaceId);
+        if (workspace is null)
+            return false;
+
+        var actorUser = await db.Users.FindAsync(actorUserId);
+
         var existingUser = await db.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
         if (existingUser is not null)
         {
@@ -101,6 +108,14 @@ public partial class WorkspaceService(AppDbContext db)
         }
 
         await db.SaveChangesAsync();
+
+        var scheme = httpContextAccessor.HttpContext?.Request.Scheme ?? "http";
+
+        _ = emailService.SendAsync(
+            normalizedEmail,
+            $"You've been invited to join '{workspace.Name}' on shortnr",
+            $"Hi,\n\n{actorUser?.Name ?? actorUser?.Email ?? "Someone"} has invited you to join the workspace '{workspace.Name}' on shortnr.\n\nYour role: {role}\n\n{scheme}://shortnr.local/account/login\n\nLog in with your account to accept. If you don't have an account yet, sign up and you'll be added automatically.\n");
+
         return true;
     }
 
