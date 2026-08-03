@@ -1,6 +1,7 @@
 using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
+using Shortnr.Data.Entities;
 using Shortnr.Web.Helpers;
 using Shortnr.Web.Models;
 using Shortnr.Web.Services;
@@ -24,6 +25,8 @@ public static class ApiEndpoints
         app.MapGet("/api/metrics", async (AppDbContext db, HttpContext ctx, UserIdentityService identity) =>
         {
             var ownerUserId = await identity.ResolveOwnerUserIdAsync(ctx.User);
+            var workspaceCtx = await identity.ResolveActiveWorkspaceContextAsync(ctx.User);
+            var workspaceId = workspaceCtx?.WorkspaceId;
 
             if (identity.IsAuthEnabled && ownerUserId is null)
                 return Results.Json(new
@@ -39,8 +42,7 @@ public static class ApiEndpoints
                 });
 
             var linkQuery = db.ShortenedUrls.AsQueryable();
-            if (ownerUserId is not null)
-                linkQuery = linkQuery.Where(l => l.OwnerUserId == ownerUserId);
+            linkQuery = ApplyMetricsScoping(linkQuery, ownerUserId, workspaceId);
 
             var totalLinks = await linkQuery.CountAsync();
             var totalClicks = await linkQuery.SumAsync(l => (long?)l.ClickCount) ?? 0;
@@ -51,8 +53,7 @@ public static class ApiEndpoints
                 .ToListAsync();
 
             var clickQuery = db.ClickEvents.AsQueryable();
-            if (ownerUserId is not null)
-                clickQuery = clickQuery.Where(e => e.ShortenedUrl.OwnerUserId == ownerUserId);
+            clickQuery = ApplyClickMetricsScoping(clickQuery, ownerUserId, workspaceId);
 
             var totalCountries = await clickQuery
                 .Where(e => e.CountryCode != null && e.CountryCode != "")
@@ -187,5 +188,23 @@ public static class ApiEndpoints
         }).RequireRateLimiting("redirect-ip");
 
         return app;
+    }
+
+    private static IQueryable<ShortenedUrl> ApplyMetricsScoping(IQueryable<ShortenedUrl> query, long? ownerUserId, long? workspaceId)
+    {
+        if (workspaceId is not null)
+            return query.Where(l => l.OwnerUserId == ownerUserId || l.WorkspaceId == workspaceId);
+        if (ownerUserId is not null)
+            return query.Where(l => l.OwnerUserId == ownerUserId);
+        return query;
+    }
+
+    private static IQueryable<ClickEvent> ApplyClickMetricsScoping(IQueryable<ClickEvent> query, long? ownerUserId, long? workspaceId)
+    {
+        if (workspaceId is not null)
+            return query.Where(e => e.ShortenedUrl.OwnerUserId == ownerUserId || e.ShortenedUrl.WorkspaceId == workspaceId);
+        if (ownerUserId is not null)
+            return query.Where(e => e.ShortenedUrl.OwnerUserId == ownerUserId);
+        return query;
     }
 }

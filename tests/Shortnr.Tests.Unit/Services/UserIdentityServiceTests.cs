@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Shortnr.Data;
@@ -44,7 +45,7 @@ public class UserIdentityServiceTests : IDisposable
     [Fact]
     public void IsAuthEnabled_WhenKeyAbsent_DefaultsToTrue()
     {
-        var sut = new UserIdentityService(_db, new ConfigurationBuilder().Build());
+        var sut = new UserIdentityService(_db, new ConfigurationBuilder().Build(), new HttpContextAccessor());
         Assert.True(sut.IsAuthEnabled);
     }
 
@@ -166,7 +167,7 @@ public class UserIdentityServiceTests : IDisposable
                 ["Authentication:Enabled"] = authEnabled.ToString().ToLower(),
                 ["Authentication:Oidc:Authority"] = TestIssuer
             })
-            .Build());
+            .Build(), new HttpContextAccessor());
 
     private static ClaimsPrincipal AuthenticatedPrincipal(string subject, bool useNameIdentifier = true) =>
         new(new ClaimsIdentity(

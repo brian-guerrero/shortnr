@@ -1,9 +1,14 @@
 @using System.Security.Claims
+@inject Shortnr.Web.Services.UserIdentityService _identity
+@inject Shortnr.Web.Services.WorkspaceService _workspaceService
 
 @{
     var email     = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
     var name      = User.Identity?.Name ?? email ?? "Account";
     var avatarUrl = GravatarHelper.Url(email, size: 36);
+    var userId    = await _identity.ResolveOwnerUserIdAsync(User);
+    var workspaces = userId is not null ? await _workspaceService.GetWorkspacesForUserAsync(userId.Value) : [];
+    var workspaceCtx = await _identity.ResolveActiveWorkspaceContextAsync(User);
 }
 
 <details class="dropdown">
@@ -12,6 +17,33 @@
         @name
     </summary>
     <ul dir="rtl">
+        @if (workspaces.Count > 0)
+        {
+            <li class="workspace-section-header" style="padding: 0.25rem 0.75rem; font-size: 0.8rem; color: var(--pico-muted-color);">Workspaces</li>
+            @if (workspaceCtx is not null)
+            {
+                <li><mark class="pico-background-blue-100" style="display: block; padding: 0.25rem 0.75rem; font-size: 0.8rem; margin: 0 0.5rem;">@workspaceCtx.Name</mark></li>
+            }
+            @foreach (var ws in workspaces)
+            {
+                <li>
+                    <form method="post" action="/workspace/switch" style="margin: 0; display: inline;">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="slug" value="@ws.Slug">
+                        <button type="submit" class="secondary" style="padding: 0.25rem 0.75rem; border: none; background: none; width: 100%; text-align: left; font-size: 0.85rem; @(workspaceCtx?.WorkspaceId == ws.Id ? "font-weight: bold;" : "")">@ws.Name</button>
+                    </form>
+                </li>
+            }
+            <li>
+                <form method="post" action="/workspace/switch" style="margin: 0; display: inline;">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="slug" value="personal">
+                    <button type="submit" class="secondary" style="padding: 0.25rem 0.75rem; border: none; background: none; width: 100%; text-align: left; font-size: 0.85rem; @(workspaceCtx is null ? "font-weight: bold;" : "")">Personal</button>
+                </form>
+            </li>
+            <li><hr style="margin: 0.25rem 0;"></li>
+        }
+        <li><a href="/settings/api-keys">Settings</a></li>
         <li><a href="/account/logout">Log out</a></li>
     </ul>
 </details>

@@ -9,10 +9,12 @@ public class ShortenedUrl
     public long ClickCount { get; set; }
     public long? OwnerUserId { get; set; }
     public long? DomainId { get; set; }
+    public long? WorkspaceId { get; set; }
 
     public ICollection<ClickEvent> ClickEvents { get; set; } = [];
     public User? Owner { get; set; }
     public Domain? Domain { get; set; }
+    public Workspace? Workspace { get; set; }
 
     public string DisplayUrl() => Domain?.Hostname is { Length: > 0 } host
         ? $"//{host}/{ShortCode}"

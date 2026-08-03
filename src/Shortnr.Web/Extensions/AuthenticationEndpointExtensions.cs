@@ -1,13 +1,15 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Shortnr.Web.Services;
 
 namespace Shortnr.Web.Extensions;
 
 public static class AuthenticationEndpointExtensions
 {
     /// <summary>
-    /// Maps <c>/account/login</c> and <c>/account/logout</c> when <c>Authentication:Enabled</c> is true.
+    /// Maps <c>/account/login</c>, <c>/account/logout</c>, and <c>/workspace/switch</c>
+    /// when <c>Authentication:Enabled</c> is true.
     /// </summary>
     public static IEndpointRouteBuilder MapAuthenticationEndpoints(this IEndpointRouteBuilder app, IConfiguration config)
     {
@@ -28,6 +30,33 @@ public static class AuthenticationEndpointExtensions
             Results.SignOut(
                 new AuthenticationProperties { RedirectUri = "/" },
                 [CookieAuthenticationDefaults.AuthenticationScheme]));
+
+        app.MapPost("/workspace/switch", async (string slug, HttpContext ctx, WorkspaceService workspaceService, UserIdentityService identity) =>
+        {
+            var userId = await identity.ResolveOwnerUserIdAsync(ctx.User);
+            if (userId is null)
+                return Results.Unauthorized();
+
+            if (string.IsNullOrWhiteSpace(slug) || slug == "personal")
+            {
+                ctx.Response.Cookies.Delete("snr_workspace");
+                return Results.Redirect("/");
+            }
+
+            var isMember = await workspaceService.IsMemberAsync(
+                (await workspaceService.GetWorkspaceBySlugAsync(slug))?.Id ?? 0,
+                userId.Value);
+            if (!isMember)
+                return Results.Redirect("/");
+
+            ctx.Response.Cookies.Append("snr_workspace", slug, new CookieOptions
+            {
+                HttpOnly = true,
+                SameSite = SameSiteMode.Lax,
+                MaxAge = TimeSpan.FromDays(30)
+            });
+            return Results.Redirect("/");
+        });
 
         return app;
     }
