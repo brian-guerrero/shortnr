@@ -96,7 +96,7 @@ public class WorkspacesModel : PageModel
         return await DetailPartialAsync(id, status: $"Invitation sent to {email}.");
     }
 
-    public async Task<IActionResult> OnPostSetRole(long id, long userId, WorkspaceRole role)
+    public async Task<IActionResult> OnPostSetRole(long id, long memberId, WorkspaceRole role)
     {
         var gate = EnforceAccess();
         if (gate is not null)
@@ -106,14 +106,14 @@ public class WorkspacesModel : PageModel
         if (ownerUserId is null)
             return await DetailPartialAsync(id, error: "Unable to determine your account.");
 
-        var updated = await _workspaceService.SetRoleAsync(id, userId, role, ownerUserId.Value);
+        var updated = await _workspaceService.SetRoleByMemberIdAsync(memberId, role, ownerUserId.Value);
         if (!updated)
             return await DetailPartialAsync(id, error: "Cannot change this member's role.");
 
         return await DetailPartialAsync(id, status: "Role updated.");
     }
 
-    public async Task<IActionResult> OnPostRemoveMember(long id, long userId)
+    public async Task<IActionResult> OnPostRemoveMember(long id, long memberId)
     {
         var gate = EnforceAccess();
         if (gate is not null)
@@ -123,11 +123,28 @@ public class WorkspacesModel : PageModel
         if (ownerUserId is null)
             return await DetailPartialAsync(id, error: "Unable to determine your account.");
 
-        var removed = await _workspaceService.RemoveMemberAsync(id, userId, ownerUserId.Value);
+        var removed = await _workspaceService.RemoveMemberByIdAsync(memberId, ownerUserId.Value);
         if (!removed)
             return await DetailPartialAsync(id, error: "Cannot remove this member. A workspace must keep at least one owner.");
 
         return await DetailPartialAsync(id, status: "Member removed.");
+    }
+
+    public async Task<IActionResult> OnPostResendInvite(long id, long memberId)
+    {
+        var gate = EnforceAccess();
+        if (gate is not null)
+            return gate;
+
+        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        if (ownerUserId is null)
+            return await DetailPartialAsync(id, error: "Unable to determine your account.");
+
+        var resent = await _workspaceService.ResendInviteAsync(memberId, ownerUserId.Value);
+        if (!resent)
+            return await DetailPartialAsync(id, error: "Cannot resend invite. The member may have already joined.");
+
+        return await DetailPartialAsync(id, status: "Invitation resent.");
     }
 
     public async Task<IActionResult> OnGetDetail(long id)

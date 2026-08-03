@@ -17,21 +17,14 @@
         }
     </td>
     <td>
-        @if (Model.Role == WorkspaceRole.Owner)
-        {
-            <span class="pico-background-green-100" style="padding: 0.1rem 0.4rem; border-radius: 0.25rem; font-size: 0.8rem;">Owner</span>
-        }
-        else
-        {
-            <form hx-post="/settings/workspaces?handler=SetRole&id=@workspaceId&userId=@Model.UserId" hx-target="#workspaces-list" hx-swap="innerHTML" style="margin: 0;">
-                @Html.AntiForgeryToken()
-                <select name="role" onchange="this.form.requestSubmit()">
-                    <option value="2" selected="@(Model.Role == WorkspaceRole.Owner)">Owner</option>
-                    <option value="1" selected="@(Model.Role == WorkspaceRole.Editor)">Editor</option>
-                    <option value="0" selected="@(Model.Role == WorkspaceRole.Viewer)">Viewer</option>
-                </select>
-            </form>
-        }
+        <form hx-post="/settings/workspaces?handler=SetRole&id=@workspaceId&memberId=@Model.Id" hx-target="#workspaces-list" hx-swap="innerHTML" style="margin: 0;">
+            @Html.AntiForgeryToken()
+            <select name="role" onchange="this.form.requestSubmit()">
+                <option value="2" selected="@(Model.Role == WorkspaceRole.Owner)">Owner</option>
+                <option value="1" selected="@(Model.Role == WorkspaceRole.Editor)">Editor</option>
+                <option value="0" selected="@(Model.Role == WorkspaceRole.Viewer)">Viewer</option>
+            </select>
+        </form>
     </td>
     <td>
         @if (isPending)
@@ -44,12 +37,16 @@
         }
     </td>
     <td>
-        @if (Model.Role != WorkspaceRole.Owner)
+        @if (isPending)
         {
-            <form hx-post="/settings/workspaces?handler=RemoveMember&id=@workspaceId&userId=@Model.UserId" hx-target="#workspaces-list" hx-swap="innerHTML" style="margin: 0;">
+            <form hx-post="/settings/workspaces?handler=ResendInvite&id=@workspaceId&memberId=@Model.Id" hx-target="#workspaces-list" hx-swap="innerHTML" style="margin: 0; display: inline;">
                 @Html.AntiForgeryToken()
-                <button type="submit" class="secondary" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">Remove</button>
+                <button type="submit" class="outline" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">Resend</button>
             </form>
         }
+        <form hx-post="/settings/workspaces?handler=RemoveMember&id=@workspaceId&memberId=@Model.Id" hx-target="#workspaces-list" hx-swap="innerHTML" style="margin: 0; display: inline;">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="secondary" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">Remove</button>
+        </form>
     </td>
 </tr>

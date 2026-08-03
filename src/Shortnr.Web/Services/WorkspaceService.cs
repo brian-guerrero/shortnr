@@ -54,6 +54,9 @@ public partial class WorkspaceService(AppDbContext db, EmailService emailService
         await db.WorkspaceMembers
             .FirstOrDefaultAsync(m => m.WorkspaceId == workspaceId && m.UserId == userId && m.JoinedAtUtc != null);
 
+    public async Task<WorkspaceMember?> GetMemberByIdAsync(long memberId) =>
+        await db.WorkspaceMembers.FindAsync(memberId);
+
     public async Task<WorkspaceRole?> GetRoleAsync(long workspaceId, long userId)
     {
         var member = await GetMemberAsync(workspaceId, userId);
@@ -74,16 +77,24 @@ public partial class WorkspaceService(AppDbContext db, EmailService emailService
         if (workspace is null)
             return false;
 
-        var actorUser = await db.Users.FindAsync(actorUserId);
-
         var existingUser = await db.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
         if (existingUser is not null)
         {
-            var already = await db.WorkspaceMembers
+            var alreadyActive = await db.WorkspaceMembers
                 .AnyAsync(m => m.WorkspaceId == workspaceId && m.UserId == existingUser.Id && m.JoinedAtUtc != null);
-            if (already)
+            if (alreadyActive)
                 return false;
+        }
+        else
+        {
+            var alreadyPending = await db.WorkspaceMembers
+                .AnyAsync(m => m.WorkspaceId == workspaceId && m.InviteEmail == normalizedEmail && m.JoinedAtUtc == null);
+            if (alreadyPending)
+                return false;
+        }
 
+        if (existingUser is not null)
+        {
             db.WorkspaceMembers.Add(new WorkspaceMember
             {
                 WorkspaceId = workspaceId,
@@ -109,31 +120,32 @@ public partial class WorkspaceService(AppDbContext db, EmailService emailService
 
         await db.SaveChangesAsync();
 
+        var host = httpContextAccessor.HttpContext?.Request.Host.Host ?? "localhost";
         var scheme = httpContextAccessor.HttpContext?.Request.Scheme ?? "http";
+        var actorUser = await db.Users.FindAsync(actorUserId);
 
         _ = emailService.SendAsync(
             normalizedEmail,
             $"You've been invited to join '{workspace.Name}' on shortnr",
-            $"Hi,\n\n{actorUser?.Name ?? actorUser?.Email ?? "Someone"} has invited you to join the workspace '{workspace.Name}' on shortnr.\n\nYour role: {role}\n\n{scheme}://shortnr.local/account/login\n\nLog in with your account to accept. If you don't have an account yet, sign up and you'll be added automatically.\n");
+            $"Hi,\n\n{actorUser?.Name ?? actorUser?.Email ?? "Someone"} has invited you to join the workspace '{workspace.Name}' on shortnr.\n\nYour role: {role}\n\n{scheme}://{host}/account/login\n\nLog in with your account to accept. If you don't have an account yet, sign up and you'll be added automatically.\n");
 
         return true;
     }
 
-    public async Task<bool> SetRoleAsync(long workspaceId, long targetUserId, WorkspaceRole newRole, long actorUserId)
+    public async Task<bool> SetRoleByMemberIdAsync(long memberId, WorkspaceRole newRole, long actorUserId)
     {
-        var actorMember = await GetMemberAsync(workspaceId, actorUserId);
-        if (actorMember is null || actorMember.Role != WorkspaceRole.Owner)
+        var target = await db.WorkspaceMembers.FindAsync(memberId);
+        if (target is null)
             return false;
 
-        var target = await db.WorkspaceMembers
-            .FirstOrDefaultAsync(m => m.WorkspaceId == workspaceId && m.UserId == targetUserId && m.JoinedAtUtc != null);
-        if (target is null)
+        var actorMember = await GetMemberAsync(target.WorkspaceId, actorUserId);
+        if (actorMember is null || actorMember.Role != WorkspaceRole.Owner)
             return false;
 
         if (target.Role == WorkspaceRole.Owner && newRole != WorkspaceRole.Owner)
         {
             var ownerCount = await db.WorkspaceMembers
-                .CountAsync(m => m.WorkspaceId == workspaceId && m.Role == WorkspaceRole.Owner && m.JoinedAtUtc != null);
+                .CountAsync(m => m.WorkspaceId == target.WorkspaceId && m.Role == WorkspaceRole.Owner && m.JoinedAtUtc != null);
             if (ownerCount <= 1)
                 return false;
         }
@@ -143,29 +155,56 @@ public partial class WorkspaceService(AppDbContext db, EmailService emailService
         return true;
     }
 
-    public async Task<bool> RemoveMemberAsync(long workspaceId, long targetUserId, long actorUserId)
+    public async Task<bool> RemoveMemberByIdAsync(long memberId, long actorUserId)
     {
-        var actorMember = await GetMemberAsync(workspaceId, actorUserId);
+        var target = await db.WorkspaceMembers.FindAsync(memberId);
+        if (target is null)
+            return false;
+
+        var actorMember = await GetMemberAsync(target.WorkspaceId, actorUserId);
         if (actorMember is null)
             return false;
 
-        if (actorUserId != targetUserId && actorMember.Role != WorkspaceRole.Owner)
-            return false;
-
-        var target = await db.WorkspaceMembers
-            .FirstOrDefaultAsync(m => m.WorkspaceId == workspaceId && m.UserId == targetUserId);
-        if (target is null)
+        if (actorUserId != target.UserId && actorMember.Role != WorkspaceRole.Owner)
             return false;
 
         if (target.Role == WorkspaceRole.Owner)
         {
             var ownerCount = await db.WorkspaceMembers
-                .CountAsync(m => m.WorkspaceId == workspaceId && m.Role == WorkspaceRole.Owner && m.JoinedAtUtc != null);
+                .CountAsync(m => m.WorkspaceId == target.WorkspaceId && m.Role == WorkspaceRole.Owner && m.JoinedAtUtc != null);
             if (ownerCount <= 1)
                 return false;
         }
 
         db.WorkspaceMembers.Remove(target);
+        await db.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> ResendInviteAsync(long memberId, long actorUserId)
+    {
+        var target = await db.WorkspaceMembers.FindAsync(memberId);
+        if (target is null || target.JoinedAtUtc is not null || target.InviteEmail is null)
+            return false;
+
+        var actorMember = await GetMemberAsync(target.WorkspaceId, actorUserId);
+        if (actorMember is null || actorMember.Role != WorkspaceRole.Owner)
+            return false;
+
+        var workspace = await db.Workspaces.FindAsync(target.WorkspaceId);
+        if (workspace is null)
+            return false;
+
+        var host = httpContextAccessor.HttpContext?.Request.Host.Host ?? "localhost";
+        var scheme = httpContextAccessor.HttpContext?.Request.Scheme ?? "http";
+        var actorUser = await db.Users.FindAsync(actorUserId);
+
+        _ = emailService.SendAsync(
+            target.InviteEmail,
+            $"You've been invited to join '{workspace.Name}' on shortnr",
+            $"Hi,\n\n{actorUser?.Name ?? actorUser?.Email ?? "Someone"} has invited you to join the workspace '{workspace.Name}' on shortnr.\n\nYour role: {target.Role}\n\n{scheme}://{host}/account/login\n\nLog in with your account to accept. If you don't have an account yet, sign up and you'll be added automatically.\n");
+
+        target.InvitedAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync();
         return true;
     }
