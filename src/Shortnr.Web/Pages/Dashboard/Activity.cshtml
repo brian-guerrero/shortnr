@@ -5,7 +5,7 @@
 }
 <hgroup>
     <h1>AI Activity</h1>
-    <p>Actions AI assistants performed through the MCP API. @if (Model.Workspace is not null) { @await Html.PartialAsync("Shared/_WorkspaceBadge", Model.Workspace) }</p>
+    <p>Actions AI assistants performed through the MCP API.</p>
 </hgroup>
 
 <div id="ai-activity" hx-get="/dashboard/activity" hx-trigger="every 10s" hx-swap="innerHTML">
