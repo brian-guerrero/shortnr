@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Shortnr.Data;
 
@@ -10,9 +11,11 @@ using Shortnr.Data;
 namespace Shortnr.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260803010732_AddWorkspaces")]
+    partial class AddWorkspaces
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
@@ -509,17 +512,12 @@ namespace Shortnr.Data.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("TEXT");
 
-                    b.Property<long?>("WorkspaceId")
-                        .HasColumnType("INTEGER");
-
                     b.HasKey("Id");
 
                     b.HasIndex("Hostname")
                         .IsUnique();
 
                     b.HasIndex("OwnerUserId");
-
-                    b.HasIndex("WorkspaceId");
 
                     b.ToTable("Domains");
                 });
@@ -653,10 +651,6 @@ namespace Shortnr.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("InviteEmail")
-                        .HasMaxLength(320)
-                        .HasColumnType("TEXT");
-
                     b.Property<DateTime>("InvitedAtUtc")
                         .HasColumnType("TEXT");
 
@@ -666,7 +660,7 @@ namespace Shortnr.Data.Migrations
                     b.Property<int>("Role")
                         .HasColumnType("INTEGER");
 
-                    b.Property<long?>("UserId")
+                    b.Property<long>("UserId")
                         .HasColumnType("INTEGER");
 
                     b.Property<long>("WorkspaceId")
@@ -783,14 +777,7 @@ namespace Shortnr.Data.Migrations
                         .HasForeignKey("OwnerUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("Shortnr.Data.Entities.Workspace", "Workspace")
-                        .WithMany()
-                        .HasForeignKey("WorkspaceId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.Navigation("Owner");
-
-                    b.Navigation("Workspace");
                 });
 
             modelBuilder.Entity("Shortnr.Data.Entities.ShortenedUrl", b =>
@@ -833,7 +820,8 @@ namespace Shortnr.Data.Migrations
                     b.HasOne("Shortnr.Data.Entities.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("Shortnr.Data.Entities.Workspace", "Workspace")
                         .WithMany("Members")

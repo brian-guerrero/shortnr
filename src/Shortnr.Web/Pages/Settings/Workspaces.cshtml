@@ -1,0 +1,28 @@
+@page "/settings/workspaces"
+@model Shortnr.Web.Pages.Settings.WorkspacesModel
+@{
+    Layout = Model.IsHtmxRequest ? null : "_Layout";
+}
+<article>
+    <header><h1>Workspaces</h1></header>
+    <p>Workspaces let teams share links, clicks, and dashboards. You can belong to multiple workspaces and switch between them.</p>
+    <form hx-post="/settings/workspaces" hx-target="#workspaces-list" hx-swap="innerHTML"
+          hx-on::after-request="if (event.detail.successful) { this.querySelector('input[name=name]').value = ''; this.querySelector('input[name=slug]').value = ''; }">
+        @Html.AntiForgeryToken()
+        <div class="grid">
+            <label for="ws-name">
+                Name
+                <input type="text" name="name" id="ws-name" placeholder="My Team" required maxlength="128">
+            </label>
+            <label for="ws-slug">
+                Slug <small>(auto-generated if empty)</small>
+                <input type="text" name="slug" id="ws-slug" placeholder="my-team" maxlength="32"
+                       pattern="[a-zA-Z0-9][a-zA-Z0-9_-]{2,31}">
+            </label>
+        </div>
+        <button type="submit">Create workspace</button>
+    </form>
+    <div id="workspaces-list">
+        @await Html.PartialAsync("Shared/_WorkspacesList", Model)
+    </div>
+</article>

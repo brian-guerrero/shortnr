@@ -21,6 +21,7 @@ public class DashboardModel : PageModel
     }
 
     public List<string> DomainOptions { get; set; } = [];
+    public ActiveWorkspaceContext? Workspace { get; set; }
 
     public async Task<IActionResult> OnGet(string? search, string? linkSort, string? linkDir, string? clickSort, string? clickDir, int? clickLimit, string? domain)
     {
@@ -33,17 +34,16 @@ public class DashboardModel : PageModel
         }
 
         var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+        var workspaceId = Workspace?.WorkspaceId;
 
         if (Request.Headers["HX-Request"].Count > 0)
         {
             var target = Request.Headers["HX-Target"].FirstOrDefault();
 
-            // Click sort/pagination requests target #recent-clicks directly.
             if (target == "recent-clicks")
             {
-                var query = _db.ClickEvents.AsQueryable();
-                if (ownerUserId is not null)
-                    query = query.Where(e => e.ShortenedUrl.OwnerUserId == ownerUserId);
+                var query = ApplyClickScoping(_db.ClickEvents.AsQueryable(), ownerUserId, workspaceId);
 
                 query = (clickSort, clickDir == "desc") switch
                 {
@@ -68,9 +68,7 @@ public class DashboardModel : PageModel
 
             if (target == "search-results")
             {
-                var linkQ = _db.ShortenedUrls.AsQueryable();
-                if (ownerUserId is not null)
-                    linkQ = linkQ.Where(l => l.OwnerUserId == ownerUserId);
+                var linkQ = ApplyScoping(_db.ShortenedUrls.AsQueryable(), ownerUserId, workspaceId);
 
                 if (!string.IsNullOrWhiteSpace(search))
                 {
@@ -100,13 +98,10 @@ public class DashboardModel : PageModel
                     _ => linkQ.OrderByDescending(l => l.CreatedAtUtc)
                 };
 
-                return Partial("Shared/_SearchResults", await linkQ.Take(50).Include(l => l.Domain).ToListAsync());
+                return Partial("Shared/_SearchResults", await linkQ.Take(50).Include(l => l.Domain).Include(l => l.Workspace).ToListAsync());
             }
 
-            // Combined dashboard-data target: metrics + geo breakdown + chart JSON + recent clicks via hx-swap-oob.
-            var linkQuery = _db.ShortenedUrls.AsQueryable();
-            if (ownerUserId is not null)
-                linkQuery = linkQuery.Where(l => l.OwnerUserId == ownerUserId);
+            var linkQuery = ApplyScoping(_db.ShortenedUrls.AsQueryable(), ownerUserId, workspaceId);
 
             var links = await linkQuery
                 .Select(l => new { l.ShortCode, l.ClickCount })
@@ -120,9 +115,7 @@ public class DashboardModel : PageModel
                 .Select(l => new { shortCode = l.ShortCode, clickCount = l.ClickCount })
                 .ToList();
 
-            var clickQuery = _db.ClickEvents.AsQueryable();
-            if (ownerUserId is not null)
-                clickQuery = clickQuery.Where(e => e.ShortenedUrl.OwnerUserId == ownerUserId);
+            var clickQuery = ApplyClickScoping(_db.ClickEvents.AsQueryable(), ownerUserId, workspaceId);
 
             var geoRows = await clickQuery
                 .Where(e => e.CountryCode != null && e.CountryCode != "")
@@ -164,10 +157,7 @@ public class DashboardModel : PageModel
                 countryBreakdown = countryChartData
             });
 
-            var recentClicksQuery = _db.ClickEvents.AsQueryable();
-            if (ownerUserId is not null)
-                recentClicksQuery = recentClicksQuery.Where(e => e.ShortenedUrl.OwnerUserId == ownerUserId);
-
+            var recentClicksQuery = ApplyClickScoping(_db.ClickEvents.AsQueryable(), ownerUserId, workspaceId);
             recentClicksQuery = recentClicksQuery.OrderByDescending(e => e.ClickedAtUtc);
             var clickLimitValue = clickLimit is >= 5 and <= 20 ? clickLimit.Value : 5;
             var recentClicks = await LoadRecentClicksAsync(recentClicksQuery, clickLimitValue);
@@ -185,6 +175,24 @@ public class DashboardModel : PageModel
 
         DomainOptions = await LoadDomainOptionsAsync();
         return Page();
+    }
+
+    private static IQueryable<ShortenedUrl> ApplyScoping(IQueryable<ShortenedUrl> query, long? ownerUserId, long? workspaceId)
+    {
+        if (workspaceId is not null)
+            return query.Where(l => l.WorkspaceId == workspaceId);
+        if (ownerUserId is not null)
+            return query.Where(l => l.OwnerUserId == ownerUserId);
+        return query;
+    }
+
+    private static IQueryable<ClickEvent> ApplyClickScoping(IQueryable<ClickEvent> query, long? ownerUserId, long? workspaceId)
+    {
+        if (workspaceId is not null)
+            return query.Where(e => e.ShortenedUrl.WorkspaceId == workspaceId);
+        if (ownerUserId is not null)
+            return query.Where(e => e.ShortenedUrl.OwnerUserId == ownerUserId);
+        return query;
     }
 
     private async Task<List<string>> LoadDomainOptionsAsync()

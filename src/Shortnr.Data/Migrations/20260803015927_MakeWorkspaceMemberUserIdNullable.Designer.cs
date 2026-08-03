@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Shortnr.Data;
 
@@ -10,9 +11,11 @@ using Shortnr.Data;
 namespace Shortnr.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260803015927_MakeWorkspaceMemberUserIdNullable")]
+    partial class MakeWorkspaceMemberUserIdNullable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
@@ -509,17 +512,12 @@ namespace Shortnr.Data.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("TEXT");
 
-                    b.Property<long?>("WorkspaceId")
-                        .HasColumnType("INTEGER");
-
                     b.HasKey("Id");
 
                     b.HasIndex("Hostname")
                         .IsUnique();
 
                     b.HasIndex("OwnerUserId");
-
-                    b.HasIndex("WorkspaceId");
 
                     b.ToTable("Domains");
                 });
@@ -783,14 +781,7 @@ namespace Shortnr.Data.Migrations
                         .HasForeignKey("OwnerUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("Shortnr.Data.Entities.Workspace", "Workspace")
-                        .WithMany()
-                        .HasForeignKey("WorkspaceId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.Navigation("Owner");
-
-                    b.Navigation("Workspace");
                 });
 
             modelBuilder.Entity("Shortnr.Data.Entities.ShortenedUrl", b =>

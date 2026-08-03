@@ -17,6 +17,7 @@ public class IndexModel : PageModel
     public List<ShortenedUrl> RecentLinks { get; set; } = [];
     public bool IsHtmxRequest { get; set; }
     public string? DefaultHostname { get; set; }
+    public ActiveWorkspaceContext? Workspace { get; set; }
 
     public IndexModel(AppDbContext db, UserIdentityService identity, ShortenRateLimiter shortenLimiter)
     {
@@ -29,15 +30,14 @@ public class IndexModel : PageModel
     {
         IsHtmxRequest = Request.Headers["HX-Request"].Count > 0;
         var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
         var defaultDomain = await ResolveDefaultDomainAsync(ownerUserId);
         DefaultHostname = defaultDomain?.Hostname;
-        RecentLinks = await RecentLinksAsync(ownerUserId);
+        RecentLinks = await RecentLinksAsync(ownerUserId, Workspace?.WorkspaceId);
     }
 
     public async Task<IActionResult> OnPost()
     {
-        // Per-IP shorten limit, enforced manually (see ShortenRateLimiter). Returns 429
-        // before any form parsing or DB work once the client exceeds its window.
         if (!await _shortenLimiter.TryAcquireAsync(HttpContext))
             return new StatusCodeResult(StatusCodes.Status429TooManyRequests);
 
@@ -45,37 +45,39 @@ public class IndexModel : PageModel
         var slug = Request.Form["slug"].FirstOrDefault()?.Trim() ?? "";
 
         var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+        var workspaceId = Workspace?.WorkspaceId;
         var defaultDomain = await ResolveDefaultDomainAsync(ownerUserId);
         var domainId = defaultDomain?.Id;
 
         if (string.IsNullOrWhiteSpace(url))
-            return await ErrorResultAsync("Enter a URL to shorten.", ownerUserId);
+            return await ErrorResultAsync("Enter a URL to shorten.", ownerUserId, workspaceId);
 
         if (slug.Length > 0)
         {
             if (!ShortLinkCodes.IsValidSlug(slug))
-                return await ErrorResultAsync("Custom code must be 1–64 characters: letters, digits, '-' and '_', starting with a letter or digit.", ownerUserId);
+                return await ErrorResultAsync("Custom code must be 1–64 characters: letters, digits, '-' and '_', starting with a letter or digit.", ownerUserId, workspaceId);
 
             var collides = await _db.ShortenedUrls.AnyAsync(l => l.DomainId == domainId && l.ShortCode == slug);
             if (collides)
-                return await ErrorResultAsync($"The custom code '{slug}' is already taken.", ownerUserId);
+                return await ErrorResultAsync($"The custom code '{slug}' is already taken.", ownerUserId, workspaceId);
 
-            return await CreateAsync(url, slug, defaultDomain, ownerUserId);
+            return await CreateAsync(url, slug, defaultDomain, ownerUserId, workspaceId);
         }
 
         var existing = await _db.ShortenedUrls.FirstOrDefaultAsync(l => l.DomainId == domainId && l.LongUrl == url);
         if (existing is not null)
         {
             var baseUrl = BuildShortUrl(defaultDomain, existing.ShortCode);
-            var recentLinks = await RecentLinksAsync(ownerUserId);
+            var recentLinks = await RecentLinksAsync(ownerUserId, workspaceId);
             return Partial("Shared/_PostResult", new PostResultViewModel { ShortUrl = baseUrl, ShortCode = existing.ShortCode, RecentLinks = recentLinks });
         }
 
         return await CreateAsync(url, await ShortLinkCodes.GenerateUniqueCodeAsync(code =>
-            _db.ShortenedUrls.AnyAsync(l => l.DomainId == domainId && l.ShortCode == code)), defaultDomain, ownerUserId);
+            _db.ShortenedUrls.AnyAsync(l => l.DomainId == domainId && l.ShortCode == code)), defaultDomain, ownerUserId, workspaceId);
     }
 
-    private async Task<IActionResult> CreateAsync(string url, string shortCode, Domain? defaultDomain, long? ownerUserId)
+    private async Task<IActionResult> CreateAsync(string url, string shortCode, Domain? defaultDomain, long? ownerUserId, long? workspaceId)
     {
         var shortened = new ShortenedUrl
         {
@@ -83,28 +85,24 @@ public class IndexModel : PageModel
             ShortCode = shortCode,
             DomainId = defaultDomain?.Id,
             CreatedAtUtc = DateTime.UtcNow,
-            // Best-effort: provisioning is async so OwnerUserId may be null on first login.
-            OwnerUserId = ownerUserId
+            OwnerUserId = workspaceId is not null ? null : ownerUserId,
+            WorkspaceId = workspaceId
         };
         _db.ShortenedUrls.Add(shortened);
         await _db.SaveChangesAsync();
 
-        var recentLinks = await RecentLinksAsync(ownerUserId);
+        var recentLinks = await RecentLinksAsync(ownerUserId, workspaceId);
         var baseUrl = BuildShortUrl(defaultDomain, shortCode);
         return Partial("Shared/_PostResult", new PostResultViewModel { ShortUrl = baseUrl, ShortCode = shortCode, RecentLinks = recentLinks });
     }
 
-    private async Task<IActionResult> ErrorResultAsync(string message, long? ownerUserId)
+    private async Task<IActionResult> ErrorResultAsync(string message, long? ownerUserId, long? workspaceId)
     {
         var defaultDomain = await ResolveDefaultDomainAsync(ownerUserId);
-        var recentLinks = await RecentLinksAsync(ownerUserId);
+        var recentLinks = await RecentLinksAsync(ownerUserId, workspaceId);
         return Partial("Shared/_PostResult", new PostResultViewModel { HasError = true, ErrorMessage = message, RecentLinks = recentLinks });
     }
 
-    /// <summary>
-    /// Resolves the signed-in owner's verified default domain, if any. When auth is
-    /// disabled no owner is resolved, so the instance default host is used.
-    /// </summary>
     private async Task<Domain?> ResolveDefaultDomainAsync(long? ownerUserId)
     {
         if (ownerUserId is null)
@@ -117,16 +115,17 @@ public class IndexModel : PageModel
     private string BuildShortUrl(Domain? defaultDomain, string shortCode) =>
         $"{Request.Scheme}://{(defaultDomain?.Hostname ?? Request.Host.Host)}/{shortCode}";
 
-    /// <summary>
-    /// Recent links shown on the home page. Scoped to the signed-in owner's links
-    /// across every domain they own (or the instance host's links when anonymous),
-    /// so switching the default domain never makes existing links disappear.
-    /// </summary>
-    private Task<List<ShortenedUrl>> RecentLinksAsync(long? ownerUserId) =>
-        _db.ShortenedUrls
-            .Include(l => l.Domain)
-            .Where(l => ownerUserId == null ? l.DomainId == null : l.OwnerUserId == ownerUserId)
-            .OrderByDescending(l => l.CreatedAtUtc)
-            .Take(10)
-            .ToListAsync();
+    private Task<List<ShortenedUrl>> RecentLinksAsync(long? ownerUserId, long? workspaceId)
+    {
+        var query = _db.ShortenedUrls.Include(l => l.Domain).AsQueryable();
+
+        if (workspaceId is not null)
+            query = query.Where(l => l.WorkspaceId == workspaceId);
+        else if (ownerUserId is not null)
+            query = query.Where(l => l.OwnerUserId == ownerUserId);
+        else
+            query = query.Where(l => l.DomainId == null);
+
+        return query.OrderByDescending(l => l.CreatedAtUtc).Take(10).ToListAsync();
+    }
 }

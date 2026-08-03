@@ -23,6 +23,7 @@ public class DomainsModel : PageModel
     public string? StatusMessage { get; set; }
     public string? ErrorMessage { get; set; }
     public bool IsHtmxRequest { get; set; }
+    public ActiveWorkspaceContext? Workspace { get; set; }
 
     public DomainsModel(AppDbContext db, UserIdentityService identity, DomainVerifierService verifier)
     {
@@ -38,6 +39,7 @@ public class DomainsModel : PageModel
             return gate;
 
         IsHtmxRequest = Request.Headers["HX-Request"].Count > 0;
+        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
         Domains = await LoadDomainsAsync();
         return Page();
     }
@@ -47,6 +49,10 @@ public class DomainsModel : PageModel
         var gate = EnforceAccess();
         if (gate is not null)
             return gate;
+
+        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+        var workspaceId = Workspace?.WorkspaceId;
+        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
 
         var hostname = (Request.Form["hostname"].FirstOrDefault() ?? "").Trim().ToLowerInvariant();
         if (!HostnamePattern.IsMatch(hostname))
@@ -59,7 +65,8 @@ public class DomainsModel : PageModel
         _db.Domains.Add(new Domain
         {
             Hostname = hostname,
-            OwnerUserId = await _identity.ResolveOwnerUserIdAsync(User),
+            OwnerUserId = workspaceId is not null ? null : ownerUserId,
+            WorkspaceId = workspaceId,
             IsVerified = false,
             IsDefault = false,
             VerificationToken = GenerateVerificationToken(),
@@ -76,6 +83,8 @@ public class DomainsModel : PageModel
         if (gate is not null)
             return gate;
 
+        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+
         var domain = await FindOwnedDomainAsync(id);
         if (domain is null)
             return await ListPartialAsync(error: "Domain not found.");
@@ -88,12 +97,18 @@ public class DomainsModel : PageModel
         {
             domain.IsVerified = true;
 
-            // First verified domain becomes the default for new links automatically.
             var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
-            var hasDefault = await _db.Domains.AnyAsync(d =>
-                d.OwnerUserId == ownerUserId && d.Id != domain.Id && d.IsDefault);
+            var workspaceId = domain.WorkspaceId;
+
+            var hasDefaultQuery = _db.Domains.Where(d => d.Id != domain.Id && d.IsDefault);
+            if (workspaceId is not null)
+                hasDefaultQuery = hasDefaultQuery.Where(d => d.WorkspaceId == workspaceId);
+            else
+                hasDefaultQuery = hasDefaultQuery.Where(d => d.OwnerUserId == ownerUserId);
+            var hasDefault = await hasDefaultQuery.AnyAsync();
+
             if (!hasDefault)
-                await MakeDefaultAsync(domain, ownerUserId);
+                await MakeDefaultAsync(domain, ownerUserId, workspaceId);
 
             await _db.SaveChangesAsync();
             var message = domain.IsDefault
@@ -111,6 +126,8 @@ public class DomainsModel : PageModel
         if (gate is not null)
             return gate;
 
+        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+
         var domain = await FindOwnedDomainAsync(id);
         if (domain is null)
             return await ListPartialAsync(error: "Domain not found.");
@@ -118,7 +135,7 @@ public class DomainsModel : PageModel
             return await ListPartialAsync(error: "Only verified domains can be the default.");
 
         var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
-        await MakeDefaultAsync(domain, ownerUserId);
+        await MakeDefaultAsync(domain, ownerUserId, domain.WorkspaceId);
         await _db.SaveChangesAsync();
 
         return await ListPartialAsync(status: $"Domain '{domain.Hostname}' is now the default. Existing links without a domain now use it.");
@@ -129,11 +146,14 @@ public class DomainsModel : PageModel
     /// default, and migrates the owner's links that have no domain yet onto it
     /// (skipping any whose short code already exists on that domain).
     /// </summary>
-    private async Task MakeDefaultAsync(Domain domain, long? ownerUserId)
+    private async Task MakeDefaultAsync(Domain domain, long? ownerUserId, long? workspaceId)
     {
-        var others = await _db.Domains
-            .Where(d => d.OwnerUserId == ownerUserId && d.Id != domain.Id && d.IsDefault)
-            .ToListAsync();
+        var othersQuery = _db.Domains.Where(d => d.Id != domain.Id && d.IsDefault);
+        if (workspaceId is not null)
+            othersQuery = othersQuery.Where(d => d.WorkspaceId == workspaceId);
+        else
+            othersQuery = othersQuery.Where(d => d.OwnerUserId == ownerUserId);
+        var others = await othersQuery.ToListAsync();
         foreach (var other in others)
             other.IsDefault = false;
 
@@ -144,11 +164,14 @@ public class DomainsModel : PageModel
             .Select(l => l.ShortCode)
             .ToListAsync();
 
-        var linksToMigrate = await _db.ShortenedUrls
-            .Where(l => l.DomainId == null && l.OwnerUserId == ownerUserId)
-            .ToListAsync();
+        var linksToMigrate = _db.ShortenedUrls.Where(l => l.DomainId == null);
+        if (workspaceId is not null)
+            linksToMigrate = linksToMigrate.Where(l => l.WorkspaceId == workspaceId);
+        else
+            linksToMigrate = linksToMigrate.Where(l => l.OwnerUserId == ownerUserId);
+        var links = await linksToMigrate.ToListAsync();
 
-        foreach (var link in linksToMigrate)
+        foreach (var link in links)
         {
             if (!existingCodes.Contains(link.ShortCode))
                 link.DomainId = domain.Id;
@@ -160,6 +183,8 @@ public class DomainsModel : PageModel
         var gate = EnforceAccess();
         if (gate is not null)
             return gate;
+
+        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
 
         var domain = await FindOwnedDomainAsync(id);
         if (domain is null)
@@ -184,9 +209,12 @@ public class DomainsModel : PageModel
 
     private async Task<List<Domain>> LoadDomainsAsync()
     {
+        var workspaceId = Workspace?.WorkspaceId;
         var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
         var query = _db.Domains.AsQueryable();
-        if (ownerUserId is not null)
+        if (workspaceId is not null)
+            query = query.Where(d => d.WorkspaceId == workspaceId);
+        else if (ownerUserId is not null)
             query = query.Where(d => d.OwnerUserId == ownerUserId);
 
         return await query.OrderBy(d => d.CreatedAtUtc).ToListAsync();
@@ -194,7 +222,10 @@ public class DomainsModel : PageModel
 
     private async Task<Domain?> FindOwnedDomainAsync(long id)
     {
+        var workspaceId = Workspace?.WorkspaceId;
         var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        if (workspaceId is not null)
+            return await _db.Domains.FirstOrDefaultAsync(d => d.Id == id && d.WorkspaceId == workspaceId);
         return await _db.Domains.FirstOrDefaultAsync(d => d.Id == id && d.OwnerUserId == ownerUserId);
     }
 

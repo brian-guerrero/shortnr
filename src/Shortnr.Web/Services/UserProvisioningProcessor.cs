@@ -61,6 +61,26 @@ public class UserProvisioningProcessor : BackgroundService
                     }
 
                     await db.SaveChangesAsync(stoppingToken);
+
+                    if (user.Email is { Length: > 0 })
+                    {
+                        var pendingMembers = await db.WorkspaceMembers
+                            .Where(m => m.InviteEmail == user.Email && m.JoinedAtUtc == null)
+                            .ToListAsync(stoppingToken);
+
+                        foreach (var member in pendingMembers)
+                        {
+                            member.UserId = user.Id;
+                            member.JoinedAtUtc = now;
+                            member.InviteEmail = null;
+                            _logger.LogInformation(
+                                "Accepted pending workspace invite for user {UserId} to workspace {WorkspaceId}",
+                                user.Id, member.WorkspaceId);
+                        }
+
+                        if (pendingMembers.Count > 0)
+                            await db.SaveChangesAsync(stoppingToken);
+                    }
                 }
                 catch (Exception ex)
                 {

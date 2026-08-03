@@ -6,6 +6,7 @@ public record CreateLinkRequest
     public required string Url { get; init; }
     public string? Slug { get; init; }
     public string? Domain { get; init; }
+    public string? Workspace { get; init; }
 }
 
 /// <summary>PUT /api/v1/links/{shortCode} request body. Omitted fields keep their current value.</summary>
@@ -14,6 +15,7 @@ public record UpdateLinkRequest
     public string? Url { get; init; }
     public string? Slug { get; init; }
     public string? Domain { get; init; }
+    public string? Workspace { get; init; }
 }
 
 public record LinkResponse(
@@ -22,7 +24,8 @@ public record LinkResponse(
     string LongUrl,
     string? Domain,
     long ClickCount,
-    DateTime CreatedAtUtc);
+    DateTime CreatedAtUtc,
+    string? Workspace = null);
 
 public record LinkListResponse(
     IReadOnlyList<LinkResponse> Links,

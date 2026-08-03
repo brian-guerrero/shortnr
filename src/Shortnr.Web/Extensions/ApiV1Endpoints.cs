@@ -31,7 +31,7 @@ public static class ApiV1Endpoints
         group.MapGet("/links", ListLinksAsync)
             .WithName("ListLinks")
             .WithSummary("List short links")
-            .WithDescription("Paginated list scoped to the authenticated key's owner. Filters: domain (hostname or 'default'), from, to.")
+            .WithDescription("Paginated list scoped to the authenticated key's owner. Filters: domain (hostname or 'default'), workspace (slug), from, to.")
             .RequireAuthorization(ApiKeyScopes.LinksRead)
             .Produces<LinkListResponse>();
 
@@ -45,7 +45,7 @@ public static class ApiV1Endpoints
         group.MapPut("/links/{shortCode}", UpdateLinkAsync)
             .WithName("UpdateLink")
             .WithSummary("Update a short link")
-            .WithDescription("Omitted fields keep their current value. Changing the slug or domain is subject to the same uniqueness rules as creation.")
+            .WithDescription("Omitted fields keep their current value. Changing slug, domain, or workspace is subject to uniqueness rules.")
             .RequireAuthorization(ApiKeyScopes.LinksWrite)
             .Produces<LinkResponse>()
             .ProducesValidationProblem()
@@ -73,12 +73,23 @@ public static class ApiV1Endpoints
         HttpRequest request,
         AppDbContext db,
         UserIdentityService identity,
+        WorkspaceService workspaceService,
+        WorkspaceAuthorizationService workspaceAuth,
         ClaimsPrincipal user,
         CancellationToken ct)
     {
         var ownerUserId = await identity.ResolveOwnerUserIdAsync(user);
         if (ownerUserId is null)
             return TypedResults.Unauthorized();
+
+        var workspaceId = (long?)null;
+        if (body.Workspace is { Length: > 0 } ws)
+        {
+            var workspace = await workspaceService.GetWorkspaceBySlugAsync(ws);
+            if (workspace is null || !await workspaceAuth.CanCreateLinkAsync(workspace.Id, ownerUserId))
+                return TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["workspace"] = ["Unknown workspace or insufficient permission."] });
+            workspaceId = workspace.Id;
+        }
 
         var url = body.Url?.Trim() ?? "";
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || (uri.Scheme != "http" && uri.Scheme != "https"))
@@ -97,7 +108,6 @@ public static class ApiV1Endpoints
         }
         else
         {
-            // Fall back to the owner's verified default domain, mirroring the web UI.
             domain = await db.Domains.FirstOrDefaultAsync(
                 d => d.OwnerUserId == ownerUserId && d.IsVerified && d.IsDefault, ct);
             domainId = domain?.Id;
@@ -126,24 +136,30 @@ public static class ApiV1Endpoints
             LongUrl = url,
             ShortCode = shortCode,
             DomainId = domainId,
-            OwnerUserId = ownerUserId,
+            OwnerUserId = workspaceId is not null ? null : ownerUserId,
+            WorkspaceId = workspaceId,
             CreatedAtUtc = DateTime.UtcNow
         };
         db.ShortenedUrls.Add(link);
         await db.SaveChangesAsync(ct);
 
+        var workspaceSlug = workspaceId is not null
+            ? (await db.Workspaces.Where(w => w.Id == workspaceId).Select(w => w.Slug).FirstOrDefaultAsync(ct))
+            : null;
         return TypedResults.Created(
             $"/api/v1/links/{shortCode}",
-            ToResponse(link, domain, request.Scheme, request.Host.Host));
+            ToResponse(link, domain, request.Scheme, request.Host.Host, workspaceSlug));
     }
 
     private static async Task<IResult> ListLinksAsync(
         int? page,
         int? pageSize,
         string? domain,
+        string? workspace,
         HttpRequest request,
         AppDbContext db,
         UserIdentityService identity,
+        WorkspaceService workspaceService,
         ClaimsPrincipal user,
         CancellationToken ct)
     {
@@ -154,7 +170,19 @@ public static class ApiV1Endpoints
         var p = Math.Max(1, page ?? 1);
         var ps = Math.Clamp(pageSize ?? 20, 1, 100);
 
-        var query = db.ShortenedUrls.Where(l => l.OwnerUserId == ownerUserId);
+        var query = db.ShortenedUrls.AsQueryable();
+        if (workspace is { Length: > 0 } ws)
+        {
+            var wsEntity = await workspaceService.GetWorkspaceBySlugAsync(ws);
+            if (wsEntity is null || !await workspaceService.IsMemberAsync(wsEntity.Id, ownerUserId.Value))
+                return TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["workspace"] = ["Unknown workspace."] });
+            query = query.Where(l => l.WorkspaceId == wsEntity.Id);
+        }
+        else
+        {
+            query = query.Where(l => l.OwnerUserId == ownerUserId);
+        }
+
         if (!string.IsNullOrEmpty(domain))
         {
             query = domain == "default"
@@ -166,21 +194,24 @@ public static class ApiV1Endpoints
         var links = await query
             .OrderByDescending(l => l.CreatedAtUtc)
             .Include(l => l.Domain)
+            .Include(l => l.Workspace)
             .Skip((p - 1) * ps)
             .Take(ps)
             .ToListAsync(ct);
 
         return TypedResults.Ok(new LinkListResponse(
-            links.Select(l => ToResponse(l, l.Domain, request.Scheme, request.Host.Host)).ToList(),
+            links.Select(l => ToResponse(l, l.Domain, request.Scheme, request.Host.Host, l.Workspace?.Slug)).ToList(),
             p, ps, total));
     }
 
     private static async Task<IResult> GetLinkAsync(
         string shortCode,
         string? domain,
+        string? workspace,
         HttpRequest request,
         AppDbContext db,
         UserIdentityService identity,
+        WorkspaceService workspaceService,
         ClaimsPrincipal user,
         CancellationToken ct)
     {
@@ -188,20 +219,22 @@ public static class ApiV1Endpoints
         if (ownerUserId is null)
             return TypedResults.Unauthorized();
 
-        var link = await ResolveOwnedLinkAsync(db, ownerUserId.Value, shortCode, domain, ct);
+        var link = await ResolveOwnedLinkAsync(db, ownerUserId.Value, shortCode, domain, workspace, workspaceService, ct);
         if (link is null)
             return TypedResults.NotFound();
 
-        return TypedResults.Ok(ToResponse(link, link.Domain, request.Scheme, request.Host.Host));
+        return TypedResults.Ok(ToResponse(link, link.Domain, request.Scheme, request.Host.Host, link.Workspace?.Slug));
     }
 
     private static async Task<IResult> UpdateLinkAsync(
         string shortCode,
         UpdateLinkRequest body,
         string? domain,
+        string? workspace,
         HttpRequest request,
         AppDbContext db,
         UserIdentityService identity,
+        WorkspaceService workspaceService,
         ClaimsPrincipal user,
         CancellationToken ct)
     {
@@ -209,7 +242,7 @@ public static class ApiV1Endpoints
         if (ownerUserId is null)
             return TypedResults.Unauthorized();
 
-        var link = await ResolveOwnedLinkAsync(db, ownerUserId.Value, shortCode, domain, ct);
+        var link = await ResolveOwnedLinkAsync(db, ownerUserId.Value, shortCode, domain, workspace, workspaceService, ct);
         if (link is null)
             return TypedResults.NotFound();
 
@@ -274,14 +307,16 @@ public static class ApiV1Endpoints
         link.DomainId = domainId;
         await db.SaveChangesAsync(ct);
 
-        return TypedResults.Ok(ToResponse(link, resolvedDomain, request.Scheme, request.Host.Host));
+        return TypedResults.Ok(ToResponse(link, resolvedDomain, request.Scheme, request.Host.Host, link.Workspace?.Slug));
     }
 
     private static async Task<IResult> DeleteLinkAsync(
         string shortCode,
         string? domain,
+        string? workspace,
         AppDbContext db,
         UserIdentityService identity,
+        WorkspaceService workspaceService,
         ClaimsPrincipal user,
         CancellationToken ct)
     {
@@ -289,7 +324,7 @@ public static class ApiV1Endpoints
         if (ownerUserId is null)
             return TypedResults.Unauthorized();
 
-        var link = await ResolveOwnedLinkAsync(db, ownerUserId.Value, shortCode, domain, ct);
+        var link = await ResolveOwnedLinkAsync(db, ownerUserId.Value, shortCode, domain, workspace, workspaceService, ct);
         if (link is null)
             return TypedResults.NotFound();
 
@@ -301,10 +336,12 @@ public static class ApiV1Endpoints
     private static async Task<IResult> GetLinkClicksAsync(
         string shortCode,
         string? domain,
+        string? workspace,
         int? page,
         int? pageSize,
         AppDbContext db,
         UserIdentityService identity,
+        WorkspaceService workspaceService,
         ClaimsPrincipal user,
         CancellationToken ct)
     {
@@ -312,7 +349,7 @@ public static class ApiV1Endpoints
         if (ownerUserId is null)
             return TypedResults.Unauthorized();
 
-        var link = await ResolveOwnedLinkAsync(db, ownerUserId.Value, shortCode, domain, ct);
+        var link = await ResolveOwnedLinkAsync(db, ownerUserId.Value, shortCode, domain, workspace, workspaceService, ct);
         if (link is null)
             return TypedResults.NotFound();
 
@@ -333,17 +370,26 @@ public static class ApiV1Endpoints
         return TypedResults.Ok(new ClickListResponse(rows, p, ps, total));
     }
 
-    /// <summary>
-    /// Resolves a link owned by <paramref name="ownerUserId"/>. When <paramref name="domain"/>
-    /// is supplied it filters by that domain; otherwise a default-domain match wins over
-    /// an ambiguous multi-domain one.
-    /// </summary>
     private static async Task<ShortenedUrl?> ResolveOwnedLinkAsync(
-        AppDbContext db, long ownerUserId, string shortCode, string? domain, CancellationToken ct)
+        AppDbContext db, long ownerUserId, string shortCode, string? domain, string? workspace,
+        WorkspaceService workspaceService, CancellationToken ct)
     {
         var query = db.ShortenedUrls
             .Include(l => l.Domain)
-            .Where(l => l.OwnerUserId == ownerUserId && l.ShortCode == shortCode);
+            .Include(l => l.Workspace)
+            .AsQueryable();
+
+        if (workspace is { Length: > 0 } ws)
+        {
+            var wsEntity = await workspaceService.GetWorkspaceBySlugAsync(ws);
+            if (wsEntity is null || !await workspaceService.IsMemberAsync(wsEntity.Id, ownerUserId))
+                return null;
+            query = query.Where(l => l.WorkspaceId == wsEntity.Id && l.ShortCode == shortCode);
+        }
+        else
+        {
+            query = query.Where(l => l.OwnerUserId == ownerUserId && l.ShortCode == shortCode);
+        }
 
         if (!string.IsNullOrEmpty(domain))
         {
@@ -360,7 +406,7 @@ public static class ApiV1Endpoints
         return matches.FirstOrDefault(l => l.DomainId == null) ?? matches[0];
     }
 
-    private static LinkResponse ToResponse(ShortenedUrl link, Domain? domain, string scheme, string defaultHost)
+    private static LinkResponse ToResponse(ShortenedUrl link, Domain? domain, string scheme, string defaultHost, string? workspaceSlug = null)
     {
         var host = domain?.Hostname ?? defaultHost;
         return new LinkResponse(
@@ -369,6 +415,7 @@ public static class ApiV1Endpoints
             link.LongUrl,
             domain?.Hostname,
             link.ClickCount,
-            link.CreatedAtUtc);
+            link.CreatedAtUtc,
+            workspaceSlug);
     }
 }
