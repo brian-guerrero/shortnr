@@ -1,0 +1,25 @@
+@{
+    var smTitle = (string?)ViewData["BioTitle"] ?? "shortnr";
+    var smDescription = (string?)ViewData["BioDescription"] ?? "A shortnr bio page";
+    var smImage = (string?)ViewData["BioImage"];
+    var smUrl = (string?)ViewData["BioUrl"];
+    var smCard = (string?)ViewData["BioTwitterCard"] ?? "summary";
+}
+<meta property="og:title" content="@smTitle" />
+<meta property="og:description" content="@smDescription" />
+<meta property="og:type" content="profile" />
+@if (smUrl is not null)
+{
+    <meta property="og:url" content="@smUrl" />
+}
+@if (smImage is not null)
+{
+    <meta property="og:image" content="@smImage" />
+}
+<meta name="twitter:card" content="@smCard" />
+<meta name="twitter:title" content="@smTitle" />
+<meta name="twitter:description" content="@smDescription" />
+@if (smImage is not null)
+{
+    <meta name="twitter:image" content="@smImage" />
+}

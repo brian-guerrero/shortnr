@@ -4,6 +4,21 @@
     Layout = "_BioLayout";
     ViewData["BioTheme"] = Model.BioPage?.Theme ?? "default";
     ViewData["BioTitle"] = Model.BioPage?.DisplayName ?? "Not found";
+
+    if (Model.BioPage is not null)
+    {
+        var bioText = Model.BioPage.BioText;
+        ViewData["BioDescription"] = bioText is { Length: > 0 }
+            ? (bioText.Length > 160 ? bioText[..160] + "…" : bioText)
+            : $"{Model.BioPage.DisplayName}'s bio page on shortnr";
+
+        var hasAvatar = Model.BioPage.AvatarUrl is not null;
+        ViewData["BioImage"] = hasAvatar
+            ? Model.BioPage.AvatarUrl
+            : $"{Request.Scheme}://{Request.Host}/img/bio-og-default.svg";
+        ViewData["BioTwitterCard"] = hasAvatar ? "summary" : "summary_large_image";
+        ViewData["BioUrl"] = $"{Request.Scheme}://{Request.Host}/bio/{Model.BioPage.Slug}";
+    }
 }
 @if (Model.BioPage is null)
 {
