@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "analyzing-dotnet-performance": {
+      "source": "dotnet/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/dotnet-diag/skills/analyzing-dotnet-performance/SKILL.md",
+      "computedHash": "455c653913449f6fc71807fd9824dbb610d4f2e716ec0b0e4ae5c5c442ddb09b"
+    },
+    "optimizing-ef-core-queries": {
+      "source": "dotnet/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/dotnet-data/skills/optimizing-ef-core-queries/SKILL.md",
+      "computedHash": "265a890a57f60bf55d79fb92483176aca3c6e5c88c23cd75d18911e8354d0e87"
+    }
+  }
+}
