@@ -15,6 +15,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<AiActivityLog> AiActivityLogs => Set<AiActivityLog>();
     public DbSet<Workspace> Workspaces => Set<Workspace>();
     public DbSet<WorkspaceMember> WorkspaceMembers => Set<WorkspaceMember>();
+    public DbSet<Webhook> Webhooks => Set<Webhook>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -204,6 +205,20 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasOne(e => e.User)
                 .WithMany()
                 .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Webhook>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Url).IsRequired().HasMaxLength(2048);
+            entity.Property(e => e.Secret).IsRequired().HasMaxLength(128);
+            entity.Property(e => e.EventTypes).IsRequired().HasMaxLength(512);
+            entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
+
+            entity.HasOne(e => e.Owner)
+                .WithMany()
+                .HasForeignKey(e => e.OwnerUserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

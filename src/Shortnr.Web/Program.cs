@@ -48,6 +48,17 @@ builder.Services.AddHostedService<UserProvisioningProcessor>();
 builder.Services.AddSingleton(Channel.CreateUnbounded<AiActivityRecord>());
 builder.Services.AddHostedService<AiActivityProcessor>();
 
+// Webhook delivery queue — drained by WebhookDeliveryService. Registered unconditionally
+// so DI is always consistent; nothing writes to it until webhooks are configured.
+builder.Services.AddSingleton(Channel.CreateUnbounded<Shortnr.Web.Models.WebhookDeliveryRecord>());
+builder.Services.AddHostedService<Shortnr.Web.Services.WebhookDeliveryService>();
+builder.Services.AddSingleton<Shortnr.Web.Services.WebhookEventDispatcher>();
+builder.Services.AddHttpClient("WebhookDelivery", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+    client.MaxResponseContentBufferSize = 1024 * 1024;
+});
+
 builder.Services.AddScoped<UserIdentityService>();
 builder.Services.AddScoped<WorkspaceService>();
 builder.Services.AddScoped<WorkspaceAuthorizationService>();
