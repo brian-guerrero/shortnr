@@ -37,13 +37,19 @@ public class ApiKeyHandler(
             return AuthenticateResult.Fail("Empty API key.");
 
         var hash = ApiKeyService.HashKey(key);
+        // Read untracked (only the claim columns are needed) and stamp LastUsedAt
+        // with a set-based update — no change-tracked entity on the auth hot path.
         var apiKey = await db.ApiKeys
-            .FirstOrDefaultAsync(k => k.KeyHash == hash && k.RevokedAt == null);
+            .AsNoTracking()
+            .Where(k => k.KeyHash == hash && k.RevokedAt == null)
+            .Select(k => new { k.Id, k.OwnerUserId, k.Scopes })
+            .FirstOrDefaultAsync();
         if (apiKey is null)
             return AuthenticateResult.Fail("Invalid API key.");
 
-        apiKey.LastUsedAt = DateTime.UtcNow;
-        await db.SaveChangesAsync();
+        await db.ApiKeys
+            .Where(k => k.Id == apiKey.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(k => k.LastUsedAt, DateTime.UtcNow));
 
         var claims = new List<Claim>
         {

@@ -12,12 +12,12 @@ public static class ApiKeyService
 
     /// <summary>Generates a new <c>snr_</c>-prefixed key with 32 random bytes of entropy.</summary>
     public static string GenerateKey() =>
-        KeyPrefix + Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+        KeyPrefix + Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(32));
 
     /// <summary>Hex SHA-256 of the key — the value persisted in <c>ApiKey.KeyHash</c>.</summary>
     public static string HashKey(string key)
     {
         var bytes = System.Text.Encoding.UTF8.GetBytes(key);
-        return Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+        return Convert.ToHexStringLower(SHA256.HashData(bytes));
     }
 }

@@ -143,10 +143,13 @@ public static class ApiEndpoints
             var host = context.Request.Host.Host?.ToLowerInvariant();
             if (host is null) return Results.NotFound();
 
-            var domain = await db.Domains.FirstOrDefaultAsync(d => d.Hostname == host);
-            if (domain is null) return Results.NotFound();
+            var token = await db.Domains
+                .Where(d => d.Hostname == host)
+                .Select(d => d.VerificationToken)
+                .FirstOrDefaultAsync();
+            if (token is null) return Results.NotFound();
 
-            return Results.Text(domain.VerificationToken, "text/plain");
+            return Results.Text(token, "text/plain");
         });
 
         app.MapGet("/{shortCode}", async (string shortCode, AppDbContext db,
@@ -154,14 +157,20 @@ public static class ApiEndpoints
         {
             var logger = loggerFactory.CreateLogger("Shortnr.Api.Redirect");
 
+            // Project to only the columns needed — scalar/anonymous projections are
+            // never change-tracked, keeping the hottest endpoint allocation-light.
             var host = context.Request.Host.Host?.ToLowerInvariant();
-            var domain = host is not null
-                ? await db.Domains.FirstOrDefaultAsync(d => d.Hostname == host && d.IsVerified)
+            var domainId = host is not null
+                ? await db.Domains
+                    .Where(d => d.Hostname == host && d.IsVerified)
+                    .Select(d => (long?)d.Id)
+                    .FirstOrDefaultAsync()
                 : null;
 
-            var link = domain is not null
-                ? await db.ShortenedUrls.FirstOrDefaultAsync(l => l.DomainId == domain.Id && l.ShortCode == shortCode)
-                : await db.ShortenedUrls.FirstOrDefaultAsync(l => l.DomainId == null && l.ShortCode == shortCode);
+            var link = await db.ShortenedUrls
+                .Where(l => l.DomainId == domainId && l.ShortCode == shortCode)
+                .Select(l => new { l.Id, l.LongUrl })
+                .FirstOrDefaultAsync();
 
             if (link is null)
             {

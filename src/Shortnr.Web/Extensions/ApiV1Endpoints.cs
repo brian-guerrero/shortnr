@@ -192,6 +192,7 @@ public static class ApiV1Endpoints
 
         var total = await query.CountAsync(ct);
         var links = await query
+            .AsNoTracking()
             .OrderByDescending(l => l.CreatedAtUtc)
             .Include(l => l.Domain)
             .Include(l => l.Workspace)
