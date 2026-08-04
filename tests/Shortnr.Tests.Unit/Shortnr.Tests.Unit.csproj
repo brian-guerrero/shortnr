@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Shortnr.Web\Shortnr.Web.csproj" />
+    <ProjectReference Include="..\..\src\Shortnr.Cli\Shortnr.Cli.csproj" />
   </ItemGroup>
 
 </Project>
