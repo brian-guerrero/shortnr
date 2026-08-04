@@ -15,6 +15,7 @@ A URL shortener with a real-time dashboard. Built with ASP.NET Core Razor Pages,
 - Team workspaces — create workspaces, invite members by email, assign roles (Owner/Editor/Viewer), and switch between workspaces to scope dashboards and link creation
 - Branded domains — add and verify custom domains for vanity links
 - REST API v1 — create, list, update, and delete links with API keys at `/api/v1`
+- CLI (`shortnr-cli`) — manage links from the command line, wraps the `/api/v1` API
 - MCP server — AI agents can manage links and bio pages via the Model Context Protocol
 - User menu with Gravatar avatar, workspace switcher, and sign-out dropdown
 - Docker-ready with a persistent SQLite volume
@@ -37,6 +38,7 @@ shortnr/
 │   │   ├── wwwroot/           # Static files (lib/ is gitignored, restored by LibMan)
 │   │   ├── libman.json        # Frontend dependency manifest
 │   │   └── Program.cs         # App setup, minimal API endpoints
+│   ├── Shortnr.Cli/           # CLI tool (shortnr-cli) wrapping the /api/v1 API
 │   ├── Shortnr.AppHost/       # .NET Aspire orchestrator (local dev: web app + Dex container)
 │   └── Shortnr.ServiceDefaults/  # Shared health checks / OpenTelemetry / service discovery
 ├── tests/
@@ -175,6 +177,36 @@ dotnet run --project src/Shortnr.Web -- \
 - **`/api/v1/links`** — Versioned REST CRUD for short links with API-key auth and rate limiting.
 - **`/account/login`** / **`/account/logout`** — OIDC challenge / cookie sign-out. Only registered when `Authentication:Enabled` is `true`.
 - **`/workspace/switch`** — POST endpoint that sets the active workspace cookie.
+
+### CLI (`shortnr-cli`)
+
+The CLI wraps the `/api/v1` REST API for command-line link management:
+
+```bash
+shortnr shorten <url> [--slug <slug>] [--domain <domain>]  # Shorten a URL
+shortnr list [--page <n>] [--page-size <n>]                # List your links
+shortnr stats <code> [--clicks]                            # Show link statistics
+shortnr delete <code> [--force]                            # Delete a link
+```
+
+Configure the CLI with an API key via environment variable or config file:
+
+```bash
+# Environment variable (takes precedence)
+export SHORTNR_API_KEY=snr_...
+export SHORTNR_BASE_URL=http://localhost:5156
+
+# Or config file at ~/.shortnr/config
+{ "api_key": "snr_...", "base_url": "http://localhost:5156" }
+```
+
+Build a self-contained binary:
+
+```bash
+dotnet publish src/Shortnr.Cli/Shortnr.Cli.csproj -c Release -r linux-x64 --self-contained true
+```
+
+AOT compilation is enabled in the project file for minimal binary size, but requires native toolchain prerequisites (clang/gcc) to be installed.
 
 ### Authentication
 
