@@ -29,21 +29,19 @@
     <title>shortnr</title>
     <link rel="stylesheet" href="/lib/pico/css/pico.min.css">
     <link rel="stylesheet" href="/lib/pico/css/pico.colors.min.css">
+    <link rel="stylesheet" href="/css/site.css">
     <script src="/lib/htmx/dist/htmx.min.js"></script>
     <script src="/lib/htmx-ext-sse/dist/sse.min.js"></script>
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
     <link rel="manifest" href="/site.webmanifest">
-    <style>
-        .nav-avatar { border-radius: 50%; vertical-align: middle; }
-    </style>
 </head>
 
-<body hx-ext="sse">
-    <nav class="container" style="max-width: 960px; padding-top: 1rem;">
+<body class="sn-app" hx-ext="sse">
+    <nav class="container sn-container sn-nav">
         <ul>
-            <li><strong><a href="/" style="--pico-text-decoration: none;">shortnr</a></strong></li>
+            <li><a class="sn-brand" href="/">shortnr</a></li>
         </ul>
         <ul>
             @if (!authEnabled || User.Identity?.IsAuthenticated == true)
@@ -67,13 +65,13 @@
             }
         </ul>
     </nav>
-    <main class="container" style="max-width: 960px; padding-top: 1rem;">
+    <main class="container sn-container sn-main">
         @RenderBody()
     </main>
 
     @await RenderSectionAsync("Scripts", required: false)
 
-    <footer class="container" style="max-width: 960px; padding: 2rem 0 1rem; text-align: center; color: var(--pico-muted-color); font-size: 0.8rem;">
+    <footer class="container sn-container sn-footer">
         <p>This product includes GeoLite2 data created by MaxMind, available from <a href="https://www.maxmind.com" target="_blank" rel="noopener">https://www.maxmind.com</a>.</p>
     </footer>
 </body>

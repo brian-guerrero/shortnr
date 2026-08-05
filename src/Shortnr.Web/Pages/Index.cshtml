@@ -3,57 +3,85 @@
 @{
     Layout = Model.IsHtmxRequest ? null : "_Layout";
 }
-<article>
-    <header>
-        <h1>shortnr @if (Model.Workspace is not null) { @await Html.PartialAsync("Shared/_WorkspaceBadge", Model.Workspace) }</h1>
-    </header>
-    <form hx-post="/" hx-target="#result" hx-swap="innerHTML">
-        @Html.AntiForgeryToken()
-        <label for="url">Enter a long URL</label>
-        <input type="url" name="url" id="url" placeholder="https://example.com/very/long/path" required>
-        <details>
-            <summary role="button" class="secondary">Advanced options</summary>
+<div class="sn-home">
+    <section class="sn-hero" aria-labelledby="home-title">
+        <div class="sn-hero-copy">
+            <p class="sn-kicker">Link infrastructure you own</p>
+            <h1 id="home-title">Make every link count.</h1>
+            <p>Shorten, track, and share links from infrastructure you control. No vendor lock-in. No per-click anxiety.</p>
+            @if (Model.Workspace is not null)
+            {
+                @await Html.PartialAsync("Shared/_WorkspaceBadge", Model.Workspace)
+            }
+        </div>
+        <div class="sn-hero-art" aria-label="shortnr system status">
+            <div class="sn-art-tile">OWN<br>YOUR<br>CLICKS<br><span aria-hidden="true">//</span> READY</div>
+        </div>
+    </section>
+
+    <article class="sn-panel sn-shortener">
+        <header>
             <div>
-                <label for="slug">Custom code <small>(optional)</small></label>
-                <input type="text" name="slug" id="slug" placeholder="my-custom-code"
-                       pattern="[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}" maxlength="64">
+                <p class="sn-kicker">01 / Create</p>
+                <h2>Shorten a link</h2>
+            </div>
+            <small>Fast by default. Powerful when needed.</small>
+        </header>
+        <form hx-post="/" hx-target="#result" hx-swap="innerHTML">
+            @Html.AntiForgeryToken()
+            <label for="url">Long URL</label>
+            <input type="url" name="url" id="url" placeholder="https://example.com/very/long/path" required>
+            <details>
+                <summary class="secondary">Add a custom code</summary>
                 <div>
-
-                </details>
-                <button type="submit">Shorten</button>
-            </form>
-            <div id="result"></div>
-        </article>
-
-        <section id="recent">
-            <h2>Recent links</h2>
-            <div class="overflow-auto">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Short URL</th>
-                            <th>Original</th>
-                            <th>Clicks</th>
-                            <th>QR</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var link in Model.RecentLinks)
-                        {
-                            <tr>
-                                <td><a href="@link.DisplayUrl()" target="_blank">@link.DisplayText()</a></td>
-                                <td>
-                                    @link.LongUrl</td>
-                                    <td>@link.ClickCount</td>
-                                    <td>
-                                        <span class="qr-wrap">
-                                            <button hx-get="/qr/@link.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML"
-                                                    style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">QR</button>
-                                        </span>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
+                    <label for="slug">Custom code <small>(optional)</small></label>
+                    <input type="text" name="slug" id="slug" placeholder="my-custom-code"
+                           pattern="[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}" maxlength="64">
                 </div>
-            </section>
+            </details>
+            <div class="sn-form-actions">
+                <small>Links are tracked in your current workspace.</small>
+                <button type="submit">Shorten link</button>
+            </div>
+        </form>
+        <div id="result"></div>
+    </article>
+
+    <section id="recent" aria-labelledby="recent-heading">
+        <div class="sn-section-heading">
+            <div>
+                <p class="sn-kicker">02 / Recent output</p>
+                <h2 id="recent-heading">Recent links</h2>
+            </div>
+            <small>Every short link is ready to inspect.</small>
+        </div>
+        <div class="sn-table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Short URL</th>
+                        <th>Original</th>
+                        <th>Clicks</th>
+                        <th>QR</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var link in Model.RecentLinks)
+                    {
+                        <tr>
+                            <td><a href="@link.DisplayUrl()" target="_blank">@link.DisplayText()</a></td>
+                            <td>@link.LongUrl</td>
+                            <td>@link.ClickCount</td>
+                            <td>
+                                <span class="qr-wrap">
+                                    <button hx-get="/qr/@link.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML"
+                                            style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">QR</button>
+                                </span>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>

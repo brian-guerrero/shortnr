@@ -4,15 +4,15 @@
     ViewData["Title"] = "QR Code — /" + Model.ShortCode;
 }
 
-<article style="max-width: 480px; margin: 3rem auto; text-align: center;">
+<article class="sn-card sn-qr-page">
     <header>
-        <h2 style="margin-bottom: 0.25rem;">QR Code</h2>
-        <p style="margin: 0;">
+        <h2>QR Code</h2>
+        <p>
             <a href="@Model.ShortUrl" target="_blank">@Model.ShortUrl</a>
         </p>
         @if (!string.IsNullOrEmpty(Model.LongUrl))
         {
-            <p style="margin: 0.5rem 0 0; font-size: 0.85rem; color: var(--pico-muted-color); word-break: break-all;">
+            <p class="sn-muted sn-break">
                 @Model.LongUrl
             </p>
         }
@@ -21,7 +21,7 @@
     <img src="@Model.DataUri"
          alt="QR code for @Model.ShortUrl"
          width="240" height="240"
-         style="image-rendering: pixelated; margin: 1.5rem auto; display: block;">
+         class="sn-qr-image">
 
     <footer>
         <a href="/api/qr/@Model.ShortCode" download="qr-@(Model.ShortCode).png" role="button">

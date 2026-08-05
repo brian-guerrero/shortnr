@@ -1,17 +1,17 @@
 @model Shortnr.Web.Models.PostResultViewModel
 @if (Model.HasError)
 {
-    <mark class="pico-background-red-100" style="display:block; margin-top: 1rem;">
+    <mark class="sn-feedback sn-feedback-error" role="alert">
         <strong>@Model.ErrorMessage</strong>
     </mark>
 }
 else
 {
-    <ins style="display:block; margin-top: 1rem;">
+    <ins class="sn-result" role="status">
         <strong>Short URL:</strong>
         <a href="@Model.ShortUrl" target="_blank">@Model.ShortUrl</a>
-        <span class="qr-wrap" style="display:inline-block; margin-left: 0.75rem; vertical-align: middle;">
-            <button hx-get="/qr/@Model.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML" style="font-size: 0.8rem;">Show QR</button>
+        <span class="qr-wrap">
+            <button hx-get="/qr/@Model.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML" class="sn-compact-button">Show QR</button>
         </span>
     </ins>
 }
@@ -26,11 +26,11 @@ else
             {
                 <tr>
                     <td><a href="@link.DisplayUrl()" target="_blank">@link.DisplayText()</a></td>
-                    <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">@link.LongUrl</td>
+                    <td class="sn-break">@link.LongUrl</td>
                     <td>@link.ClickCount</td>
                     <td>
                         <span class="qr-wrap">
-                            <button hx-get="/qr/@link.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">QR</button>
+                            <button hx-get="/qr/@link.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML" class="sn-compact-button">QR</button>
                         </span>
                     </td>
                 </tr>
