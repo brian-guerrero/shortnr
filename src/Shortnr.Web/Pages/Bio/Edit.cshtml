@@ -3,9 +3,18 @@
 @{
     Layout = Model.IsHtmxRequest ? null : "_Layout";
 }
-<article>
-    <header><h1>Bio page @if (Model.Workspace is not null) { @await Html.PartialAsync("Shared/_WorkspaceBadge", Model.Workspace) }</h1></header>
+<div class="sn-page">
+<header class="sn-page-header">
+    <div>
+        <p class="sn-kicker">Creator studio / Public profile</p>
+        <h1>Bio page</h1>
+        <p>Build a shareable page powered by real short links.</p>
+    </div>
+    @if (Model.Workspace is not null) { @await Html.PartialAsync("Shared/_WorkspaceBadge", Model.Workspace) }
+</header>
+<article class="sn-card">
     <div id="bio-editor">
         @await Html.PartialAsync("Shared/_BioEditor", Model)
     </div>
 </article>
+</div>

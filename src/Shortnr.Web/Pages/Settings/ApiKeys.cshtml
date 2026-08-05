@@ -3,8 +3,15 @@
 @{
     Layout = Model.IsHtmxRequest ? null : "_Layout";
 }
-<article>
-    <header><h1>API keys</h1></header>
+<div class="sn-page">
+<header class="sn-page-header">
+    <div>
+        <p class="sn-kicker">Settings / Developer access</p>
+        <h1>API keys</h1>
+        <p>Connect scripts, integrations, and AI tools to your shortnr instance.</p>
+    </div>
+</header>
+<article class="sn-card">
     <p>API keys authenticate requests to the <a href="/api/docs">shortnr API</a>. Send one as <code>Authorization: Bearer &lt;key&gt;</code>. Keys are shown only once, at creation time.</p>
     <form hx-post="/settings/api-keys" hx-target="#api-keys-list" hx-swap="innerHTML"
           hx-on::after-request="if (event.detail.successful) this.querySelector('input[name=label]').value = ''">
@@ -28,3 +35,4 @@
         @await Html.PartialAsync("Shared/_ApiKeysList", Model)
     </div>
 </article>
+</div>

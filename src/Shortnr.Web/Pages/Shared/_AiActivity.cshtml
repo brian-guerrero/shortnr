@@ -1,13 +1,14 @@
 @model List<Shortnr.Web.Models.AiActivityRow>
 @if (Model.Count == 0)
 {
-    <article>
+    <div class="sn-empty-state" role="status">
         <p>No AI activity yet. Actions performed through the MCP API (create, update, delete links,
         bio page edits) will appear here.</p>
-    </article>
+    </div>
 }
 else
 {
+    <div class="sn-table-wrap">
     <table role="grid">
         <thead>
             <tr>
@@ -29,4 +30,5 @@ else
             }
         </tbody>
     </table>
+    </div>
 }

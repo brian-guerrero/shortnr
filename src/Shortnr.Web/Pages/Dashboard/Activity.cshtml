@@ -3,11 +3,16 @@
 @{
     ViewData["Title"] = "AI Activity";
 }
-<hgroup>
-    <h1>AI Activity</h1>
-    <p>Actions AI assistants performed through the MCP API.</p>
-</hgroup>
+<div class="sn-page">
+<header class="sn-page-header">
+    <div>
+        <p class="sn-kicker">Operations / Audit trail</p>
+        <h1>AI Activity</h1>
+        <p>Actions AI assistants performed through the MCP API.</p>
+    </div>
+</header>
 
 <div id="ai-activity" hx-get="/dashboard/activity" hx-trigger="every 10s" hx-swap="innerHTML">
     @await Html.PartialAsync("Shared/_AiActivity", Model.Activity)
+</div>
 </div>

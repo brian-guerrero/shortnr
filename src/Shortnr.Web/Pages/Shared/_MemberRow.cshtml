@@ -29,7 +29,7 @@
     <td>
         @if (isPending)
         {
-            <span class="pico-background-blue-100" style="padding: 0.1rem 0.4rem; border-radius: 0.25rem; font-size: 0.8rem;">Pending</span>
+            <span class="pico-background-blue-100">Pending</span>
         }
         else
         {
@@ -41,12 +41,12 @@
         {
             <form hx-post="/settings/workspaces?handler=ResendInvite&id=@workspaceId&memberId=@Model.Id" hx-target="#workspaces-list" hx-swap="innerHTML" style="margin: 0; display: inline;">
                 @Html.AntiForgeryToken()
-                <button type="submit" class="outline" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">Resend</button>
+                <button type="submit" class="outline sn-compact-button">Resend</button>
             </form>
         }
         <form hx-post="/settings/workspaces?handler=RemoveMember&id=@workspaceId&memberId=@Model.Id" hx-target="#workspaces-list" hx-swap="innerHTML" style="margin: 0; display: inline;">
             @Html.AntiForgeryToken()
-            <button type="submit" class="secondary" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">Remove</button>
+            <button type="submit" class="secondary sn-danger sn-compact-button">Remove</button>
         </form>
     </td>
 </tr>

@@ -5,6 +5,7 @@
     var workspaceId = Model.WorkspaceId;
     var workspaceSlug = Model.WorkspaceSlug;
 }
+<div class="sn-table-wrap">
 <table>
     <thead>
         <tr>
@@ -21,11 +22,12 @@
         }
     </tbody>
 </table>
+</div>
 
 @if (members.Any(m => m.Role == WorkspaceRole.Owner && m.JoinedAtUtc != null))
 {
     <details>
-        <summary role="button" class="secondary outline" style="width: auto;">Invite member</summary>
+        <summary class="secondary outline">Invite member</summary>
         <form hx-post="/settings/workspaces?handler=Invite&id=@workspaceId" hx-target="#workspaces-list" hx-swap="innerHTML"
               hx-on::after-request="if (event.detail.successful) { this.querySelector('input[name=email]').value = ''; }">
             @Html.AntiForgeryToken()
@@ -48,9 +50,9 @@
 }
 
 <form hx-post="/settings/workspaces?handler=Delete&id=@workspaceId" hx-target="#workspaces-list" hx-swap="innerHTML"
-      hx-confirm="Permanently delete this workspace? This cannot be undone." style="margin-top: 1rem;">
+      hx-confirm="Permanently delete this workspace? This cannot be undone.">
     @Html.AntiForgeryToken()
-    <button type="submit" class="secondary">Delete workspace</button>
+    <button type="submit" class="secondary sn-danger">Delete workspace</button>
 </form>
 
-<p style="margin-top: 0.5rem;"><small>Set this as your active workspace from the user menu in the top bar.</small></p>
+<p class="sn-muted"><small>Set this as your active workspace from the user menu in the top bar.</small></p>

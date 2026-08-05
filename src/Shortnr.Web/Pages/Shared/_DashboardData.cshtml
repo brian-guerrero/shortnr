@@ -1,14 +1,14 @@
 @model DashboardDataViewModel
-<div class="grid">
-    <article>
+<div class="sn-grid-3">
+    <article class="sn-stat-card">
         <header>Total Links</header>
         <h2>@Model.TotalLinks</h2>
     </article>
-    <article>
+    <article class="sn-stat-card">
         <header>Total Clicks</header>
         <h2>@Model.TotalClicks</h2>
     </article>
-    <article>
+    <article class="sn-stat-card">
         <header>Countries Reached</header>
         <h2>@Model.TotalCountries</h2>
     </article>
@@ -16,10 +16,11 @@
 
 @if (Model.GeoBreakdown.Count == 0)
 {
-    <p style="text-align: center;">No geo data yet</p>
+    <div class="sn-empty-state" role="status">No geographic data yet. Share a link to start collecting reach data.</div>
 }
 else
 {
+    <div class="sn-table-wrap">
     <table>
         <thead>
             <tr>
@@ -37,7 +38,7 @@ else
                     <td>
                         @if (item.CityCounts.Count == 0)
                         {
-                            <span style="color: var(--pico-muted-color);">—</span>
+                            <span class="sn-muted">No city data</span>
                         }
                         else
                         {
@@ -48,6 +49,7 @@ else
             }
         </tbody>
     </table>
+    </div>
 }
 
 <script id="chart-data" type="application/json">@Html.Raw(Model.ChartJson)</script>

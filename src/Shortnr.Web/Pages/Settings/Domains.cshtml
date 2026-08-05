@@ -3,8 +3,16 @@
 @{
     Layout = Model.IsHtmxRequest ? null : "_Layout";
 }
-<article>
-    <header><h1>Domains @if (Model.Workspace is not null) { @await Html.PartialAsync("Shared/_WorkspaceBadge", Model.Workspace) }</h1></header>
+<div class="sn-page">
+<header class="sn-page-header">
+    <div>
+        <p class="sn-kicker">Settings / Identity</p>
+        <h1>Domains</h1>
+        <p>Connect a verified domain for branded short links.</p>
+    </div>
+    @if (Model.Workspace is not null) { @await Html.PartialAsync("Shared/_WorkspaceBadge", Model.Workspace) }
+</header>
+<article class="sn-card">
     <form hx-post="/settings/domains" hx-target="#domains-list" hx-swap="innerHTML"
           hx-on::after-request="if (event.detail.successful) this.querySelector('input[name=hostname]').value = ''">
         @Html.AntiForgeryToken()
@@ -17,3 +25,4 @@
         @await Html.PartialAsync("Shared/_DomainsList", Model)
     </div>
 </article>
+</div>

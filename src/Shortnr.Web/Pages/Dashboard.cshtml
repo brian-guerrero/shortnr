@@ -3,73 +3,76 @@
 @{
     ViewData["Title"] = "Dashboard";
 }
-<hgroup>
-    <h1>Dashboard</h1>
-    <p>Real-time metrics for your shortened links. @if (Model.Workspace is not null) { @await Html.PartialAsync("Shared/_WorkspaceBadge", Model.Workspace) }</p>
-</hgroup>
+<div class="sn-page">
+<header class="sn-page-header">
+    <div>
+        <p class="sn-kicker">Operations / Overview</p>
+        <h1>Dashboard</h1>
+        <p>Real-time metrics for your shortened links.</p>
+    </div>
+    @if (Model.Workspace is not null) { @await Html.PartialAsync("Shared/_WorkspaceBadge", Model.Workspace) }
+</header>
 
-<div sse-connect="/api/events">
+<div class="sn-stack" sse-connect="/api/events" x-data="chartComponent()">
     <div id="dashboard-data" hx-get="/dashboard" hx-trigger="load, sse:data-update" hx-swap="innerHTML">
-        <article aria-busy="true"><p>Loading dashboard...</p></article>
+        <div class="sn-loading-state" role="status" aria-live="polite">Loading dashboard...</div>
     </div>
 
-    <div class="grid">
-        <article x-data="chartComponent()">
+    <div class="sn-grid-2">
+        <article class="sn-card sn-chart-card">
             <header><h3>Top Links</h3></header>
             <canvas id="topChart" height="100"></canvas>
         </article>
-        <article x-data="chartComponent()">
+        <article class="sn-card sn-chart-card">
             <header><h3>Countries</h3></header>
             <canvas id="countryChart" height="100"></canvas>
         </article>
     </div>
 
-    <article>
+    <article class="sn-card">
         <header><h3>Search Links</h3></header>
-        <div class="grid">
-            <input type="search" id="search-input" name="search" placeholder="Search by URL, short code or domain..."
+        <div class="sn-filter-bar">
+            <label for="search-input">Find a link
+                <input type="search" id="search-input" name="search" placeholder="URL, short code or domain..."
                    hx-get="/dashboard"
                    hx-trigger="keyup changed delay:200ms"
                    hx-target="#search-results"
                    hx-swap="innerHTML"
                    hx-include="#domain-filter">
-            <select id="domain-filter" name="domain"
+            </label>
+            <label for="domain-filter">Domain
+                <select id="domain-filter" name="domain"
                     hx-get="/dashboard"
                     hx-trigger="change"
                     hx-target="#search-results"
                     hx-swap="innerHTML"
                     hx-include="#search-input">
-                @foreach (var d in Model.DomainOptions)
-                {
-                    <option value="@d">@d</option>
-                }
-            </select>
+                    @foreach (var d in Model.DomainOptions)
+                    {
+                        <option value="@d">@d</option>
+                    }
+                </select>
+            </label>
         </div>
         <div id="search-results" hx-get="/dashboard" hx-trigger="load" hx-swap="innerHTML">
-            <article aria-busy="true"><p>Loading...</p></article>
+            <div class="sn-loading-state" role="status" aria-live="polite">Loading links...</div>
         </div>
     </article>
 
-    <article>
+    <article class="sn-card">
         <header><h3>Recent Clicks</h3></header>
         <div id="recent-clicks">
-            <article aria-busy="true"><p>Loading clicks...</p></article>
+            <div class="sn-loading-state" role="status" aria-live="polite">Loading clicks...</div>
         </div>
     </article>
 </div>
+</div>
 
 @section Scripts {
-<style>
-.sortable th { cursor: pointer; user-select: none; white-space: nowrap; }
-.sortable tbody tr:not(.detail-row) { cursor: pointer; }
-</style>
 <script src="/lib/chartjs/dist/chart.umd.min.js"></script>
 <script>
 const COLORS = [
-    'rgba(54, 162, 235, 0.8)', 'rgba(255, 99, 132, 0.8)', 'rgba(75, 192, 192, 0.8)',
-    'rgba(255, 159, 64, 0.8)', 'rgba(153, 102, 255, 0.8)', 'rgba(255, 205, 86, 0.8)',
-    'rgba(201, 203, 207, 0.8)', 'rgba(34, 139, 34, 0.8)', 'rgba(220, 20, 60, 0.8)',
-    'rgba(0, 191, 255, 0.8)'
+    '#FFD23F', '#7C5CFF', '#62F0D0', '#FF68AE', '#7298F5', '#6EC1FF'
 ];
 
 (function() {
@@ -146,9 +149,9 @@ function chartComponent() {
                         datasets: [{
                             label: 'Clicks',
                             data: values,
-                            backgroundColor: 'rgba(54, 162, 235, 0.6)',
-                            borderColor: 'rgba(54, 162, 235, 1)',
-                            borderWidth: 1
+                            backgroundColor: '#FFD23F',
+                            borderColor: '#111111',
+                            borderWidth: 2
                         }]
                     },
                     options: {
@@ -180,7 +183,8 @@ function chartComponent() {
                         datasets: [{
                             data: values,
                             backgroundColor: COLORS.slice(0, labels.length),
-                            borderWidth: 1
+                            borderColor: '#111111',
+                            borderWidth: 2
                         }]
                     },
                     options: {

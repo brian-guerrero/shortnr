@@ -19,27 +19,27 @@
     <ul dir="rtl">
         @if (workspaces.Count > 0)
         {
-            <li class="workspace-section-header" style="padding: 0.25rem 0.75rem; font-size: 0.8rem; color: var(--pico-muted-color);">Workspaces</li>
+            <li class="workspace-section-header sn-muted">Workspaces</li>
             @if (workspaceCtx is not null)
             {
-                <li><mark class="pico-background-blue-100" style="display: block; padding: 0.25rem 0.75rem; font-size: 0.8rem; margin: 0 0.5rem;">@workspaceCtx.Name</mark></li>
+                <li><mark class="pico-background-blue-100">@workspaceCtx.Name</mark></li>
             }
             @foreach (var ws in workspaces)
             {
                 <li>
-                    <form method="post" action="/workspace/switch" style="margin: 0; display: inline;">
+                    <form method="post" action="/workspace/switch">
                         <input type="hidden" name="slug" value="@ws.Slug">
-                        <button type="submit" class="secondary" style="padding: 0.25rem 0.75rem; border: none; background: none; width: 100%; text-align: left; font-size: 0.85rem; @(workspaceCtx?.WorkspaceId == ws.Id ? "font-weight: bold;" : "")">@ws.Name</button>
+                        <button type="submit" class="secondary sn-menu-action @(workspaceCtx?.WorkspaceId == ws.Id ? "sn-menu-action-active" : "")">@ws.Name</button>
                     </form>
                 </li>
             }
             <li>
-                <form method="post" action="/workspace/switch" style="margin: 0; display: inline;">
+                    <form method="post" action="/workspace/switch">
                     <input type="hidden" name="slug" value="personal">
-                    <button type="submit" class="secondary" style="padding: 0.25rem 0.75rem; border: none; background: none; width: 100%; text-align: left; font-size: 0.85rem; @(workspaceCtx is null ? "font-weight: bold;" : "")">Personal</button>
+                    <button type="submit" class="secondary sn-menu-action @(workspaceCtx is null ? "sn-menu-action-active" : "")">Personal</button>
                 </form>
             </li>
-            <li><hr style="margin: 0.25rem 0;"></li>
+            <li><hr></li>
         }
         <li><a href="/settings/api-keys">Settings</a></li>
         <li><a href="/account/logout">Log out</a></li>

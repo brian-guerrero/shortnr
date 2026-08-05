@@ -10,10 +10,11 @@
 }
 @if (Model.Count == 0)
 {
-    <p style="text-align: center;">No clicks yet</p>
+    <div class="sn-empty-state" role="status">No clicks yet. Share a link to start collecting activity.</div>
 }
 else
 {
+    <div class="sn-table-wrap">
     <table class="sortable">
         <thead>
             <tr>
@@ -33,12 +34,11 @@ else
                     <td>@click.CountryCode</td>
                     <td>@click.Browser @click.BrowserVersion</td>
                     <td>@click.OperatingSystem @click.OSVersion</td>
-                    <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
-                        title="@click.Referer">@click.Referer</td>
+                    <td class="sn-break" title="@click.Referer">@click.Referer</td>
                     <td>@click.ClickedAtUtc.ToLocalTime().ToString("g")</td>
                 </tr>
-                <tr style="display: none;" class="detail-row" data-click-id="@click.Id">
-                    <td colspan="6" style="font-size: 0.85em; background: var(--pico-card-sectioning-background-color, #f0f0f0);">
+                <tr class="detail-row" data-click-id="@click.Id">
+                    <td colspan="6" class="sn-click-detail">
                         <strong>IP:</strong> @click.IpAddress |
                         <strong>UA:</strong> @click.UserAgent |
                         <strong>Device:</strong> @click.DeviceFamily |
@@ -48,9 +48,10 @@ else
             }
         </tbody>
     </table>
-    <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-        <label for="per-page" style="margin-bottom: 0; font-size: 0.85em;">Per page:</label>
-        <select id="per-page" style="width: auto; margin-bottom: 0;"
+    </div>
+    <div class="sn-pagination-control">
+        <label for="per-page">Rows per page:</label>
+        <select id="per-page"
                 hx-get="/dashboard?clickSort=@clickSort&clickDir=@clickDir"
                 hx-target="#recent-clicks"
                 hx-swap="innerHTML"

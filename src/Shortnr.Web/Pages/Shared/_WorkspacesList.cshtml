@@ -4,22 +4,22 @@
 }
 @if (Model.StatusMessage is not null)
 {
-    <p class="pico-background-green-100" style="padding: 0.5rem; border-radius: 0.25rem; margin-bottom: 1rem;">@Model.StatusMessage</p>
+    <p class="sn-feedback sn-feedback-success" role="status">@Model.StatusMessage</p>
 }
 @if (Model.ErrorMessage is not null)
 {
-    <p class="pico-background-red-100" style="padding: 0.5rem; border-radius: 0.25rem; margin-bottom: 1rem;">@Model.ErrorMessage</p>
+    <p class="sn-feedback sn-feedback-error" role="alert">@Model.ErrorMessage</p>
 }
 @if (Model.Workspaces.Count == 0)
 {
-    <p>No workspaces yet. Create one above to get started.</p>
+    <div class="sn-empty-state" role="status">No workspaces yet. Create one above to get started.</div>
 }
 else
 {
     <p><strong>@Model.Workspaces.Count workspace@(Model.Workspaces.Count == 1 ? "" : "s")</strong></p>
     @foreach (var ws in Model.Workspaces)
     {
-        <article style="margin-bottom: 1rem;">
+        <article class="sn-card">
             <header>
                 <hgroup>
                     <h3>@ws.Name</h3>
@@ -28,7 +28,7 @@ else
             </header>
             <div hx-get="/settings/workspaces?handler=Detail&id=@ws.Id" hx-trigger="revealed"
                  hx-swap="innerHTML">
-                <article aria-busy="true"><p>Loading members...</p></article>
+                <div class="sn-loading-state" role="status" aria-live="polite">Loading members...</div>
             </div>
         </article>
     }
