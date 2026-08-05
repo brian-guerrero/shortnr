@@ -6,12 +6,13 @@ namespace Shortnr.Web.Services;
 /// Shared short-code / vanity-slug rules used by both the Index page and the
 /// public API so validation and generation stay consistent.
 /// </summary>
-public static class ShortLinkCodes
+public static partial class ShortLinkCodes
 {
-    private static readonly Regex SlugPattern = new(@"^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$", RegexOptions.Compiled);
+    [GeneratedRegex(@"^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$")]
+    private static partial Regex SlugPattern();
 
     /// <summary>Validates a user-supplied vanity slug (1–64 chars, alnum/_/-).</summary>
-    public static bool IsValidSlug(string slug) => SlugPattern.IsMatch(slug);
+    public static bool IsValidSlug(string slug) => SlugPattern().IsMatch(slug);
 
     /// <summary>Generates a random 6-char code from the alphanumeric alphabet.</summary>
     public static string GenerateCode()

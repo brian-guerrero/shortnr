@@ -121,7 +121,7 @@ public class IndexModel : PageModel
 
     private Task<List<ShortenedUrl>> RecentLinksAsync(long? ownerUserId, long? workspaceId)
     {
-        var query = _db.ShortenedUrls.Include(l => l.Domain).AsQueryable();
+        var query = _db.ShortenedUrls.AsNoTracking().Include(l => l.Domain).AsQueryable();
 
         if (workspaceId is not null)
             query = query.Where(l => l.WorkspaceId == workspaceId);

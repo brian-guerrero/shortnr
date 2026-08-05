@@ -42,7 +42,7 @@ public partial class WorkspaceService(AppDbContext db, EmailService emailService
     public async Task<List<Workspace>> GetWorkspacesForUserAsync(long userId) =>
         await db.WorkspaceMembers
             .Where(m => m.UserId == userId && m.JoinedAtUtc != null)
-            .Include(m => m.Workspace)
+            .AsNoTracking()
             .Select(m => m.Workspace!)
             .OrderBy(w => w.Name)
             .ToListAsync();
@@ -57,14 +57,15 @@ public partial class WorkspaceService(AppDbContext db, EmailService emailService
     public async Task<WorkspaceMember?> GetMemberByIdAsync(long memberId) =>
         await db.WorkspaceMembers.FindAsync(memberId);
 
-    public async Task<WorkspaceRole?> GetRoleAsync(long workspaceId, long userId)
-    {
-        var member = await GetMemberAsync(workspaceId, userId);
-        return member?.Role;
-    }
+    public async Task<WorkspaceRole?> GetRoleAsync(long workspaceId, long userId) =>
+        await db.WorkspaceMembers
+            .Where(m => m.WorkspaceId == workspaceId && m.UserId == userId && m.JoinedAtUtc != null)
+            .Select(m => (WorkspaceRole?)m.Role)
+            .FirstOrDefaultAsync();
 
     public async Task<bool> IsMemberAsync(long workspaceId, long userId) =>
-        await GetMemberAsync(workspaceId, userId) is not null;
+        await db.WorkspaceMembers
+            .AnyAsync(m => m.WorkspaceId == workspaceId && m.UserId == userId && m.JoinedAtUtc != null);
 
     public async Task<bool> InviteMemberAsync(long workspaceId, string email, WorkspaceRole role, long actorUserId)
     {

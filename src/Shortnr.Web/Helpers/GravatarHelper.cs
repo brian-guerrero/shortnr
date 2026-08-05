@@ -19,6 +19,6 @@ public static class GravatarHelper
     {
         var normalized = (email ?? string.Empty).Trim().ToLowerInvariant();
         var bytes = MD5.HashData(Encoding.UTF8.GetBytes(normalized));
-        return Convert.ToHexString(bytes).ToLowerInvariant();
+        return Convert.ToHexStringLower(bytes);
     }
 }

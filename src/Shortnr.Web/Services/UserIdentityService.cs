@@ -11,6 +11,11 @@ namespace Shortnr.Web.Services;
 /// </summary>
 public class UserIdentityService(AppDbContext db, IConfiguration config, IHttpContextAccessor httpContextAccessor)
 {
+    // Resolved at most once per principal per request (the service is scoped) —
+    // several handlers call this multiple times per page/API request.
+    private ClaimsPrincipal? _resolvedPrincipal;
+    private long? _ownerUserId;
+
     public bool IsAuthEnabled => config.GetValue<bool>("Authentication:Enabled", defaultValue: true);
 
     /// <summary>
@@ -21,6 +26,15 @@ public class UserIdentityService(AppDbContext db, IConfiguration config, IHttpCo
     /// the issuer/subject lookup.
     /// </summary>
     public async Task<long?> ResolveOwnerUserIdAsync(ClaimsPrincipal principal)
+    {
+        if (ReferenceEquals(_resolvedPrincipal, principal)) return _ownerUserId;
+
+        _ownerUserId = await ResolveOwnerUserIdCoreAsync(principal);
+        _resolvedPrincipal = principal;
+        return _ownerUserId;
+    }
+
+    private async Task<long?> ResolveOwnerUserIdCoreAsync(ClaimsPrincipal principal)
     {
         if (!IsAuthEnabled) return null;
         if (principal.Identity?.IsAuthenticated != true) return null;
@@ -34,8 +48,10 @@ public class UserIdentityService(AppDbContext db, IConfiguration config, IHttpCo
         if (subject is null) return null;
 
         var issuer = config["Authentication:Oidc:Authority"] ?? string.Empty;
-        var user = await db.Users.FirstOrDefaultAsync(u => u.Issuer == issuer && u.Subject == subject);
-        return user?.Id;
+        return await db.Users
+            .Where(u => u.Issuer == issuer && u.Subject == subject)
+            .Select(u => (long?)u.Id)
+            .FirstOrDefaultAsync();
     }
 
     /// <summary>
@@ -54,21 +70,22 @@ public class UserIdentityService(AppDbContext db, IConfiguration config, IHttpCo
         var cookie = httpContext?.Request.Cookies["snr_workspace"];
         if (string.IsNullOrWhiteSpace(cookie)) return null;
 
-        var workspace = await db.Workspaces
-            .FirstOrDefaultAsync(w => w.Slug == cookie);
-        if (workspace is null) return null;
-
-        var member = await db.WorkspaceMembers
-            .FirstOrDefaultAsync(m => m.WorkspaceId == workspace.Id && m.UserId == userId.Value && m.JoinedAtUtc != null);
-        if (member is null) return null;
-
-        return new ActiveWorkspaceContext
-        {
-            WorkspaceId = workspace.Id,
-            Slug = workspace.Slug,
-            Name = workspace.Name,
-            Role = member.Role
-        };
+        // One round-trip: the join only produces a row when the workspace exists
+        // AND the user is an active member of it.
+        return await db.Workspaces
+            .Where(w => w.Slug == cookie)
+            .Join(
+                db.WorkspaceMembers.Where(m => m.UserId == userId.Value && m.JoinedAtUtc != null),
+                w => w.Id,
+                m => m.WorkspaceId,
+                (w, m) => new ActiveWorkspaceContext
+                {
+                    WorkspaceId = w.Id,
+                    Slug = w.Slug,
+                    Name = w.Name,
+                    Role = m.Role
+                })
+            .FirstOrDefaultAsync();
     }
 }
 
