@@ -1,3 +1,4 @@
+using Aspire.Hosting;
 using Aspire.Hosting.ApplicationModel;
 
 var builder = DistributedApplication.CreateBuilder(args);
@@ -21,5 +22,12 @@ builder.AddProject<Projects.Shortnr_Web>("shortnr-web")
     .WithEnvironment("Smtp__Port", mailpit.GetEndpoint("smtp").Property(EndpointProperty.Port))
     .WaitFor(dex)
     .WaitFor(mailpit);
+
+var docsDir = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", "docs"));
+if (Directory.Exists(docsDir))
+{
+    builder.AddViteApp("shortnr-docs", "../../docs")
+        .WithEnvironment("BROWSER", "none");
+}
 
 builder.Build().Run();
