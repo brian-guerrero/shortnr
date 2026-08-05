@@ -1,0 +1,79 @@
+@model Shortnr.Web.Pages.Settings.WebhooksModel
+@if (Model.ErrorMessage is not null)
+{
+    <mark class="pico-background-red-100" style="display:block; margin-bottom: 1rem;">
+        <strong>@Model.ErrorMessage</strong>
+    </mark>
+}
+@if (Model.StatusMessage is not null)
+{
+    <mark class="pico-background-green-100" style="display:block; margin-bottom: 1rem;">
+        <strong>@Model.StatusMessage</strong>
+    </mark>
+}
+@if (Model.CreatedSecret is not null)
+{
+    <mark class="pico-background-blue-100" style="display:block; margin-bottom: 1rem;">
+        <strong>Copy this secret now — it cannot be recovered later:</strong>
+        <code style="display:block; margin-top: 0.5rem; word-break: break-all;">@Model.CreatedSecret</code>
+    </mark>
+}
+@if (Model.Webhooks.Count == 0)
+{
+    <p>No webhooks yet. Create one above to start receiving event notifications.</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr><th>URL</th><th>Events</th><th>Created</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var webhook in Model.Webhooks)
+            {
+                <tr>
+                    <td><small style="word-break: break-all;">@webhook.Url</small></td>
+                    <td>
+                        @foreach (var eventType in Shortnr.Web.Services.WebhookEventTypes.Parse(webhook.EventTypes))
+                        {
+                            <mark class="pico-background-blue-100" style="font-size: 0.75rem;">@eventType</mark>
+                        }
+                    </td>
+                    <td><small>@webhook.CreatedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</small></td>
+                    <td>
+                        @if (!webhook.IsActive)
+                        {
+                            <mark class="pico-background-red-100">disabled</mark>
+                            @if (webhook.FailureCount > 0)
+                            {
+                                <small style="display:block; color: var(--pico-muted-color);">@webhook.FailureCount failures</small>
+                            }
+                        }
+                        else
+                        {
+                            <mark class="pico-background-green-100">active</mark>
+                        }
+                    </td>
+                    <td>
+                        @if (webhook.IsActive)
+                        {
+                            <form hx-post="/settings/webhooks?handler=Revoke" hx-target="#webhooks-list" hx-swap="innerHTML" style="display:inline;">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@webhook.Id">
+                                <button type="submit" class="secondary" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Disable</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <form hx-post="/settings/webhooks?handler=Activate" hx-target="#webhooks-list" hx-swap="innerHTML" style="display:inline;">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@webhook.Id">
+                                <button type="submit" class="contrast" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Re-enable</button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

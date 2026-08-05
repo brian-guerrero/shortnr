@@ -1,0 +1,30 @@
+@page "/settings/webhooks"
+@model Shortnr.Web.Pages.Settings.WebhooksModel
+@{
+    Layout = Model.IsHtmxRequest ? null : "_Layout";
+}
+<article>
+    <header><h1>Webhooks</h1></header>
+    <p>Webhooks send HTTP POST requests to your endpoint when events occur. Payloads are signed with HMAC-SHA256 using the secret shown at creation time. Send the signature as <code>X-Shortnr-Signature</code> header.</p>
+    <form hx-post="/settings/webhooks" hx-target="#webhooks-list" hx-swap="innerHTML"
+          hx-on::after-request="if (event.detail.successful) this.querySelector('input[name=url]').value = ''">
+        @Html.AntiForgeryToken()
+        <label for="webhook-url">Webhook URL</label>
+        <input type="url" name="url" id="webhook-url" placeholder="https://example.com/webhook" required>
+        <fieldset>
+            <legend>Event types</legend>
+            @foreach (var eventType in Shortnr.Web.Services.WebhookEventTypes.All)
+            {
+                <label>
+                    <input type="checkbox" name="event" value="@eventType" checked>
+                    <code>@eventType</code>
+                </label>
+            }
+            <p><small>Select which events should trigger this webhook. <code>link.clicked</code> events are batched (at most once per link per minute).</small></p>
+        </fieldset>
+        <button type="submit">Create webhook</button>
+    </form>
+    <div id="webhooks-list">
+        @await Html.PartialAsync("Shared/_WebhooksList", Model)
+    </div>
+</article>

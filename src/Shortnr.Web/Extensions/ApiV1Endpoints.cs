@@ -75,6 +75,7 @@ public static class ApiV1Endpoints
         UserIdentityService identity,
         WorkspaceService workspaceService,
         WorkspaceAuthorizationService workspaceAuth,
+        WebhookEventDispatcher webhookDispatcher,
         ClaimsPrincipal user,
         CancellationToken ct)
     {
@@ -142,6 +143,8 @@ public static class ApiV1Endpoints
         };
         db.ShortenedUrls.Add(link);
         await db.SaveChangesAsync(ct);
+
+        await webhookDispatcher.DispatchLinkCreatedAsync(link, request.Scheme, request.Host.Host);
 
         var workspaceSlug = workspaceId is not null
             ? (await db.Workspaces.Where(w => w.Id == workspaceId).Select(w => w.Slug).FirstOrDefaultAsync(ct))
@@ -314,9 +317,11 @@ public static class ApiV1Endpoints
         string shortCode,
         string? domain,
         string? workspace,
+        HttpRequest request,
         AppDbContext db,
         UserIdentityService identity,
         WorkspaceService workspaceService,
+        WebhookEventDispatcher webhookDispatcher,
         ClaimsPrincipal user,
         CancellationToken ct)
     {
@@ -327,6 +332,8 @@ public static class ApiV1Endpoints
         var link = await ResolveOwnedLinkAsync(db, ownerUserId.Value, shortCode, domain, workspace, workspaceService, ct);
         if (link is null)
             return TypedResults.NotFound();
+
+        await webhookDispatcher.DispatchLinkDeletedAsync(link, request.Scheme, request.Host.Host);
 
         db.ShortenedUrls.Remove(link);
         await db.SaveChangesAsync(ct);
