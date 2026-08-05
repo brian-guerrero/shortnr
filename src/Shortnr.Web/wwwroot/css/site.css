@@ -36,6 +36,10 @@ body.sn-app {
 .sn-brand { font-family: var(--sn-font-display); font-size: 1.25rem; letter-spacing: 0.04em; text-decoration: none; }
 .sn-nav a { text-decoration: none; }
 .sn-nav a:hover, .sn-nav a:focus-visible { text-decoration: underline; text-decoration-thickness: 3px; }
+.sn-nav-menu { position: relative; margin: 0; }
+.sn-nav-menu summary { padding: 0; border: 0; background: transparent; color: var(--sn-ink); font-weight: 700; cursor: pointer; }
+.sn-nav-menu > ul { position: absolute; z-index: 10; top: calc(100% + 0.5rem); right: 0; display: grid; min-width: 12rem; margin: 0; padding: 0.5rem; border: var(--sn-border); background: var(--sn-surface); box-shadow: var(--sn-shadow-sm); list-style: none; }
+.sn-nav-menu > ul a { display: block; padding: 0.45rem 0.6rem; }
 .sn-main { padding-top: 2rem; }
 .sn-footer { max-width: 1120px; padding: 3rem 1rem 1rem; color: var(--sn-muted); font-size: 0.8rem; }
 .sn-app h1, .sn-app h2, .sn-app h3 { color: var(--sn-ink); font-family: var(--sn-font-display); letter-spacing: 0.02em; }
@@ -169,6 +173,7 @@ body.sn-app {
 @media (max-width: 760px) {
     .sn-nav > ul { box-shadow: 2px 2px 0 var(--sn-ink); }
     .sn-nav > ul:last-child { gap: 0.5rem; flex-wrap: wrap; }
+    .sn-nav-menu > ul { position: static; min-width: 0; box-shadow: none; }
     .sn-hero { grid-template-columns: 1fr; }
     .sn-hero-art { min-height: 180px; }
     .sn-form-actions, .sn-section-heading { align-items: stretch; flex-direction: column; }

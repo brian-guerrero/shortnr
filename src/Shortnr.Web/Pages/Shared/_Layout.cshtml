@@ -49,10 +49,17 @@
                 <li><a href="/dashboard">Dashboard</a></li>
                 <li><a href="/dashboard/activity">AI activity</a></li>
                 <li><a href="/bio/edit">Bio page</a></li>
-                <li><a href="/settings/domains">Domains</a></li>
-                <li><a href="/settings/workspaces">Workspaces</a></li>
-                <li><a href="/settings/api-keys">API keys</a></li>
-                <li><a href="/settings/webhooks">Webhooks</a></li>
+                <li>
+                    <details class="sn-nav-menu">
+                        <summary>Settings</summary>
+                        <ul>
+                            <li><a href="/settings/domains">Domains</a></li>
+                            <li><a href="/settings/workspaces">Workspaces</a></li>
+                            <li><a href="/settings/api-keys">API keys</a></li>
+                            <li><a href="/settings/webhooks">Webhooks</a></li>
+                        </ul>
+                    </details>
+                </li>
             }
             @if (authEnabled)
             {

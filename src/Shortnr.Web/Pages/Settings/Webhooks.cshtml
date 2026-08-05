@@ -3,8 +3,15 @@
 @{
     Layout = Model.IsHtmxRequest ? null : "_Layout";
 }
-<article>
-    <header><h1>Webhooks</h1></header>
+<div class="sn-page">
+<header class="sn-page-header">
+    <div>
+        <p class="sn-kicker">Settings / Integrations</p>
+        <h1>Webhooks</h1>
+        <p>Send signed event notifications to systems you control.</p>
+    </div>
+</header>
+<article class="sn-card">
     <p>Webhooks send HTTP POST requests to your endpoint when events occur. Payloads are signed with HMAC-SHA256 using the secret shown at creation time. Send the signature as <code>X-Shortnr-Signature</code> header.</p>
     <form hx-post="/settings/webhooks" hx-target="#webhooks-list" hx-swap="innerHTML"
           hx-on::after-request="if (event.detail.successful) this.querySelector('input[name=url]').value = ''">
@@ -28,3 +35,4 @@
         @await Html.PartialAsync("Shared/_WebhooksList", Model)
     </div>
 </article>
+</div>
