@@ -30,15 +30,16 @@ body.sn-app {
 
 .sn-app a { color: var(--sn-ink); font-weight: 700; }
 .sn-app .sn-container { max-width: 1120px; }
-.sn-nav { padding-top: 1.25rem; }
-.sn-nav > ul { padding: 0.55rem 0.85rem; border: var(--sn-border); background: var(--sn-mint); box-shadow: var(--sn-shadow-sm); }
-.sn-nav > ul:first-child { background: var(--sn-yellow); }
+.sn-nav { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.75rem; padding-top: 1.25rem; }
+.sn-nav > ul { display: flex; align-items: center; justify-content: flex-end; gap: 0.9rem; min-width: 0; margin: 0; padding: 0.55rem 0.85rem; border: var(--sn-border); background: var(--sn-mint); box-shadow: var(--sn-shadow-sm); }
+.sn-nav > ul:first-child { justify-content: flex-start; background: var(--sn-yellow); }
 .sn-brand { font-family: var(--sn-font-display); font-size: 1.25rem; letter-spacing: 0.04em; text-decoration: none; }
 .sn-nav a { text-decoration: none; }
+.sn-nav > ul > li > a, .sn-nav > ul > li > .sn-nav-menu summary, .sn-nav > ul > li > .dropdown summary { color: var(--sn-accent-ink); }
 .sn-nav a:hover, .sn-nav a:focus-visible { text-decoration: underline; text-decoration-thickness: 3px; }
 .sn-nav-active { text-decoration: underline !important; text-decoration-thickness: 3px !important; text-underline-offset: 0.2rem; }
 .sn-nav-menu { position: relative; margin: 0; }
-.sn-nav-menu summary { padding: 0; border: 0; background: transparent; color: var(--sn-ink); font-weight: 700; cursor: pointer; }
+.sn-nav-menu summary { padding: 0; border: 0; background: transparent; color: var(--sn-ink); font-weight: 700; cursor: pointer; white-space: nowrap; }
 .sn-nav-menu > ul { position: absolute; z-index: 10; top: calc(100% + 0.5rem); right: 0; display: grid; min-width: 12rem; margin: 0; padding: 0.5rem; border: var(--sn-border); background: var(--sn-surface); box-shadow: var(--sn-shadow-sm); list-style: none; }
 .sn-nav-menu > ul a { display: block; padding: 0.45rem 0.6rem; }
 .sn-main { padding-top: 2rem; }
@@ -186,6 +187,12 @@ body.sn-app {
 
     body.sn-app { background: var(--sn-paper); color: var(--sn-ink); }
     .sn-app article, .sn-panel, .sn-card, .sn-stat-card { background: var(--sn-surface); }
+    .sn-app .sn-feature-yellow { background: var(--sn-yellow); color: var(--sn-accent-ink); }
+    .sn-app .sn-feature-mint { background: var(--sn-mint); color: var(--sn-accent-ink); }
+    .sn-app .sn-feature-paper { background: var(--sn-paper); color: var(--sn-ink); }
+    .sn-app .sn-feature-card h3, .sn-app .sn-feature-card p { color: inherit; }
+    .sn-app .sn-stat-card:nth-child(2) { background: var(--sn-yellow); }
+    .sn-app .sn-stat-card:nth-child(3) { background: var(--sn-mint); }
     .sn-app article > header, .sn-panel > header { background: var(--sn-surface); color: var(--sn-ink); }
     .sn-app input, .sn-app select, .sn-app textarea { background: #101319; color: var(--sn-ink); }
     .sn-app input::placeholder { color: #9da6b4; }
@@ -199,6 +206,7 @@ body.sn-app {
     .sn-click-detail { background: #1d222b; }
     .sn-app a { color: var(--sn-ink); }
     .sn-app .sn-menu-action { color: var(--sn-ink); }
+    .sn-app .sn-nav-menu summary { color: var(--sn-accent-ink); }
     .sn-app button.secondary, .sn-app button.outline, .sn-app [role="button"].secondary, .sn-app [role="button"].outline { background: var(--sn-surface); color: var(--sn-ink); }
     .sn-app .pico-background-red-100 { color: var(--sn-accent-ink); }
     .sn-app .pico-background-green-100 { color: var(--sn-accent-ink); }
@@ -206,8 +214,9 @@ body.sn-app {
 }
 
 @media (max-width: 760px) {
-    .sn-nav > ul { box-shadow: 2px 2px 0 var(--sn-ink); }
-    .sn-nav > ul:last-child { gap: 0.5rem; flex-wrap: wrap; }
+    .sn-nav { grid-template-columns: 1fr; }
+    .sn-nav > ul { justify-content: flex-start; gap: 0.55rem; flex-wrap: wrap; box-shadow: 2px 2px 0 var(--sn-ink); }
+    .sn-nav > ul:last-child { align-items: flex-start; }
     .sn-nav-menu > ul { position: static; min-width: 0; box-shadow: none; }
     .sn-hero { grid-template-columns: 1fr; }
     .sn-hero-art { min-height: 180px; }
