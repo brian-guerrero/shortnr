@@ -44,7 +44,7 @@
         <ul>
             <li><a class="sn-brand" href="/">shortnr</a></li>
         </ul>
-        <ul>
+        <ul class="sn-desktop-nav">
             @if (!authEnabled || User.Identity?.IsAuthenticated == true)
             {
                 <li><a class="@(currentPath == "/dashboard" ? "sn-nav-active" : "")" href="/dashboard" aria-current="@(currentPath == "/dashboard" ? "page" : null)">Dashboard</a></li>
@@ -74,6 +74,33 @@
                 }
             }
         </ul>
+        <details class="sn-mobile-menu">
+            <summary aria-label="Open navigation"><span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span></summary>
+            <div class="sn-mobile-menu-panel">
+                @if (!authEnabled || User.Identity?.IsAuthenticated == true)
+                {
+                    <a href="/dashboard">Dashboard</a>
+                    <a href="/dashboard/activity">AI activity</a>
+                    <a href="/bio/edit">Bio page</a>
+                    <p class="sn-mobile-menu-label">Settings</p>
+                    <a href="/settings/domains">Domains</a>
+                    <a href="/settings/workspaces">Workspaces</a>
+                    <a href="/settings/api-keys">API keys</a>
+                    <a href="/settings/webhooks">Webhooks</a>
+                }
+                @if (authEnabled)
+                {
+                    if (User.Identity?.IsAuthenticated == true)
+                    {
+                        @await Html.PartialAsync("Shared/_UserMenu")
+                    }
+                    else
+                    {
+                        <a href="/account/login">Log in</a>
+                    }
+                }
+            </div>
+        </details>
     </nav>
     <main class="container sn-container sn-main">
         @RenderBody()
