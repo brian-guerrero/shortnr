@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#2383e2"/>
+  <rect x="40" y="40" width="1120" height="550" rx="24" fill="#ffffff" fill-opacity="0.12"/>
+  <text x="600" y="290" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="72" font-weight="700" fill="#ffffff">shortnr</text>
+  <text x="600" y="370" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="32" fill="#ffffff" fill-opacity="0.8">Your links, your brand</text>
+</svg>
