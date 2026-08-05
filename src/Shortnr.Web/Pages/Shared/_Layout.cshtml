@@ -7,6 +7,7 @@
     var seoSiteName = seo["SiteName"] ?? "shortnr";
     var seoLocale = seo["Locale"] ?? "en_US";
     var canonicalUrl = $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.PathBase}{Context.Request.Path}";
+    var currentPath = Context.Request.Path.Value ?? string.Empty;
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -46,12 +47,12 @@
         <ul>
             @if (!authEnabled || User.Identity?.IsAuthenticated == true)
             {
-                <li><a href="/dashboard">Dashboard</a></li>
-                <li><a href="/dashboard/activity">AI activity</a></li>
-                <li><a href="/bio/edit">Bio page</a></li>
+                <li><a class="@(currentPath == "/dashboard" ? "sn-nav-active" : "")" href="/dashboard" aria-current="@(currentPath == "/dashboard" ? "page" : null)">Dashboard</a></li>
+                <li><a class="@(currentPath.StartsWith("/dashboard/activity") ? "sn-nav-active" : "")" href="/dashboard/activity" aria-current="@(currentPath.StartsWith("/dashboard/activity") ? "page" : null)">AI activity</a></li>
+                <li><a class="@(currentPath.StartsWith("/bio/edit") ? "sn-nav-active" : "")" href="/bio/edit" aria-current="@(currentPath.StartsWith("/bio/edit") ? "page" : null)">Bio page</a></li>
                 <li>
                     <details class="sn-nav-menu">
-                        <summary>Settings</summary>
+                        <summary class="@(currentPath.StartsWith("/settings/") ? "sn-nav-active" : "")">Settings</summary>
                         <ul>
                             <li><a href="/settings/domains">Domains</a></li>
                             <li><a href="/settings/workspaces">Workspaces</a></li>

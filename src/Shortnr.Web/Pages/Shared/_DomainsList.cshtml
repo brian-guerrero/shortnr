@@ -18,7 +18,7 @@
 else
 {
     <div class="sn-table-wrap">
-    <table>
+    <table class="sn-responsive-table">
         <thead>
             <tr><th>Domain</th><th>Status</th><th>Verification token</th><th>Actions</th></tr>
         </thead>
@@ -26,14 +26,14 @@ else
             @foreach (var domain in Model.Domains)
             {
                 <tr>
-                    <td>
+                    <td data-label="Domain">
                         <code>@domain.Hostname</code>
                         @if (domain.IsDefault)
                         {
                             <mark class="pico-background-blue-100">default</mark>
                         }
                     </td>
-                    <td>
+                    <td data-label="Status">
                         @if (domain.IsVerified)
                         {
                             <mark class="pico-background-green-100">verified</mark>
@@ -43,7 +43,7 @@ else
                             <mark>unverified</mark>
                         }
                     </td>
-                    <td>
+                    <td data-label="Verification">
                         @if (domain.IsVerified)
                         {
                             <small>—</small>
@@ -58,7 +58,7 @@ else
                             </div>
                         }
                     </td>
-                    <td class="sn-action-cell">
+                    <td data-label="Actions" class="sn-action-cell">
                         @if (!domain.IsVerified)
                         {
                             <form hx-post="/settings/domains?handler=Verify" hx-target="#domains-list" hx-swap="innerHTML" style="display:inline;">

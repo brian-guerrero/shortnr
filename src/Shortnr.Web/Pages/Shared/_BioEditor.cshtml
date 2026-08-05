@@ -41,6 +41,14 @@ else
         Your bio page is live at
         <a href="/bio/@Model.BioPage.Slug" target="_blank" rel="noopener">/bio/@Model.BioPage.Slug</a>.
     </p>
+    <div class="sn-live-preview">
+        <div>
+            <p class="sn-kicker">Published page</p>
+            <strong>/bio/@Model.BioPage.Slug</strong>
+            <p class="sn-muted">Open the public page to preview the current theme and link order.</p>
+        </div>
+        <a href="/bio/@Model.BioPage.Slug" target="_blank" rel="noopener" role="button" class="secondary">Open preview</a>
+    </div>
     <details>
         <summary class="secondary">Edit page settings</summary>
         <div>
@@ -98,7 +106,7 @@ else
     {
         var bioLinks = Model.BioPage.Links.ToList();
         <div class="sn-table-wrap">
-            <table>
+            <table class="sn-responsive-table">
                 <thead>
                     <tr>
                         <th>Title</th>
@@ -115,21 +123,21 @@ else
                         var entry = bioLinks[i];
                         var link = entry.ShortenedUrl;
                         <tr>
-                            <td>
+                            <td data-label="Title">
                                 @if (!entry.IsVisible)
                                 {
                                     <mark>hidden</mark>
                                 }
                                 @entry.Title
                             </td>
-                            <td>
+                            <td data-label="Short URL">
                                 <a href="@Shortnr.Web.Helpers.ShortUrlHelper.DisplayHref(Context.Request.Scheme, link?.Domain?.Hostname, link?.ShortCode ?? "")"
                                    target="_blank" rel="noopener">
                                     @Shortnr.Web.Helpers.ShortUrlHelper.DisplayText(link?.Domain?.Hostname, link?.ShortCode ?? "")
                                 </a>
                             </td>
-                            <td>@(link?.ClickCount ?? 0)</td>
-                            <td>
+                            <td data-label="Clicks">@(link?.ClickCount ?? 0)</td>
+                            <td data-label="Visible">
                                 <form hx-post="/bio/edit?handler=ToggleLink" hx-target="#bio-editor" hx-swap="innerHTML">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="id" value="@entry.Id">
@@ -138,7 +146,7 @@ else
                                     </button>
                                 </form>
                             </td>
-                            <td>
+                            <td data-label="Order">
                                 @if (i > 0)
                                 {
                                     <form hx-post="/bio/edit?handler=MoveLink" hx-target="#bio-editor" hx-swap="innerHTML">
@@ -158,7 +166,7 @@ else
                                     </form>
                                 }
                             </td>
-                            <td>
+                            <td data-label="Actions">
                                 <form hx-post="/bio/edit?handler=RemoveLink" hx-target="#bio-editor" hx-swap="innerHTML">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="id" value="@entry.Id">

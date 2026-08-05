@@ -15,27 +15,27 @@
 else
 {
     <div class="sn-table-wrap">
-    <table class="sortable">
+    <table class="sortable sn-responsive-table">
         <thead>
             <tr>
-                <th hx-get="@sortUrl("shortCode", clickSort == "shortCode" && clickDir == "asc" ? "desc" : "asc")" hx-target="#recent-clicks" hx-swap="innerHTML">Short URL @sortInd("shortCode", " ▲", " ▼")</th>
-                <th hx-get="@sortUrl("countryCode", clickSort == "countryCode" && clickDir == "asc" ? "desc" : "asc")" hx-target="#recent-clicks" hx-swap="innerHTML">Country @sortInd("countryCode", " ▲", " ▼")</th>
-                <th hx-get="@sortUrl("browser", clickSort == "browser" && clickDir == "asc" ? "desc" : "asc")" hx-target="#recent-clicks" hx-swap="innerHTML">Browser @sortInd("browser", " ▲", " ▼")</th>
-                <th hx-get="@sortUrl("operatingSystem", clickSort == "operatingSystem" && clickDir == "asc" ? "desc" : "asc")" hx-target="#recent-clicks" hx-swap="innerHTML">OS @sortInd("operatingSystem", " ▲", " ▼")</th>
-                <th hx-get="@sortUrl("referer", clickSort == "referer" && clickDir == "asc" ? "desc" : "asc")" hx-target="#recent-clicks" hx-swap="innerHTML">Referer @sortInd("referer", " ▲", " ▼")</th>
-                <th hx-get="@sortUrl("clickedAtUtc", clickSort == "clickedAtUtc" && clickDir == "asc" ? "desc" : "asc")" hx-target="#recent-clicks" hx-swap="innerHTML">Time @sortInd("clickedAtUtc", " ▲", " ▼")</th>
+                <th role="button" tabindex="0" aria-label="Sort by short URL" hx-get="@sortUrl("shortCode", clickSort == "shortCode" && clickDir == "asc" ? "desc" : "asc")" hx-target="#recent-clicks" hx-swap="innerHTML">Short URL @sortInd("shortCode", " ▲", " ▼")</th>
+                <th role="button" tabindex="0" aria-label="Sort by country" hx-get="@sortUrl("countryCode", clickSort == "countryCode" && clickDir == "asc" ? "desc" : "asc")" hx-target="#recent-clicks" hx-swap="innerHTML">Country @sortInd("countryCode", " ▲", " ▼")</th>
+                <th role="button" tabindex="0" aria-label="Sort by browser" hx-get="@sortUrl("browser", clickSort == "browser" && clickDir == "asc" ? "desc" : "asc")" hx-target="#recent-clicks" hx-swap="innerHTML">Browser @sortInd("browser", " ▲", " ▼")</th>
+                <th role="button" tabindex="0" aria-label="Sort by operating system" hx-get="@sortUrl("operatingSystem", clickSort == "operatingSystem" && clickDir == "asc" ? "desc" : "asc")" hx-target="#recent-clicks" hx-swap="innerHTML">OS @sortInd("operatingSystem", " ▲", " ▼")</th>
+                <th role="button" tabindex="0" aria-label="Sort by referrer" hx-get="@sortUrl("referer", clickSort == "referer" && clickDir == "asc" ? "desc" : "asc")" hx-target="#recent-clicks" hx-swap="innerHTML">Referer @sortInd("referer", " ▲", " ▼")</th>
+                <th role="button" tabindex="0" aria-label="Sort by time" hx-get="@sortUrl("clickedAtUtc", clickSort == "clickedAtUtc" && clickDir == "asc" ? "desc" : "asc")" hx-target="#recent-clicks" hx-swap="innerHTML">Time @sortInd("clickedAtUtc", " ▲", " ▼")</th>
             </tr>
         </thead>
         <tbody>
             @foreach (var click in Model)
             {
                 <tr>
-                    <td><a href="@ShortUrlHelper.DisplayHref(Context.Request.Scheme, click.Hostname, click.ShortCode)" target="_blank">@ShortUrlHelper.DisplayText(click.Hostname, click.ShortCode)</a></td>
-                    <td>@click.CountryCode</td>
-                    <td>@click.Browser @click.BrowserVersion</td>
-                    <td>@click.OperatingSystem @click.OSVersion</td>
-                    <td class="sn-break" title="@click.Referer">@click.Referer</td>
-                    <td>@click.ClickedAtUtc.ToLocalTime().ToString("g")</td>
+                    <td data-label="Short URL"><a href="@ShortUrlHelper.DisplayHref(Context.Request.Scheme, click.Hostname, click.ShortCode)" target="_blank">@ShortUrlHelper.DisplayText(click.Hostname, click.ShortCode)</a></td>
+                    <td data-label="Country">@click.CountryCode</td>
+                    <td data-label="Browser">@click.Browser @click.BrowserVersion</td>
+                    <td data-label="OS">@click.OperatingSystem @click.OSVersion</td>
+                    <td data-label="Referer" class="sn-break" title="@click.Referer">@click.Referer</td>
+                    <td data-label="Time">@click.ClickedAtUtc.ToLocalTime().ToString("g")</td>
                 </tr>
                 <tr class="detail-row" data-click-id="@click.Id">
                     <td colspan="6" class="sn-click-detail">

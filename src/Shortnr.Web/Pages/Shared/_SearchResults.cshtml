@@ -22,18 +22,18 @@
 else
 {
     <div class="sn-table-wrap">
-    <table class="sortable">
+    <table class="sortable sn-responsive-table">
         <thead>
             <tr>
-                <th hx-get="@scUrl" hx-target="#search-results" hx-swap="innerHTML" hx-include="#search-input, #domain-filter">Short URL
+                <th role="button" tabindex="0" aria-label="Sort by short URL" hx-get="@scUrl" hx-target="#search-results" hx-swap="innerHTML" hx-include="#search-input, #domain-filter">Short URL
                     @scInd</th>
-                <th hx-get="@dmUrl" hx-target="#search-results" hx-swap="innerHTML" hx-include="#search-input, #domain-filter">Domain
+                <th role="button" tabindex="0" aria-label="Sort by domain" hx-get="@dmUrl" hx-target="#search-results" hx-swap="innerHTML" hx-include="#search-input, #domain-filter">Domain
                     @dmInd</th>
-                    <th hx-get="@luUrl" hx-target="#search-results" hx-swap="innerHTML" hx-include="#search-input, #domain-filter">Original
+                    <th role="button" tabindex="0" aria-label="Sort by original URL" hx-get="@luUrl" hx-target="#search-results" hx-swap="innerHTML" hx-include="#search-input, #domain-filter">Original
                         @luInd</th>
-                        <th hx-get="@ccUrl" hx-target="#search-results" hx-swap="innerHTML" hx-include="#search-input, #domain-filter">Clicks @ccInd
+                        <th role="button" tabindex="0" aria-label="Sort by clicks" hx-get="@ccUrl" hx-target="#search-results" hx-swap="innerHTML" hx-include="#search-input, #domain-filter">Clicks @ccInd
                         </th>
-                        <th hx-get="@caUrl" hx-target="#search-results" hx-swap="innerHTML" hx-include="#search-input, #domain-filter">Created
+                        <th role="button" tabindex="0" aria-label="Sort by created date" hx-get="@caUrl" hx-target="#search-results" hx-swap="innerHTML" hx-include="#search-input, #domain-filter">Created
                             @caInd</th>
                         <th>QR</th>
                         </tr>
@@ -42,14 +42,14 @@ else
                         @foreach (var link in Model)
                         {
                             <tr>
-                                <td>
+                                <td data-label="Short URL">
                                     <a href="@ShortUrlHelper.DisplayHref(Context.Request.Scheme, link.Domain?.Hostname, link.ShortCode)" target="_blank">@ShortUrlHelper.DisplayText(link.Domain?.Hostname, link.ShortCode)</a>
                                 </td>
-                                <td>@(link.Domain?.Hostname ?? "default")</td>
-                                <td class="sn-break">@link.LongUrl</td>
-                                <td>@link.ClickCount</td>
-                                <td>@link.CreatedAtUtc.ToLocalTime().ToString("g")</td>
-                                <td>
+                                <td data-label="Domain">@(link.Domain?.Hostname ?? "default")</td>
+                                <td data-label="Original" class="sn-break">@link.LongUrl</td>
+                                <td data-label="Clicks">@link.ClickCount</td>
+                                <td data-label="Created">@link.CreatedAtUtc.ToLocalTime().ToString("g")</td>
+                                <td data-label="QR">
                                     <span class="qr-wrap">
                                     <button hx-get="/qr/@link.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML" class="sn-compact-button">QR</button>
                                     </span>

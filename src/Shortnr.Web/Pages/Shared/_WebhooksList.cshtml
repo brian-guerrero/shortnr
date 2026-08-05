@@ -25,7 +25,7 @@
 else
 {
     <div class="sn-table-wrap">
-    <table>
+    <table class="sn-responsive-table">
         <thead>
             <tr><th>URL</th><th>Events</th><th>Created</th><th>Status</th><th>Actions</th></tr>
         </thead>
@@ -33,15 +33,15 @@ else
             @foreach (var webhook in Model.Webhooks)
             {
                 <tr>
-                    <td class="sn-break"><small>@webhook.Url</small></td>
-                    <td>
+                    <td data-label="URL" class="sn-break"><small>@webhook.Url</small></td>
+                    <td data-label="Events">
                         @foreach (var eventType in Shortnr.Web.Services.WebhookEventTypes.Parse(webhook.EventTypes))
                         {
                             <mark class="pico-background-blue-100">@eventType</mark>
                         }
                     </td>
-                    <td><small>@webhook.CreatedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</small></td>
-                    <td>
+                    <td data-label="Created"><small>@webhook.CreatedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</small></td>
+                    <td data-label="Status">
                         @if (!webhook.IsActive)
                         {
                             <mark class="pico-background-red-100">disabled</mark>
@@ -55,7 +55,7 @@ else
                             <mark class="pico-background-green-100">active</mark>
                         }
                     </td>
-                    <td class="sn-action-cell">
+                    <td data-label="Actions" class="sn-action-cell">
                         @if (webhook.IsActive)
                         {
                             <form hx-post="/settings/webhooks?handler=Revoke" hx-target="#webhooks-list" hx-swap="innerHTML" style="display:inline;">

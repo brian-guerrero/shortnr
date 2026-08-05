@@ -19,6 +19,30 @@
         </div>
     </section>
 
+    <section class="sn-editorial-band sn-band-violet" aria-labelledby="why-shortnr-heading">
+        <div class="sn-band-heading">
+            <p class="sn-kicker">The shortnr difference</p>
+            <h2 id="why-shortnr-heading">A link platform that stays yours.</h2>
+        </div>
+        <div class="sn-card-grid sn-card-grid-featured">
+            <article class="sn-feature-card sn-feature-yellow">
+                <span class="sn-feature-index">01</span>
+                <h3>Own your data</h3>
+                <p>Clicks, destinations, and analytics stay on infrastructure you control.</p>
+            </article>
+            <article class="sn-feature-card sn-feature-mint">
+                <span class="sn-feature-index">02</span>
+                <h3>See what works</h3>
+                <p>Real-time metrics, QR codes, branded domains, and useful click context come built in.</p>
+            </article>
+            <article class="sn-feature-card sn-feature-paper">
+                <span class="sn-feature-index">03</span>
+                <h3>Bring your own AI</h3>
+                <p>Manage links and bio pages through the tools and AI clients you already trust.</p>
+            </article>
+        </div>
+    </section>
+
     <article class="sn-panel sn-shortener">
         <header>
             <div>
@@ -46,6 +70,15 @@
         </form>
         <div id="result"></div>
     </article>
+
+    <section class="sn-callout" aria-labelledby="self-host-heading">
+        <div>
+            <p class="sn-kicker">Deploy / own / repeat</p>
+            <h2 id="self-host-heading">Your links should not need a permission slip.</h2>
+            <p>Run shortnr where your data belongs, connect a branded domain, and keep the workflow familiar from the first click to the last report.</p>
+        </div>
+        <div class="sn-callout-art" aria-hidden="true"><span>SELF</span><span>HOSTED</span><span>READY</span></div>
+    </section>
 
     <section id="recent" aria-labelledby="recent-heading">
         <div class="sn-section-heading">
@@ -75,7 +108,7 @@
                             <td>
                                 <span class="qr-wrap">
                                     <button hx-get="/qr/@link.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML"
-                                            style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">QR</button>
+                                            class="sn-compact-button">QR</button>
                                 </span>
                             </td>
                         </tr>

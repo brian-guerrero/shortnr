@@ -21,11 +21,13 @@
     <div class="sn-grid-2">
         <article class="sn-card sn-chart-card">
             <header><h3>Top Links</h3></header>
-            <canvas id="topChart" height="100"></canvas>
+            <p class="sn-visually-hidden">A horizontal bar chart showing click totals for the most visited short links.</p>
+            <canvas id="topChart" height="100" role="img" aria-label="Top links by clicks"></canvas>
         </article>
         <article class="sn-card sn-chart-card">
             <header><h3>Countries</h3></header>
-            <canvas id="countryChart" height="100"></canvas>
+            <p class="sn-visually-hidden">A doughnut chart showing clicks grouped by country.</p>
+            <canvas id="countryChart" height="100" role="img" aria-label="Clicks by country"></canvas>
         </article>
     </div>
 
@@ -107,6 +109,13 @@ const COLORS = [
     document.body.addEventListener('htmx:oobAfterSwap', function(e) {
         if (e.detail.target.id !== 'recent-clicks') return;
         restoreExpanded();
+    });
+
+    document.body.addEventListener('keydown', function(e) {
+        var header = e.target.closest('.sortable th[role="button"]');
+        if (!header || (e.key !== 'Enter' && e.key !== ' ')) return;
+        e.preventDefault();
+        htmx.trigger(header, 'click');
     });
 })();
 
