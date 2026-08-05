@@ -1,10 +1,16 @@
+@inject Microsoft.Extensions.Configuration.IConfiguration _smConfig
 @{
     var smTitle = (string?)ViewData["BioTitle"] ?? "shortnr";
     var smDescription = (string?)ViewData["BioDescription"] ?? "A shortnr bio page";
     var smImage = (string?)ViewData["BioImage"];
     var smUrl = (string?)ViewData["BioUrl"];
     var smCard = (string?)ViewData["BioTwitterCard"] ?? "summary";
+    var smSiteName = _smConfig.GetSection("Seo")["SiteName"] ?? "shortnr";
+    var smLocale = _smConfig.GetSection("Seo")["Locale"] ?? "en_US";
+    var smImageAlt = $"{smTitle} — bio page on {smSiteName}";
 }
+<meta property="og:site_name" content="@smSiteName" />
+<meta property="og:locale" content="@smLocale" />
 <meta property="og:title" content="@smTitle" />
 <meta property="og:description" content="@smDescription" />
 <meta property="og:type" content="profile" />
@@ -15,6 +21,7 @@
 @if (smImage is not null)
 {
     <meta property="og:image" content="@smImage" />
+    <meta property="og:image:alt" content="@smImageAlt" />
 }
 <meta name="twitter:card" content="@smCard" />
 <meta name="twitter:title" content="@smTitle" />
@@ -22,4 +29,5 @@
 @if (smImage is not null)
 {
     <meta name="twitter:image" content="@smImage" />
+    <meta name="twitter:image:alt" content="@smImageAlt" />
 }

@@ -1,0 +1,19 @@
+# robots.txt for shortnr
+# Public surfaces: the home page (/), short link redirects (/{shortCode}),
+# QR share pages (/qr/{shortCode}), and public bio pages (/bio/{slug}).
+# Everything else is either app UI, auth, or machine-only endpoints.
+
+User-agent: *
+Allow: /$
+Allow: /qr/
+Allow: /bio/
+Disallow: /api/
+Disallow: /account/
+Disallow: /dashboard
+Disallow: /dashboard/
+Disallow: /settings/
+Disallow: /bio/edit
+Disallow: /workspace/
+Disallow: /.well-known/
+Disallow: /openapi/
+Disallow: /api/docs

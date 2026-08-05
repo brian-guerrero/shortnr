@@ -1,6 +1,12 @@
 ﻿@inject Microsoft.Extensions.Configuration.IConfiguration _config
 @{
     var authEnabled = _config.GetValue<bool>("Authentication:Enabled", defaultValue: true);
+    var seo = _config.GetSection("Seo");
+    var seoDescription = seo["Description"] ?? "shortnr — a self-hosted URL shortener with a dashboard, link-in-bio pages, branded domains, and a REST API.";
+    var seoAuthor = seo["Author"] ?? "shortnr";
+    var seoSiteName = seo["SiteName"] ?? "shortnr";
+    var seoLocale = seo["Locale"] ?? "en_US";
+    var canonicalUrl = $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.PathBase}{Context.Request.Path}";
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -8,6 +14,18 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="@seoDescription" />
+    <meta name="author" content="@seoAuthor" />
+    <link rel="canonical" href="@canonicalUrl" />
+    <meta property="og:site_name" content="@seoSiteName" />
+    <meta property="og:locale" content="@seoLocale" />
+    <meta property="og:title" content="@seoSiteName" />
+    <meta property="og:description" content="@seoDescription" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="@canonicalUrl" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="@seoSiteName" />
+    <meta name="twitter:description" content="@seoDescription" />
     <title>shortnr</title>
     <link rel="stylesheet" href="/lib/pico/css/pico.min.css">
     <link rel="stylesheet" href="/lib/pico/css/pico.colors.min.css">
