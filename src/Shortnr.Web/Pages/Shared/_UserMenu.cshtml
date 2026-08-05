@@ -6,6 +6,7 @@
     var email     = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
     var name      = User.Identity?.Name ?? email ?? "Account";
     var avatarUrl = GravatarHelper.Url(email, size: 36);
+    var avatarInitial = name.Length > 0 ? name[..1].ToUpperInvariant() : "?";
     var userId    = await _identity.ResolveOwnerUserIdAsync(User);
     var workspaces = userId is not null ? await _workspaceService.GetWorkspacesForUserAsync(userId.Value) : [];
     var workspaceCtx = await _identity.ResolveActiveWorkspaceContextAsync(User);
@@ -13,7 +14,10 @@
 
 <details class="dropdown sn-user-menu">
     <summary>
-        <img src="@avatarUrl" alt="" class="nav-avatar" width="36" height="36" />
+        <span class="sn-avatar" aria-hidden="true">
+            <span class="sn-avatar-fallback">@avatarInitial</span>
+            <img src="@avatarUrl" alt="" class="nav-avatar" width="36" height="36" onerror="this.hidden = true; this.previousElementSibling.hidden = false;" />
+        </span>
         @name
     </summary>
     <ul dir="rtl">
