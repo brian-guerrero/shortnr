@@ -9,7 +9,8 @@ public static class WebhookUrlValidator
         if (string.IsNullOrWhiteSpace(url))
             return (false, "URL is required.");
 
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)
+            || !uri.OriginalString.StartsWith(uri.Scheme + ":", StringComparison.OrdinalIgnoreCase))
             return (false, "URL must be an absolute URI.");
 
         if (uri.Scheme != "http" && uri.Scheme != "https")
