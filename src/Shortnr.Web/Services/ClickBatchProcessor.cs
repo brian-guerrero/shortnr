@@ -17,15 +17,18 @@ public class ClickBatchProcessor : BackgroundService
     private readonly ILogger<ClickBatchProcessor> _logger;
     private readonly GeoIpService _geoIp;
     private readonly Channel<object> _sseChannel;
+    private readonly WebhookEventDispatcher _webhookDispatcher;
 
     public ClickBatchProcessor(Channel<ClickRecord> channel, IServiceScopeFactory scopeFactory,
-        ILogger<ClickBatchProcessor> logger, GeoIpService geoIp, Channel<object> sseChannel)
+        ILogger<ClickBatchProcessor> logger, GeoIpService geoIp, Channel<object> sseChannel,
+        WebhookEventDispatcher webhookDispatcher)
     {
         _channel = channel;
         _scopeFactory = scopeFactory;
         _logger = logger;
         _geoIp = geoIp;
         _sseChannel = sseChannel;
+        _webhookDispatcher = webhookDispatcher;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -106,6 +109,9 @@ public class ClickBatchProcessor : BackgroundService
 
                 _logger.LogInformation("Processed {Count} click events in one batch — notifying SSE clients", events.Count);
                 _sseChannel.Writer.TryWrite(new object());
+
+                await DispatchWebhookEventsAsync(db, clickCountDelta, buffer, now, stoppingToken);
+
                 buffer.Clear();
             }
             catch (OperationCanceledException)
@@ -172,5 +178,60 @@ public class ClickBatchProcessor : BackgroundService
         clickEvent.PostalCode = city.Postal?.Code;
         clickEvent.Latitude = city.Location?.Latitude;
         clickEvent.Longitude = city.Location?.Longitude;
+    }
+
+    private async Task DispatchWebhookEventsAsync(AppDbContext db, Dictionary<long, int> clickCountDelta, List<ClickRecord> buffer, DateTime batchTime, CancellationToken ct)
+    {
+        try
+        {
+            var linkIds = clickCountDelta.Keys.ToList();
+            var links = await db.ShortenedUrls
+                .Where(l => linkIds.Contains(l.Id))
+                .Include(l => l.Domain)
+                .Include(l => l.Workspace)
+                .ToListAsync(ct);
+
+            var linkClicks = new Dictionary<long, (string ShortCode, string LongUrl, string? Domain, int ClickDelta, long TotalClicks)>();
+            foreach (var link in links)
+            {
+                var clickDelta = clickCountDelta.GetValueOrDefault(link.Id, 0);
+                if (clickDelta > 0)
+                {
+                    linkClicks[link.Id] = (
+                        link.ShortCode,
+                        link.LongUrl,
+                        link.Domain?.Hostname,
+                        clickDelta,
+                        link.ClickCount);
+                }
+            }
+
+            if (linkClicks.Count == 0) return;
+
+            var ownerIds = links
+                .Select(l => l.OwnerUserId ?? l.Workspace?.OwnerUserId)
+                .Where(id => id.HasValue)
+                .Select(id => id!.Value)
+                .Distinct();
+
+            foreach (var ownerId in ownerIds)
+            {
+                var ownerLinkClicks = linkClicks
+                    .Where(kvp => links.Any(l => l.Id == kvp.Key && (l.OwnerUserId == ownerId || l.Workspace?.OwnerUserId == ownerId)))
+                    .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+                await _webhookDispatcher.DispatchLinkClickedBatchAsync(
+                    ownerId,
+                    ownerLinkClicks,
+                    batchTime.AddMinutes(-1),
+                    batchTime,
+                    "https",
+                    "shortnr.example.com");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error dispatching webhook click events");
+        }
     }
 }

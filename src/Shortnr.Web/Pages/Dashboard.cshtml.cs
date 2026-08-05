@@ -72,7 +72,7 @@ public class DashboardModel : PageModel
 
                 if (!string.IsNullOrWhiteSpace(search))
                 {
-                    var lower = search.ToLower();
+                    var lower = search.ToLowerInvariant();
                     linkQ = linkQ.Where(l => l.LongUrl.ToLower().Contains(lower)
                         || l.ShortCode.ToLower().Contains(lower)
                         || (l.Domain != null && l.Domain.Hostname.ToLower().Contains(lower)));
@@ -98,22 +98,25 @@ public class DashboardModel : PageModel
                     _ => linkQ.OrderByDescending(l => l.CreatedAtUtc)
                 };
 
-                return Partial("Shared/_SearchResults", await linkQ.Take(50).Include(l => l.Domain).Include(l => l.Workspace).ToListAsync());
+                return Partial("Shared/_SearchResults", await linkQ
+                    .AsNoTracking()
+                    .Include(l => l.Domain)
+                    .Include(l => l.Workspace)
+                    .Take(50)
+                    .ToListAsync());
             }
 
             var linkQuery = ApplyScoping(_db.ShortenedUrls.AsQueryable(), ownerUserId, workspaceId);
 
-            var links = await linkQuery
-                .Select(l => new { l.ShortCode, l.ClickCount })
-                .ToListAsync();
-
-            var totalLinks = links.Count;
-            var totalClicks = links.Sum(l => (long)l.ClickCount);
-            var topLinks = links
+            // Aggregate in SQL rather than pulling the whole link table into memory —
+            // this branch runs on every dashboard poll.
+            var totalLinks = await linkQuery.CountAsync();
+            var totalClicks = await linkQuery.SumAsync(l => (long?)l.ClickCount) ?? 0;
+            var topLinks = await linkQuery
                 .OrderByDescending(l => l.ClickCount)
                 .Take(10)
                 .Select(l => new { shortCode = l.ShortCode, clickCount = l.ClickCount })
-                .ToList();
+                .ToListAsync();
 
             var clickQuery = ApplyClickScoping(_db.ClickEvents.AsQueryable(), ownerUserId, workspaceId);
 
@@ -203,7 +206,9 @@ public class DashboardModel : PageModel
             query = query.Where(d => d.OwnerUserId == ownerUserId);
 
         var hostnames = await query.OrderBy(d => d.Hostname).Select(d => d.Hostname).ToListAsync();
-        return new List<string> { "default" }.Concat(hostnames).ToList();
+        var options = new List<string>(hostnames.Count + 1) { "default" };
+        options.AddRange(hostnames);
+        return options;
     }
 
     private static async Task<List<ClickEventRow>> LoadRecentClicksAsync(IQueryable<ClickEvent> query, int limit)

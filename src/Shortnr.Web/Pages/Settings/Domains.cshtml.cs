@@ -9,11 +9,10 @@ using Shortnr.Web.Services;
 
 namespace Shortnr.Web.Pages.Settings;
 
-public class DomainsModel : PageModel
+public partial class DomainsModel : PageModel
 {
-    private static readonly Regex HostnamePattern = new(
-        @"^(?=.{1,253}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$",
-        RegexOptions.Compiled);
+    [GeneratedRegex(@"^(?=.{1,253}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$")]
+    private static partial Regex HostnamePattern();
 
     private readonly AppDbContext _db;
     private readonly UserIdentityService _identity;
@@ -55,7 +54,7 @@ public class DomainsModel : PageModel
         var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
 
         var hostname = (Request.Form["hostname"].FirstOrDefault() ?? "").Trim().ToLowerInvariant();
-        if (!HostnamePattern.IsMatch(hostname))
+        if (!HostnamePattern().IsMatch(hostname))
             return await ListPartialAsync(error: "Enter a valid domain name, e.g. go.example.com.");
 
         var exists = await _db.Domains.AnyAsync(d => d.Hostname == hostname);
@@ -162,7 +161,7 @@ public class DomainsModel : PageModel
         var existingCodes = await _db.ShortenedUrls
             .Where(l => l.DomainId == domain.Id)
             .Select(l => l.ShortCode)
-            .ToListAsync();
+            .ToHashSetAsync();
 
         var linksToMigrate = _db.ShortenedUrls.Where(l => l.DomainId == null);
         if (workspaceId is not null)
@@ -217,7 +216,7 @@ public class DomainsModel : PageModel
         else if (ownerUserId is not null)
             query = query.Where(d => d.OwnerUserId == ownerUserId);
 
-        return await query.OrderBy(d => d.CreatedAtUtc).ToListAsync();
+        return await query.AsNoTracking().OrderBy(d => d.CreatedAtUtc).ToListAsync();
     }
 
     private async Task<Domain?> FindOwnedDomainAsync(long id)

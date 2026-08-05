@@ -27,12 +27,14 @@ public static class ShortUrlHelper
             if (domain is not null)
             {
                 link = await db.ShortenedUrls
+                    .AsNoTracking()
                     .Include(l => l.Domain)
                     .FirstOrDefaultAsync(l => l.DomainId == domain.Id && l.ShortCode == shortCode);
             }
         }
 
         return link ?? await db.ShortenedUrls
+            .AsNoTracking()
             .Include(l => l.Domain)
             .FirstOrDefaultAsync(l => l.ShortCode == shortCode);
     }

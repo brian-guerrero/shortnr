@@ -12,11 +12,36 @@ public sealed class ChainedRateLimiter(RateLimiter[] limiters) : RateLimiter
 {
     public override TimeSpan? IdleDuration => null;
 
-    protected override RateLimitLease AttemptAcquireCore(int permitCount) =>
-        AcquireCoreAsync(permitCount, attemptNow: true).AsTask().GetAwaiter().GetResult();
+    protected override RateLimitLease AttemptAcquireCore(int permitCount)
+    {
+        var acquired = new List<RateLimitLease>(limiters.Length);
+        try
+        {
+            foreach (var limiter in limiters)
+            {
+                var lease = limiter.AttemptAcquire(permitCount);
+                if (!lease.IsAcquired)
+                {
+                    foreach (var previous in acquired)
+                        previous.Dispose();
+                    return lease;
+                }
+
+                acquired.Add(lease);
+            }
+
+            return new CompositeLease(acquired);
+        }
+        catch
+        {
+            foreach (var previous in acquired)
+                previous.Dispose();
+            throw;
+        }
+    }
 
     protected override ValueTask<RateLimitLease> AcquireAsyncCore(int permitCount, CancellationToken cancellationToken) =>
-        AcquireCoreAsync(permitCount, attemptNow: false, cancellationToken);
+        AcquireCoreAsync(permitCount, cancellationToken);
 
     public override RateLimiterStatistics? GetStatistics() => null;
 
@@ -30,16 +55,14 @@ public sealed class ChainedRateLimiter(RateLimiter[] limiters) : RateLimiter
         base.Dispose(disposing);
     }
 
-    private async ValueTask<RateLimitLease> AcquireCoreAsync(int permitCount, bool attemptNow, CancellationToken ct = default)
+    private async ValueTask<RateLimitLease> AcquireCoreAsync(int permitCount, CancellationToken ct = default)
     {
         var acquired = new List<RateLimitLease>(limiters.Length);
         try
         {
             foreach (var limiter in limiters)
             {
-                var lease = attemptNow
-                    ? limiter.AttemptAcquire(permitCount)
-                    : await limiter.AcquireAsync(permitCount, ct);
+                var lease = await limiter.AcquireAsync(permitCount, ct);
 
                 if (!lease.IsAcquired)
                 {

@@ -13,17 +13,19 @@ public class IndexModel : PageModel
     private readonly AppDbContext _db;
     private readonly UserIdentityService _identity;
     private readonly ShortenRateLimiter _shortenLimiter;
+    private readonly WebhookEventDispatcher _webhookDispatcher;
 
     public List<ShortenedUrl> RecentLinks { get; set; } = [];
     public bool IsHtmxRequest { get; set; }
     public string? DefaultHostname { get; set; }
     public ActiveWorkspaceContext? Workspace { get; set; }
 
-    public IndexModel(AppDbContext db, UserIdentityService identity, ShortenRateLimiter shortenLimiter)
+    public IndexModel(AppDbContext db, UserIdentityService identity, ShortenRateLimiter shortenLimiter, WebhookEventDispatcher webhookDispatcher)
     {
         _db = db;
         _identity = identity;
         _shortenLimiter = shortenLimiter;
+        _webhookDispatcher = webhookDispatcher;
     }
 
     public async Task OnGet()
@@ -91,6 +93,8 @@ public class IndexModel : PageModel
         _db.ShortenedUrls.Add(shortened);
         await _db.SaveChangesAsync();
 
+        await _webhookDispatcher.DispatchLinkCreatedAsync(shortened, Request.Scheme, Request.Host.Host);
+
         var recentLinks = await RecentLinksAsync(ownerUserId, workspaceId);
         var baseUrl = BuildShortUrl(defaultDomain, shortCode);
         return Partial("Shared/_PostResult", new PostResultViewModel { ShortUrl = baseUrl, ShortCode = shortCode, RecentLinks = recentLinks });
@@ -117,7 +121,7 @@ public class IndexModel : PageModel
 
     private Task<List<ShortenedUrl>> RecentLinksAsync(long? ownerUserId, long? workspaceId)
     {
-        var query = _db.ShortenedUrls.Include(l => l.Domain).AsQueryable();
+        var query = _db.ShortenedUrls.AsNoTracking().Include(l => l.Domain).AsQueryable();
 
         if (workspaceId is not null)
             query = query.Where(l => l.WorkspaceId == workspaceId);
