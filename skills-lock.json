@@ -7,11 +7,35 @@
       "skillPath": "plugins/dotnet-diag/skills/analyzing-dotnet-performance/SKILL.md",
       "computedHash": "455c653913449f6fc71807fd9824dbb610d4f2e716ec0b0e4ae5c5c442ddb09b"
     },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "skillPath": "skills/frontend-design/SKILL.md",
+      "computedHash": "93f53fd1c0352d3d7ec17b8f73d7351bf76f4821e55d123c9d2abc2c53ba48e4"
+    },
+    "neobrutalism": {
+      "source": "bergside/awesome-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/neobrutalism/SKILL.md",
+      "computedHash": "09dd3ce8bf67e312785db2252c39521b904817e9d6ef72cd760f13b44d0c9c9c"
+    },
     "optimizing-ef-core-queries": {
       "source": "dotnet/skills",
       "sourceType": "github",
       "skillPath": "plugins/dotnet-data/skills/optimizing-ef-core-queries/SKILL.md",
       "computedHash": "265a890a57f60bf55d79fb92483176aca3c6e5c88c23cd75d18911e8354d0e87"
+    },
+    "redesign-existing-projects": {
+      "source": "leonxlnx/taste-skill",
+      "sourceType": "github",
+      "skillPath": "skills/redesign-skill/SKILL.md",
+      "computedHash": "47eced3e960a2c961d3cbee11fa1216264f589344b586a5cbd03967cd6b9c54b"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/web-design-guidelines/SKILL.md",
+      "computedHash": "f3bc47f890f42a44db1007ab390709ec368e4b8c089baee6b0007182236ac474"
     }
   }
 }
