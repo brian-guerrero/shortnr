@@ -49,6 +49,13 @@
                 <label for="pixel_snippet">Custom snippet HTML <small>(for custom snippets)</small></label>
                 <textarea name="pixel_snippet" id="pixel_snippet" rows="6" maxlength="8192" placeholder="&lt;script&gt;…&lt;/script&gt;"></textarea>
             </div>
+
+            <label for="ios_deep_link">iOS deep link <small>(optional, App Store / URI scheme)</small></label>
+            <input type="text" name="ios_deep_link" id="ios_deep_link" maxlength="2048"
+                   placeholder="https://apps.apple.com/app/id123456789 or myapp://open">
+            <label for="android_deep_link">Android deep link <small>(optional, Play Store / app link)</small></label>
+            <input type="text" name="android_deep_link" id="android_deep_link" maxlength="2048"
+                   placeholder="https://play.google.com/store/apps/details?id=com.example.app">
         </div>
         <button type="submit">Shorten</button>
     </form>
