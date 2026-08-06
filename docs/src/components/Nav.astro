@@ -1,0 +1,94 @@
+---
+import { BASE_URL } from "../config";
+
+const currentPath = Astro.url.pathname;
+
+const links = [
+  { href: `${BASE_URL}/docs/getting-started/`, label: "Docs" },
+  { href: `${BASE_URL}/blog/`, label: "Blog" }
+];
+
+function isActive(href: string) {
+  if (href.endsWith("/blog/")) return currentPath.startsWith(`${BASE_URL}/blog`);
+  return currentPath.startsWith(`${BASE_URL}/docs`);
+}
+---
+
+<header class="site-nav">
+  <div class="container nav-inner">
+    <a href={`${BASE_URL}/`} class="nav-brand">
+      <span class="nav-logo">shortnr</span>
+      <span class="nav-badge badge badge-accent">docs</span>
+    </a>
+    <nav aria-label="Main navigation">
+      <ul class="nav-links">
+        {links.map((link) => (
+          <li>
+            <a
+              href={link.href}
+              class:list={[isActive(link.href) && "active"]}
+            >
+              {link.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .site-nav {
+    border-bottom: var(--sn-border-width-heavy) solid var(--sn-line);
+    background: var(--sn-surface);
+    padding: var(--sn-space-3) 0;
+  }
+  .nav-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sn-space-4);
+    flex-wrap: wrap;
+  }
+  .nav-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--sn-space-2);
+    text-decoration: none;
+    font-family: var(--sn-font-display);
+    font-size: var(--sn-text-h3);
+  }
+  .nav-logo {
+    color: var(--sn-ink);
+  }
+  .nav-badge {
+    font-family: var(--sn-font-mono);
+    font-size: 0.7rem;
+    padding: 0.1em 0.4em;
+    border: var(--sn-border-width) solid var(--sn-line);
+    background: var(--sn-accent);
+    text-transform: uppercase;
+  }
+  .nav-links {
+    display: flex;
+    gap: var(--sn-space-4);
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .nav-links a {
+    font-weight: 500;
+    text-decoration: none;
+    padding: var(--sn-space-1) var(--sn-space-2);
+    border-bottom: var(--sn-border-width) solid transparent;
+  }
+  .nav-links a:hover {
+    border-bottom-color: var(--sn-accent);
+  }
+  .nav-links a.active {
+    background: var(--sn-accent);
+    border: var(--sn-border-width) solid var(--sn-line);
+    box-shadow: var(--sn-shadow-offset-sm);
+    font-weight: 700;
+  }
+</style>

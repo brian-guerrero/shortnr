@@ -1,0 +1,59 @@
+---
+import { getCollection } from "astro:content";
+import { BASE_URL } from "../config";
+
+interface Props {
+  current: string;
+}
+
+const { current } = Astro.props;
+const entries = await getCollection("docs");
+const sorted = entries.sort((a, b) => (a.data.order ?? 99) - (b.data.order ?? 99));
+const docsBaseUrl = `${BASE_URL}/docs`;
+---
+
+<ul class="docs-nav-list">
+  {sorted.map((entry) => {
+    const slug = entry.id.replace(/\.md$/, "");
+    const isActive = slug === current;
+    return (
+      <li>
+        <a
+          href={`${docsBaseUrl}/${slug}/`}
+          class:list={[isActive && "active"]}
+          aria-current={isActive ? "page" : undefined}
+        >
+          {entry.data.title}
+        </a>
+      </li>
+    );
+  })}
+</ul>
+
+<style>
+  .docs-nav-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .docs-nav-list li {
+    margin-bottom: var(--sn-space-1);
+  }
+  .docs-nav-list a {
+    display: block;
+    padding: var(--sn-space-1) var(--sn-space-2);
+    text-decoration: none;
+    font-size: var(--sn-text-small);
+    border-left: var(--sn-border-width) solid transparent;
+  }
+  .docs-nav-list a:hover {
+    border-left-color: var(--sn-accent);
+  }
+  .docs-nav-list a.active {
+    border-left-color: var(--sn-accent);
+    background: var(--sn-accent);
+    font-weight: 700;
+    border: var(--sn-border-width) solid var(--sn-line);
+    box-shadow: var(--sn-shadow-offset-sm);
+  }
+</style>

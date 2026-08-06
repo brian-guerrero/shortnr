@@ -7,7 +7,7 @@ URL shortener with a dashboard. .NET minimal APIs, HTMX frontend, EF Core + SQLi
 Seven projects under `src/` and `tests/`:
 - **Shortnr.Data** — class library: entities (`ShortenedUrl`, `ClickEvent`, `User`, `ApiKey`, `Domain`, `BioPage`, `BioPageLink`, `AiActivityLog`, `Workspace`, `WorkspaceMember`), `AppDbContext`, EF Core migrations (SQLite)
 - **Shortnr.Web** — ASP.NET Core Razor Pages (`Pages/`), plus minimal API endpoints: redirect, JSON metrics/QR, a versioned REST API (`/api/v1`), branded-domain support (`/settings/domains`), team workspaces (`/settings/workspaces`), and bio-page editing (`/bio/edit`). OIDC login/signup wired against a test IdP (Dex); API keys are a separate bearer-auth scheme. Auth is opt-in via `Authentication:Enabled`.
-- **Shortnr.AppHost** — .NET Aspire orchestrator for local dev: runs `Shortnr.Web` plus Dex and MailPit containers together. See the `dotnet-aspire` skill (`.claude/skills/dotnet-aspire`).
+- **Shortnr.AppHost** — .NET Aspire orchestrator for local dev: runs `Shortnr.Web` plus Dex and MailPit containers together. Also runs the Astro docs dev server (`shortnr-docs`) from `docs/` when that directory exists (PRD-015). See the `dotnet-aspire` skill (`.claude/skills/dotnet-aspire`).
 - **Shortnr.ServiceDefaults** — shared `AddServiceDefaults()`/`MapDefaultEndpoints()` extensions (health checks, OpenTelemetry, service discovery) referenced by `Shortnr.Web`.
 - **Shortnr.Tests.Unit** (`tests/`) — xUnit unit tests for services (no HTTP stack, EF Core InMemory).
 - **Shortnr.Tests.Integration** (`tests/`) — xUnit integration tests using `WebApplicationFactory<Program>` with a real SQLite DB and a `TestAuthHandler` that replaces OIDC.

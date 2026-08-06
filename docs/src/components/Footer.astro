@@ -1,0 +1,78 @@
+---
+import { BASE_URL } from "../config";
+
+const year = new Date().getFullYear();
+---
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div class="footer-brand">
+      <span class="footer-logo">shortnr</span>
+      <span>&copy; {year}</span>
+    </div>
+    <nav class="footer-links" aria-label="Footer navigation">
+      <a href={`${BASE_URL}/docs/getting-started/`}>Getting started</a>
+      <a href={`${BASE_URL}/docs/self-hosting/`}>Self-hosting</a>
+      <a href={`${BASE_URL}/docs/configuration/`}>Configuration</a>
+      <a href={`${BASE_URL}/docs/architecture/`}>Architecture</a>
+      <a href={`${BASE_URL}/docs/api/`}>API</a>
+      <a href={`${BASE_URL}/docs/mcp/`}>MCP</a>
+      <a href={`${BASE_URL}/blog/`}>Blog</a>
+    </nav>
+    <div class="footer-meta">
+      <a href="https://github.com/brian-guerrero/shortnr">GitHub</a>
+      <span class="separator">|</span>
+      <span>Licensed under BSL 1.1</span>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    border-top: var(--sn-border-width-heavy) solid var(--sn-line);
+    background: var(--sn-surface);
+    padding: var(--sn-space-6) 0;
+    margin-top: var(--sn-space-12);
+    font-size: var(--sn-text-small);
+  }
+  .footer-inner {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sn-space-3);
+    align-items: center;
+    text-align: center;
+  }
+  .footer-brand {
+    display: flex;
+    gap: var(--sn-space-2);
+    align-items: baseline;
+    font-family: var(--sn-font-display);
+    font-size: var(--sn-text-h3);
+  }
+  .footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sn-space-3);
+    justify-content: center;
+  }
+  .footer-links a {
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .footer-links a:hover {
+    text-decoration: underline;
+    text-decoration-color: var(--sn-accent);
+    text-decoration-thickness: 2px;
+  }
+  .footer-meta {
+    display: flex;
+    gap: var(--sn-space-2);
+    color: var(--sn-mid-gray);
+  }
+  .footer-meta a {
+    color: var(--sn-mid-gray);
+  }
+  .separator {
+    color: var(--sn-mid-gray);
+  }
+</style>
