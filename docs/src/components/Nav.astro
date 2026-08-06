@@ -5,15 +5,11 @@ const currentPath = Astro.url.pathname;
 
 const links = [
   { href: `${BASE_URL}/docs/getting-started/`, label: "Docs" },
-  { href: `${BASE_URL}/blog/`, label: "Blog" },
-  { href: `${BASE_URL}/docs/mcp/`, label: "MCP" },
-  { href: `${BASE_URL}/docs/api/`, label: "API" },
+  { href: `${BASE_URL}/blog/`, label: "Blog" }
 ];
 
 function isActive(href: string) {
   if (href.endsWith("/blog/")) return currentPath.startsWith(`${BASE_URL}/blog`);
-  if (href.endsWith("/docs/api/")) return currentPath.includes("/docs/api");
-  if (href.endsWith("/docs/mcp/")) return currentPath.includes("/docs/mcp");
   return currentPath.startsWith(`${BASE_URL}/docs`);
 }
 ---
