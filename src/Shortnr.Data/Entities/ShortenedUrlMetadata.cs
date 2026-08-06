@@ -25,6 +25,15 @@ public class ShortenedUrlMetadata
     /// </summary>
     public string? PixelId { get; set; }
 
+    /// <summary>
+    /// Platform-specific redirect target (URI scheme, universal/app link) for
+    /// iOS and Android user agents. When set, the redirect endpoint routes the
+    /// matching platform there and falls back to <see cref="ShortenedUrl.LongUrl"/>
+    /// for everyone else.
+    /// </summary>
+    public string? IosDeepLink { get; set; }
+    public string? AndroidDeepLink { get; set; }
+
     public ShortenedUrl? ShortenedUrl { get; set; }
     public PixelSnippet? PixelSnippet { get; set; }
 }
