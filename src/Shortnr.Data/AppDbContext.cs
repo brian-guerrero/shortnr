@@ -7,6 +7,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 {
     public DbSet<ShortenedUrl> ShortenedUrls => Set<ShortenedUrl>();
     public DbSet<ShortenedUrlMetadata> ShortenedUrlMetadatas => Set<ShortenedUrlMetadata>();
+    public DbSet<PixelSnippet> PixelSnippets => Set<PixelSnippet>();
     public DbSet<ClickEvent> ClickEvents => Set<ClickEvent>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Domain> Domains => Set<Domain>();
@@ -66,7 +67,26 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.UtmCampaign).HasMaxLength(512);
             entity.Property(e => e.UtmTerm).HasMaxLength(512);
             entity.Property(e => e.UtmContent).HasMaxLength(512);
+            entity.Property(e => e.PixelId).HasMaxLength(8192);
             entity.HasIndex(e => e.ShortenedUrlId).IsUnique();
+
+            entity.HasOne(e => e.PixelSnippet)
+                .WithMany()
+                .HasForeignKey(e => e.PixelSnippetId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<PixelSnippet>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(128);
+            entity.Property(e => e.SnippetTemplate).IsRequired().HasMaxLength(8192);
+            entity.Property(e => e.IsCustom).IsRequired();
+
+            entity.HasData(
+                new PixelSnippet { Id = 1, Name = "Meta Pixel", IsCustom = false, SnippetTemplate = PixelSnippetTemplates.MetaPixel },
+                new PixelSnippet { Id = 2, Name = "Google Ads", IsCustom = false, SnippetTemplate = PixelSnippetTemplates.GoogleAds },
+                new PixelSnippet { Id = 3, Name = "Custom snippet", IsCustom = true, SnippetTemplate = "" });
         });
 
         modelBuilder.Entity<Domain>(entity =>
