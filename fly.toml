@@ -12,6 +12,11 @@ primary_region = 'iad'
   source = 'data'
   destination = '/data'
 
+[env]
+  Authentication__Enabled = 'false'
+  ASPNETCORE_ENVIRONMENT = 'Production'
+  RateLimiting__TrustForwardedFor = 'true'
+
 [http_service]
   internal_port = 8080
   force_https = true
@@ -24,4 +29,3 @@ primary_region = 'iad'
   memory = '1gb'
   cpu_kind = 'shared'
   cpus = 1
-  memory_mb = 256
