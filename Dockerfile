@@ -3,14 +3,16 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # restore NuGet packages (including Microsoft.Web.LibraryManager.Build)
-COPY src/Shortnr.Data/Shortnr.Data.csproj  Shortnr.Data/
-COPY src/Shortnr.Web/Shortnr.Web.csproj    Shortnr.Web/
+COPY src/Shortnr.Data/Shortnr.Data.csproj          Shortnr.Data/
+COPY src/Shortnr.ServiceDefaults/Shortnr.ServiceDefaults.csproj Shortnr.ServiceDefaults/
+COPY src/Shortnr.Web/Shortnr.Web.csproj            Shortnr.Web/
 RUN dotnet restore Shortnr.Web/Shortnr.Web.csproj
 
 # copy source and publish
 # Microsoft.Web.LibraryManager.Build runs libman restore automatically during publish
-COPY src/Shortnr.Data/ Shortnr.Data/
-COPY src/Shortnr.Web/  Shortnr.Web/
+COPY src/Shortnr.Data/            Shortnr.Data/
+COPY src/Shortnr.ServiceDefaults/ Shortnr.ServiceDefaults/
+COPY src/Shortnr.Web/             Shortnr.Web/
 RUN dotnet publish Shortnr.Web/Shortnr.Web.csproj \
     -c Release -o /app/publish
 
