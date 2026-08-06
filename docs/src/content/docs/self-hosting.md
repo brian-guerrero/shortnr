@@ -10,6 +10,12 @@ shortnr is designed to run on minimal infrastructure: a single container, a sing
 
 ## Docker deployment
 
+A prebuilt image is published to the GitHub Container Registry on every push to `main` (tagged `latest`) and on version releases (`vX.Y.Z`). Pin to a specific version for production deployments:
+
+```bash
+docker pull ghcr.io/brian-guerrero/shortnr:vX.Y.Z
+```
+
 ### Basic
 
 ```bash
@@ -18,7 +24,7 @@ docker run -d \
   -p 8080:8080 \
   -v shortnr-data:/data \
   --restart unless-stopped \
-  shortnr
+  ghcr.io/brian-guerrero/shortnr:latest
 ```
 
 The SQLite database is stored at `/data/shortnr.db` inside the container. The named volume `shortnr-data` persists across restarts.
@@ -36,7 +42,7 @@ docker run -d \
   -e Authentication__Oidc__ClientId=shortnr-web \
   -e Authentication__Oidc__ClientSecret=your-secret \
   --restart unless-stopped \
-  shortnr
+  ghcr.io/brian-guerrero/shortnr:latest
 ```
 
 See the [configuration reference](/shortnr/docs/configuration/) for all available settings.

@@ -10,13 +10,24 @@ shortnr runs from a single Docker command or directly from source with the .NET 
 
 ## Docker (recommended)
 
+A prebuilt image is published to the GitHub Container Registry on every push to `main` (tagged `latest`) and on version releases (`vX.Y.Z`).
+
 ```bash
-docker run -p 8080:8080 -v shortnr-data:/data shortnr
+docker run -p 8080:8080 -v shortnr-data:/data ghcr.io/brian-guerrero/shortnr:latest
 ```
 
 Open `http://localhost:8080`. The SQLite database is stored in the `shortnr-data` named Docker volume and persists across container restarts.
 
 By default, authentication is disabled &mdash; every link and click is visible to whoever can reach the instance. This is fine for personal or single-user use.
+
+To build the image from source instead:
+
+```bash
+git clone https://github.com/brian-guerrero/shortnr.git
+cd shortnr
+docker build -t shortnr .
+docker run -p 8080:8080 -v shortnr-data:/data shortnr
+```
 
 ## From source
 

@@ -18,7 +18,7 @@ shortnr is none of those. It's a self-hosted link shortener with a real-time das
 ## Step 1: Run it
 
 ```bash
-docker run -p 8080:8080 -v shortnr-data:/data shortnr
+docker run -p 8080:8080 -v shortnr-data:/data ghcr.io/brian-guerrero/shortnr:latest
 ```
 
 That's it. This starts shortnr with:

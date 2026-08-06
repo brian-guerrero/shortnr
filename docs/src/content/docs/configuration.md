@@ -80,5 +80,5 @@ dotnet run --project src/Shortnr.Web -- \
 Docker:
 
 ```bash
-docker run -e ConnectionStrings__DefaultConnection="Data Source=/data/shortnr.db" shortnr
+docker run -e ConnectionStrings__DefaultConnection="Data Source=/data/shortnr.db" ghcr.io/brian-guerrero/shortnr:latest
 ```

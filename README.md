@@ -18,7 +18,7 @@ A URL shortener with a real-time dashboard. Built with ASP.NET Core Razor Pages,
 - CLI (`shortnr-cli`) — manage links from the command line, wraps the `/api/v1` API
 - MCP server — AI agents can manage links and bio pages via the Model Context Protocol
 - User menu with Gravatar avatar, workspace switcher, and sign-out dropdown
-- Docker-ready with a persistent SQLite volume
+- Docker-ready with a persistent SQLite volume; prebuilt image on ghcr.io
 
 ## Project structure
 
@@ -94,12 +94,20 @@ Runs both `Shortnr.Tests.Unit` (fast, in-process) and `Shortnr.Tests.Integration
 
 ## Docker
 
+A prebuilt image is published to the GitHub Container Registry on every push to `main` and on version tags (`vX.Y.Z`).
+
+```bash
+docker run -p 8080:8080 -v shortnr-data:/data ghcr.io/brian-guerrero/shortnr:latest
+```
+
+Open `http://localhost:8080`. The SQLite database is stored in the `shortnr-data` named volume at `/data/shortnr.db` and persists across container restarts.
+
+To build from source instead:
+
 ```bash
 docker build -t shortnr .
 docker run -p 8080:8080 -v shortnr-data:/data shortnr
 ```
-
-Open `http://localhost:8080`. The SQLite database is stored in the `shortnr-data` named volume at `/data/shortnr.db` and persists across container restarts.
 
 ## Configuration
 
