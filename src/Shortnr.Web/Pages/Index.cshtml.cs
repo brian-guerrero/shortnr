@@ -52,6 +52,8 @@ public class IndexModel : PageModel
         var pixelValue = await ResolvePixelValueAsync(pixelSnippetId,
             Request.Form["pixel_id"].FirstOrDefault(),
             Request.Form["pixel_snippet"].FirstOrDefault());
+        var iosDeepLink = Request.Form["ios_deep_link"].FirstOrDefault()?.Trim() ?? "";
+        var androidDeepLink = Request.Form["android_deep_link"].FirstOrDefault()?.Trim() ?? "";
 
         var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
         Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
@@ -74,10 +76,11 @@ public class IndexModel : PageModel
             if (collides)
                 return await ErrorResultAsync($"The custom code '{slug}' is already taken.", ownerUserId, workspaceId);
 
-            return await CreateAsync(url, slug, defaultDomain, ownerUserId, workspaceId, utm, pixelSnippetId, pixelValue);
+            return await CreateAsync(url, slug, defaultDomain, ownerUserId, workspaceId, utm, pixelSnippetId, pixelValue, iosDeepLink, androidDeepLink);
         }
 
-        var hasSmartLinkMetadata = !utm.IsEmpty || pixelSnippetId is not null;
+        var hasSmartLinkMetadata = !utm.IsEmpty || pixelSnippetId is not null
+            || iosDeepLink.Length > 0 || androidDeepLink.Length > 0;
         if (!hasSmartLinkMetadata)
         {
             var existing = await _db.ShortenedUrls.FirstOrDefaultAsync(l => l.DomainId == domainId && l.LongUrl == url);
@@ -90,10 +93,10 @@ public class IndexModel : PageModel
         }
 
         return await CreateAsync(url, await ShortLinkCodes.GenerateUniqueCodeAsync(code =>
-            _db.ShortenedUrls.AnyAsync(l => l.DomainId == domainId && l.ShortCode == code)), defaultDomain, ownerUserId, workspaceId, utm, pixelSnippetId, pixelValue);
+            _db.ShortenedUrls.AnyAsync(l => l.DomainId == domainId && l.ShortCode == code)), defaultDomain, ownerUserId, workspaceId, utm, pixelSnippetId, pixelValue, iosDeepLink, androidDeepLink);
     }
 
-    private async Task<IActionResult> CreateAsync(string url, string shortCode, Domain? defaultDomain, long? ownerUserId, long? workspaceId, UtmParameters? utm = null, long? pixelSnippetId = null, string? pixelValue = null)
+    private async Task<IActionResult> CreateAsync(string url, string shortCode, Domain? defaultDomain, long? ownerUserId, long? workspaceId, UtmParameters? utm = null, long? pixelSnippetId = null, string? pixelValue = null, string? iosDeepLink = null, string? androidDeepLink = null)
     {
         var shortened = new ShortenedUrl
         {
@@ -104,7 +107,7 @@ public class IndexModel : PageModel
             OwnerUserId = workspaceId is not null ? null : ownerUserId,
             WorkspaceId = workspaceId
         };
-        if (utm is not null && !utm.IsEmpty || pixelSnippetId is not null)
+        if (utm is not null && !utm.IsEmpty || pixelSnippetId is not null || iosDeepLink is not null && iosDeepLink.Length > 0 || androidDeepLink is not null && androidDeepLink.Length > 0)
         {
             shortened.Metadata = new ShortenedUrlMetadata
             {
@@ -114,7 +117,9 @@ public class IndexModel : PageModel
                 UtmTerm = utm?.Term,
                 UtmContent = utm?.Content,
                 PixelSnippetId = pixelSnippetId,
-                PixelId = pixelValue
+                PixelId = pixelValue,
+                IosDeepLink = string.IsNullOrWhiteSpace(iosDeepLink) ? null : iosDeepLink,
+                AndroidDeepLink = string.IsNullOrWhiteSpace(androidDeepLink) ? null : androidDeepLink
             };
         }
         _db.ShortenedUrls.Add(shortened);
