@@ -1,0 +1,26 @@
+{
+  "name": "shortnr-docs",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Documentation site for shortnr — the URL shortener you actually own.",
+  "license": "BSL-1.1",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "check": "astro check"
+  },
+  "dependencies": {
+    "astro": "5.13.2",
+    "@astrojs/check": "0.9.4",
+    "typescript": "5.8.3"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
