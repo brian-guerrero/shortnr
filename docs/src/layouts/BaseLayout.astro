@@ -1,0 +1,40 @@
+---
+import Head from "../components/Head.astro";
+import Nav from "../components/Nav.astro";
+import Footer from "../components/Footer.astro";
+import "../styles/global.css";
+
+interface Props {
+  title: string;
+  description?: string;
+  canonical?: string;
+  ogImage?: string;
+  ogType?: string;
+  pubDate?: string;
+}
+
+const { title, description = "Documentation for shortnr — the self-hosted URL shortener you actually own.", canonical, ogImage, ogType, pubDate } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <Head
+      title={`${title} — shortnr`}
+      {description}
+      {canonical}
+      {ogImage}
+      {ogType}
+      {pubDate}
+    />
+  </head>
+  <body>
+    <Nav />
+    <main>
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>
