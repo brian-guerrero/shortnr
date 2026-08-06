@@ -62,6 +62,7 @@ builder.Services.AddHttpClient("WebhookDelivery", client =>
 builder.Services.AddScoped<UserIdentityService>();
 builder.Services.AddScoped<WorkspaceService>();
 builder.Services.AddScoped<WorkspaceAuthorizationService>();
+builder.Services.AddScoped<ViewRenderService>();
 builder.Services.AddSingleton<EmailService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient<DomainVerifierService>(client => client.Timeout = TimeSpan.FromSeconds(15));
