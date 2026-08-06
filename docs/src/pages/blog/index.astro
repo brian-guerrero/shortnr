@@ -1,0 +1,85 @@
+---
+import { getCollection } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { BASE_URL } from "../../config";
+
+const posts = await getCollection("blog");
+const sorted = posts.sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime());
+---
+
+<BaseLayout
+  title="Blog"
+  description="Guides, tutorials, and updates from the shortnr project."
+>
+  <div class="container blog-layout">
+    <header class="blog-header">
+      <h1>Blog</h1>
+      <p>Guides, tutorials, and updates from the shortnr project.</p>
+    </header>
+    <div class="post-list">
+      {sorted.map((post) => (
+        <article class="post-card card">
+          <h2>
+            <a href={`${BASE_URL}/blog/${post.id}/`}>{post.data.title}</a>
+          </h2>
+          <time datetime={post.data.pubDate.toISOString()} class="post-date">
+            {post.data.pubDate.toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </time>
+          <p class="post-description">{post.data.description}</p>
+        </article>
+      ))}
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .blog-layout {
+    padding-top: var(--sn-space-8);
+    padding-bottom: var(--sn-space-8);
+  }
+  .blog-header {
+    margin-bottom: var(--sn-space-8);
+  }
+  .blog-header h1 {
+    margin-bottom: var(--sn-space-2);
+  }
+  .blog-header p {
+    color: var(--sn-mid-gray);
+    margin-bottom: 0;
+  }
+  .post-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sn-space-4);
+  }
+  .post-card h2 {
+    font-family: var(--sn-font-body);
+    font-size: var(--sn-text-h2);
+    font-weight: 700;
+    margin-top: 0;
+    margin-bottom: var(--sn-space-1);
+  }
+  .post-card h2 a {
+    text-decoration: none;
+  }
+  .post-card h2 a:hover {
+    text-decoration: underline;
+    text-decoration-color: var(--sn-accent);
+    text-decoration-thickness: 3px;
+  }
+  .post-date {
+    font-family: var(--sn-font-mono);
+    font-size: var(--sn-text-small);
+    color: var(--sn-mid-gray);
+    display: block;
+    margin-bottom: var(--sn-space-2);
+  }
+  .post-description {
+    margin-bottom: 0;
+    color: var(--sn-mid-gray);
+  }
+</style>

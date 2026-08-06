@@ -1,0 +1,84 @@
+---
+import { getCollection, getEntry, render } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { BASE_URL } from "../../config";
+
+export const getStaticPaths = (async () => {
+  const entries = await getCollection("blog");
+  return entries.map((entry) => ({
+    params: { slug: entry.id.replace(/\.md$/, "") },
+    props: { entry },
+  }));
+}) satisfies import("astro").GetStaticPaths;
+
+interface Props {
+  entry: Awaited<ReturnType<typeof getEntry<"blog">>>;
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+const pubDateISO = entry.data.pubDate.toISOString();
+---
+
+<BaseLayout
+  title={entry.data.title}
+  description={entry.data.description}
+  ogType="article"
+  pubDate={pubDateISO}
+>
+  <article class="container blog-post">
+    <header class="post-header">
+      <a href={`${BASE_URL}/blog/`} class="back-link">&larr; All posts</a>
+      <h1>{entry.data.title}</h1>
+      <time datetime={pubDateISO} class="post-date">
+        {entry.data.pubDate.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })}
+      </time>
+    </header>
+    <div class="post-content">
+      <Content />
+    </div>
+  </article>
+</BaseLayout>
+
+<style>
+  .blog-post {
+    padding-top: var(--sn-space-8);
+    padding-bottom: var(--sn-space-8);
+    max-width: 720px;
+  }
+  .post-header {
+    margin-bottom: var(--sn-space-8);
+  }
+  .back-link {
+    font-size: var(--sn-text-small);
+    font-family: var(--sn-font-mono);
+    text-decoration: none;
+    display: inline-block;
+    margin-bottom: var(--sn-space-4);
+  }
+  .back-link:hover {
+    text-decoration: underline;
+    text-decoration-color: var(--sn-accent);
+  }
+  .post-header h1 {
+    margin-bottom: var(--sn-space-2);
+    font-size: var(--sn-text-display);
+    line-height: 1.1;
+  }
+  .post-date {
+    font-family: var(--sn-font-mono);
+    font-size: var(--sn-text-small);
+    color: var(--sn-mid-gray);
+    display: block;
+  }
+  .post-content :global(h2) {
+    margin-top: 2em;
+  }
+  .post-content :global(h3) {
+    margin-top: 1.5em;
+  }
+</style>
