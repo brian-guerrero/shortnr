@@ -68,6 +68,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.UtmTerm).HasMaxLength(512);
             entity.Property(e => e.UtmContent).HasMaxLength(512);
             entity.Property(e => e.PixelId).HasMaxLength(8192);
+            entity.Property(e => e.IosDeepLink).HasMaxLength(2048);
+            entity.Property(e => e.AndroidDeepLink).HasMaxLength(2048);
             entity.HasIndex(e => e.ShortenedUrlId).IsUnique();
 
             entity.HasOne(e => e.PixelSnippet)
