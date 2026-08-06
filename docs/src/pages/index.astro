@@ -1,0 +1,179 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { BASE_URL } from "../config";
+---
+
+<BaseLayout
+  title="shortnr — The URL shortener you actually own"
+  description="A self-hosted URL shortener with a real-time dashboard, native QR codes, click analytics, and AI-native link management. One Docker command, one SQLite file."
+>
+  <section class="hero">
+    <div class="container">
+      <h1 class="hero-title">The URL shortener you actually own.</h1>
+      <p class="hero-subtitle">
+        shortnr is a self-hosted link shortener with the dashboard, real-time
+        analytics, QR tooling, and AI-native management you'd normally pay Bitly
+        for &mdash; deployed in one Docker command, on infrastructure you control.
+        Your click data never leaves your own server.
+      </p>
+      <div class="hero-actions">
+        <a href={`${BASE_URL}/docs/getting-started/`} class="btn btn-primary">Get started</a>
+        <a href="https://github.com/brian-guerrero/shortnr" class="btn btn-secondary">View on GitHub</a>
+      </div>
+      <div class="hero-code">
+        <pre><code>docker run -p 8080:8080 -v shortnr-data:/data shortnr</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section class="features">
+    <div class="container">
+      <h2>What you get</h2>
+      <div class="feature-grid">
+        <div class="card">
+          <h3>Real-time dashboard</h3>
+          <p>Live metrics, sortable link tables, and Chart.js visualizations. Click tracking with IP, user agent, referrer, and geographic enrichment.</p>
+        </div>
+        <div class="card">
+          <h3>Native QR codes</h3>
+          <p>Generated on your instance &mdash; no third-party API calls. Inline preview, shareable page, and raw PNG download.</p>
+        </div>
+        <div class="card">
+          <h3>Branded domains</h3>
+          <p>Add and verify custom domains for vanity links. DNS or file-based verification, with per-domain short codes.</p>
+        </div>
+        <div class="card">
+          <h3>REST API v1</h3>
+          <p>Full CRUD for short links with API key authentication, rate limiting, and interactive OpenAPI/Scalar docs at <code>/api/docs</code>.</p>
+        </div>
+        <div class="card">
+          <h3>MCP server</h3>
+          <p>Manage links and bio pages by talking to Claude or any MCP client. OAuth 2.1 with dynamic client registration and PKCE.</p>
+        </div>
+        <div class="card">
+          <h3>Link-in-bio pages</h3>
+          <p>Five built-in themes, link reordering, avatar support, and social sharing meta tags. A Linktree alternative you host yourself.</p>
+        </div>
+        <div class="card">
+          <h3>OIDC authentication</h3>
+          <p>Works with Dex, Authentik, Okta, Auth0, Azure AD, or any standard IdP. Disable entirely with one config flag for personal use.</p>
+        </div>
+        <div class="card">
+          <h3>Team workspaces</h3>
+          <p>Create workspaces, invite members by email, assign roles (Owner/Editor/Viewer). Scope dashboards and link creation per workspace.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="compare">
+    <div class="container">
+      <h2>Why shortnr?</h2>
+      <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th>Bitly / Rebrandly</th>
+            <th>YOURLS / Shlink</th>
+            <th>shortnr</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Self-hostable</td><td>No</td><td>Yes</td><td><strong>Yes</strong></td></tr>
+          <tr><td>Real-time dashboard</td><td>Yes</td><td>No</td><td><strong>Yes</strong></td></tr>
+          <tr><td>Native QR codes</td><td>Paid tiers</td><td>Plugin</td><td><strong>Yes, free</strong></td></tr>
+          <tr><td>Branded domains</td><td>Paid</td><td>Varies</td><td><strong>Yes, free</strong></td></tr>
+          <tr><td>OIDC / any IdP</td><td>Enterprise</td><td>No</td><td><strong>Yes</strong></td></tr>
+          <tr><td>MCP (AI management)</td><td>Hosted only</td><td>No</td><td><strong>Self-hosted</strong></td></tr>
+          <tr><td>You own the data</td><td>No</td><td>Yes</td><td><strong>Yes</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="cta">
+    <div class="container">
+      <div class="card cta-card">
+        <h2>Ready to own your links?</h2>
+        <p>One Docker command. One SQLite file. No Redis, no npm bundler, no per-click billing anxiety.</p>
+        <div class="hero-actions">
+          <a href={`${BASE_URL}/docs/getting-started/`} class="btn btn-primary">Read the docs</a>
+          <a href={`${BASE_URL}/blog/self-host-in-5-minutes/`} class="btn btn-secondary">Self-host in 5 minutes</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .hero {
+    padding: var(--sn-space-12) 0 var(--sn-space-8);
+    text-align: center;
+  }
+  .hero-title {
+    font-size: var(--sn-text-display);
+    line-height: 1.05;
+    margin-bottom: var(--sn-space-4);
+  }
+  .hero-subtitle {
+    font-size: 1.125rem;
+    max-width: 640px;
+    margin: 0 auto var(--sn-space-6);
+    color: var(--sn-mid-gray);
+  }
+  .hero-actions {
+    display: flex;
+    gap: var(--sn-space-4);
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: var(--sn-space-6);
+  }
+  .hero-code {
+    max-width: 520px;
+    margin: 0 auto;
+    text-align: left;
+  }
+  .features {
+    padding: var(--sn-space-8) 0;
+  }
+  .features h2 {
+    text-align: center;
+    margin-bottom: var(--sn-space-6);
+  }
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--sn-space-4);
+  }
+  .feature-grid h3 {
+    font-family: var(--sn-font-body);
+    font-size: var(--sn-text-h3);
+    font-weight: 700;
+    margin-top: 0;
+  }
+  .feature-grid p {
+    font-size: var(--sn-text-small);
+    margin-bottom: 0;
+    color: var(--sn-mid-gray);
+  }
+  .compare {
+    padding: var(--sn-space-8) 0;
+  }
+  .compare h2 {
+    text-align: center;
+    margin-bottom: var(--sn-space-6);
+  }
+  .cta {
+    padding: var(--sn-space-8) 0;
+  }
+  .cta-card {
+    text-align: center;
+  }
+  .cta-card h2 {
+    margin-top: 0;
+  }
+  .cta-card p {
+    color: var(--sn-mid-gray);
+    margin-bottom: var(--sn-space-6);
+  }
+</style>
