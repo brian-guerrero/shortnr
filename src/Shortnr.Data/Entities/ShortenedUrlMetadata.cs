@@ -17,5 +17,14 @@ public class ShortenedUrlMetadata
     public string? UtmTerm { get; set; }
     public string? UtmContent { get; set; }
 
+    public long? PixelSnippetId { get; set; }
+    /// <summary>
+    /// For template-based snippets this is the marketer's pixel ID substituted
+    /// into the template's <c>{{PIXEL_ID}}</c> placeholder; for a custom snippet
+    /// it holds the full pasted snippet HTML, emitted verbatim.
+    /// </summary>
+    public string? PixelId { get; set; }
+
     public ShortenedUrl? ShortenedUrl { get; set; }
+    public PixelSnippet? PixelSnippet { get; set; }
 }
