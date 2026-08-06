@@ -187,15 +187,18 @@ public static class ApiEndpoints
                 ? forwardedFor.Split(',')[0].Trim()
                 : context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
+            var userAgent = context.Request.Headers["User-Agent"].FirstOrDefault() ?? "";
+
             clickChannel.Writer.TryWrite(new ClickRecord
             {
                 ShortenedUrlId = link.Id,
                 IpAddress = ip,
-                UserAgent = context.Request.Headers["User-Agent"].FirstOrDefault() ?? "",
+                UserAgent = userAgent,
                 Referer = context.Request.Headers["Referer"].FirstOrDefault() ?? ""
             });
 
-            var destination = link.LongUrl;
+            var destination = UserAgentDeviceDetector.ResolveDestination(
+                link.LongUrl, link.Metadata?.IosDeepLink, link.Metadata?.AndroidDeepLink, userAgent);
             var pixelSnippet = link.Metadata?.PixelSnippet;
             if (pixelSnippet is not null)
             {
