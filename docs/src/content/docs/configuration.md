@@ -38,6 +38,19 @@ Or in `appsettings.Development.json`:
 
 When disabled: `/account/login` and `/account/logout` return 404, the login link and user menu are hidden from the nav, the dashboard is accessible without signing in, and all data is shown unfiltered.
 
+## OAuth (MCP clients)
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `OAuth__Issuer` | `http://localhost:5156` | Public base URL of this deployment; must be the real `https://` URL in production. |
+| `OAuth__Resource` | `http://localhost:5156/mcp` | The MCP resource URI (RFC 8707 audience). |
+| `OAuth__AccessTokenLifetimeMinutes` | `60` | Access token lifetime. |
+| `OAuth__RefreshTokenLifetimeDays` | `14` | Refresh token lifetime. |
+| `OAuth__SigningCertificate` / `OAuth__SigningCertificatePassword` | *(dev certs auto-generated)* | Base64 PKCS#12 cert (Digital Signature key usage) used to sign OAuth tokens. Required outside `Development`. |
+| `OAuth__EncryptionCertificate` / `OAuth__EncryptionCertificatePassword` | *(dev certs auto-generated)* | Base64 PKCS#12 cert (Key Encipherment key usage) used to encrypt OAuth tokens. Required outside `Development`. |
+
+See the [MCP server docs](/shortnr/docs/mcp/#deploying-the-oauth-server) for certificate generation steps and common deployment pitfalls.
+
 ## GeoIP / MaxMind
 
 | Setting | Default | Description |
