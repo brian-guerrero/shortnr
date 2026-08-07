@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Shortnr.Data;
 using Shortnr.Data.Entities;
-using Shortnr.Web.Services;
 
 namespace Shortnr.Tests.Unit.Services;
 

@@ -1,5 +1,4 @@
 using System.Security.Claims;
-using Shortnr.Web.Services;
 
 namespace Shortnr.Tests.Unit.Services;
 

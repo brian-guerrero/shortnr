@@ -13,7 +13,7 @@
         <input type="url" name="url" id="webhook-url" placeholder="https://example.com/webhook" required>
         <fieldset>
             <legend>Event types</legend>
-            @foreach (var eventType in Shortnr.Web.Services.WebhookEventTypes.All)
+            @foreach (var eventType in Shortnr.Web.Features.Webhooks.WebhookEventTypes.All)
             {
                 <label>
                     <input type="checkbox" name="event" value="@eventType" checked>

@@ -35,7 +35,7 @@ else
                     <td>@key.Label</td>
                     <td><code>@key.KeyPrefix…</code></td>
                     <td>
-                        @foreach (var scope in Shortnr.Web.Services.ApiKeyScopes.Resolve(key.Scopes))
+                        @foreach (var scope in Shortnr.Web.Features.Authentication.ApiKeyScopes.Resolve(key.Scopes))
                         {
                             <mark class="pico-background-blue-100" style="font-size: 0.75rem;">@scope</mark>
                         }

@@ -13,10 +13,10 @@
         <input type="text" name="label" id="api-key-label" placeholder="e.g. CI pipeline" required>
         <fieldset>
             <legend>Scopes</legend>
-            @foreach (var scope in Shortnr.Web.Services.ApiKeyScopes.All)
+            @foreach (var scope in Shortnr.Web.Features.Authentication.ApiKeyScopes.All)
             {
                 <label>
-                    <input type="checkbox" name="scope" value="@scope" checked="@(Shortnr.Web.Services.ApiKeyScopes.UiDefaults.Contains(scope))">
+                    <input type="checkbox" name="scope" value="@scope" checked="@(Shortnr.Web.Features.Authentication.ApiKeyScopes.UiDefaults.Contains(scope))">
                     <code>@scope</code>
                 </label>
             }

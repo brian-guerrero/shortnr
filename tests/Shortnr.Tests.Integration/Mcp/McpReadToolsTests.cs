@@ -1,7 +1,6 @@
 using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
-using Shortnr.Web.Services;
 
 namespace Shortnr.Tests.Integration.Mcp;
 

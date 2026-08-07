@@ -34,7 +34,7 @@ else
                 <tr>
                     <td><small style="word-break: break-all;">@webhook.Url</small></td>
                     <td>
-                        @foreach (var eventType in Shortnr.Web.Services.WebhookEventTypes.Parse(webhook.EventTypes))
+                        @foreach (var eventType in Shortnr.Web.Features.Webhooks.WebhookEventTypes.Parse(webhook.EventTypes))
                         {
                             <mark class="pico-background-blue-100" style="font-size: 0.75rem;">@eventType</mark>
                         }

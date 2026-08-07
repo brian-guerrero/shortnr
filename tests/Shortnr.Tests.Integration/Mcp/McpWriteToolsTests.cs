@@ -3,7 +3,6 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Shortnr.Data;
-using Shortnr.Web.Services;
 
 namespace Shortnr.Tests.Integration.Mcp;
 
