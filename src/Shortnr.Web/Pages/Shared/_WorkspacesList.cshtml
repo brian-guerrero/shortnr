@@ -4,11 +4,11 @@
 }
 @if (Model.StatusMessage is not null)
 {
-    <p class="pico-background-green-100" style="padding: 0.5rem; border-radius: 0.25rem; margin-bottom: 1rem;">@Model.StatusMessage</p>
+    <p class="banner status-success">@Model.StatusMessage</p>
 }
 @if (Model.ErrorMessage is not null)
 {
-    <p class="pico-background-red-100" style="padding: 0.5rem; border-radius: 0.25rem; margin-bottom: 1rem;">@Model.ErrorMessage</p>
+    <p class="banner status-error">@Model.ErrorMessage</p>
 }
 @if (Model.Workspaces.Count == 0)
 {

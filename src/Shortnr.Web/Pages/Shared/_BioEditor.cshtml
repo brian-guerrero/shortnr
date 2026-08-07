@@ -1,13 +1,13 @@
 @model Shortnr.Web.Pages.Bio.EditModel
 @if (Model.ErrorMessage is not null)
 {
-    <mark class="pico-background-red-100" style="display:block; margin-bottom: 1rem;">
+    <mark class="banner status-error">
         <strong>@Model.ErrorMessage</strong>
     </mark>
 }
 @if (Model.StatusMessage is not null)
 {
-    <mark class="pico-background-green-100" style="display:block; margin-bottom: 1rem;">
+    <mark class="banner status-success">
         <strong>@Model.StatusMessage</strong>
     </mark>
 }

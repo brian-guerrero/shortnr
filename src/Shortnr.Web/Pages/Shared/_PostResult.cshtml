@@ -1,7 +1,7 @@
 @model Shortnr.Web.Features.ShortLinks.Models.PostResultViewModel
 @if (Model.HasError)
 {
-    <mark class="pico-background-red-100" style="display:block; margin-top: 1rem;">
+    <mark class="banner status-error" style="margin-top: var(--sn-space-4);">
         <strong>@Model.ErrorMessage</strong>
     </mark>
 }

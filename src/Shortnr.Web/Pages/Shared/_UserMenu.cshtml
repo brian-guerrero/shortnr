@@ -19,10 +19,10 @@
     <ul dir="rtl">
         @if (workspaces.Count > 0)
         {
-            <li class="workspace-section-header" style="padding: 0.25rem 0.75rem; font-size: 0.8rem; color: var(--pico-muted-color);">Workspaces</li>
+            <li class="menu-section-label">Workspaces</li>
             @if (workspaceCtx is not null)
             {
-                <li><mark class="pico-background-blue-100" style="display: block; padding: 0.25rem 0.75rem; font-size: 0.8rem; margin: 0 0.5rem;">@workspaceCtx.Name</mark></li>
+                <li class="menu-active-workspace"><mark class="status-info preserve-case">@workspaceCtx.Name</mark></li>
             }
             @foreach (var ws in workspaces)
             {
