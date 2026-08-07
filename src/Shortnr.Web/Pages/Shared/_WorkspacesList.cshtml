@@ -19,7 +19,7 @@ else
     <p><strong>@Model.Workspaces.Count workspace@(Model.Workspaces.Count == 1 ? "" : "s")</strong></p>
     @foreach (var ws in Model.Workspaces)
     {
-        <article style="margin-bottom: 1rem;">
+        <article>
             <header>
                 <hgroup>
                     <h3>@ws.Name</h3>

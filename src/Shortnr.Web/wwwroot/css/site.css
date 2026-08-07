@@ -202,6 +202,28 @@ article > footer {
   padding: var(--sn-space-6);
 }
 
+/* A settled card is lifted; a loading skeleton stays flat, so the shadow
+   only ever means "this content is real" (DSG-002 §6). */
+article[aria-busy="true"] { box-shadow: none; }
+
+/* Dashboard metric cards — the header stays small and muted so the number
+   is unambiguously the loudest element on the card (DSG-002 §5). */
+.metric > header {
+  font-size: var(--sn-text-small);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sn-mid-gray);
+}
+.metric > h2 {
+  margin: 0;
+  font-size: var(--sn-text-h2);
+}
+
+/* Tables are the last thing in most cards; drop their trailing margin so
+   the card's own padding sets the bottom gap. */
+article > table:last-child { margin-bottom: 0; }
+
 /* ============================================================
    Forms
    ============================================================ */
