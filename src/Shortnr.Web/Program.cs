@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -26,6 +27,18 @@ builder.Host.UseDefaultServiceProvider((context, options) =>
 });
 
 builder.AddServiceDefaults();
+
+// Persist the Data Protection key ring to the mounted volume (same one the
+// SQLite DB lives on — see Dockerfile) rather than the container's ephemeral
+// filesystem. Without this, keys regenerate on every redeploy/cold start,
+// silently invalidating every outstanding auth cookie and OIDC correlation
+// cookie — that's what "keeps logging users out" without any visible error.
+var dataProtection = builder.Services.AddDataProtection().SetApplicationName("Shortnr");
+var dataProtectionKeyPath = builder.Configuration["DataProtection:KeyPath"];
+if (!string.IsNullOrEmpty(dataProtectionKeyPath))
+{
+    dataProtection.PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeyPath));
+}
 
 builder.Services.AddRazorPages();
 builder.Services.AddDbContext<AppDbContext>(options =>
