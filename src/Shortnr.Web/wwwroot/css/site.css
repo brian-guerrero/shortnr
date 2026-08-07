@@ -1,0 +1,524 @@
+/*
+ * shortnr — universal design system.
+ *
+ * Neo-brutalist styling shared with the docs site. The :root tokens below are
+ * the single source of truth and are kept identical to docs/src/styles/global.css.
+ * This file replaces Pico entirely for Shortnr.Web, so it also styles the bare
+ * HTML elements the Razor Pages / HTMX partials render.
+ */
+
+@import url("https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap");
+
+/* ============================================================
+   Design tokens (shared with the docs site)
+   ============================================================ */
+:root {
+  --sn-ink: #111111;
+  --sn-paper: #faf9f5;
+  --sn-surface: #ffffff;
+  --sn-mid-gray: #8a8578;
+  --sn-line: #111111;
+  --sn-accent: #ffd23f;
+  --sn-accent-ink: #111111;
+  --sn-accent-secondary: #7c5cff;
+  --sn-status-error: #ff4d4d;
+  --sn-status-success: #3ddc84;
+  --sn-status-info: #6ec1ff;
+  --sn-status-neutral: #e8e4d9;
+  --sn-font-display: "Archivo Black", "Arial Black", sans-serif;
+  --sn-font-body: "Space Grotesk", "Inter", system-ui, sans-serif;
+  --sn-font-mono: "IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace;
+  --sn-text-display: 3rem;
+  --sn-text-h1: 2rem;
+  --sn-text-h2: 1.5rem;
+  --sn-text-h3: 1.125rem;
+  --sn-text-body: 1rem;
+  --sn-text-small: 0.8125rem;
+  --sn-border-width: 2px;
+  --sn-border-width-heavy: 3px;
+  --sn-border-radius: 0px;
+  --sn-shadow-offset: 4px 4px 0 var(--sn-ink);
+  --sn-shadow-offset-sm: 2px 2px 0 var(--sn-ink);
+  --sn-shadow-offset-lg: 8px 8px 0 var(--sn-ink);
+  --sn-space-1: 4px;
+  --sn-space-2: 8px;
+  --sn-space-3: 12px;
+  --sn-space-4: 16px;
+  --sn-space-6: 24px;
+  --sn-space-8: 32px;
+  --sn-space-12: 48px;
+
+  /* Back-compat aliases for a few inline styles that still reference Pico vars. */
+  --pico-muted-color: var(--sn-mid-gray);
+  --pico-card-sectioning-background-color: var(--sn-status-neutral);
+}
+
+/* ============================================================
+   Reset + base
+   ============================================================ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-family: var(--sn-font-body);
+  font-size: var(--sn-text-body);
+  line-height: 1.5;
+  color: var(--sn-ink);
+  background: var(--sn-paper);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+}
+
+a {
+  color: var(--sn-ink);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+a:hover {
+  color: var(--sn-accent-secondary);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--sn-font-display);
+  line-height: 1.15;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+h1 { font-size: var(--sn-text-h1); }
+h2 { font-size: var(--sn-text-h2); }
+h3 { font-size: var(--sn-text-h3); }
+h4 { font-size: var(--sn-text-body); }
+
+p { margin-bottom: 1rem; }
+small { font-size: var(--sn-text-small); color: var(--sn-mid-gray); }
+hr {
+  border: none;
+  border-top: var(--sn-border-width) solid var(--sn-line);
+  margin: var(--sn-space-4) 0;
+}
+
+code, kbd, samp {
+  font-family: var(--sn-font-mono);
+  font-size: 0.9em;
+  background: var(--sn-status-neutral);
+  padding: 0.1em 0.35em;
+  border: 1px solid var(--sn-line);
+}
+
+pre {
+  font-family: var(--sn-font-mono);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  background: var(--sn-ink);
+  color: var(--sn-paper);
+  padding: var(--sn-space-4);
+  border: var(--sn-border-width) solid var(--sn-line);
+  overflow-x: auto;
+  margin-bottom: 1.5rem;
+}
+pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+blockquote {
+  border-inline-start: var(--sn-border-width-heavy) solid var(--sn-accent);
+  padding: var(--sn-space-2) var(--sn-space-4);
+  margin: 0 0 1.5rem;
+  background: var(--sn-surface);
+  font-style: italic;
+}
+
+img { max-width: 100%; height: auto; }
+
+ul, ol { margin-bottom: 1rem; padding-left: 1.5rem; }
+li { margin-bottom: 0.35rem; }
+
+/* ============================================================
+   Layout helpers
+   ============================================================ */
+.container {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 var(--sn-space-4);
+}
+
+/* Pico-compatible responsive grid */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: var(--sn-space-4);
+  margin-bottom: 1.5rem;
+}
+@media (max-width: 768px) {
+  .grid { grid-template-columns: 1fr; }
+}
+
+.overflow-auto { overflow-x: auto; }
+
+/* ============================================================
+   Cards / sections (Pico used <article>)
+   ============================================================ */
+article {
+  background: var(--sn-surface);
+  border: var(--sn-border-width-heavy) solid var(--sn-line);
+  box-shadow: var(--sn-shadow-offset);
+  padding: var(--sn-space-6);
+  margin-bottom: var(--sn-space-6);
+}
+article > header {
+  margin: calc(-1 * var(--sn-space-6)) calc(-1 * var(--sn-space-6)) var(--sn-space-6);
+  padding: var(--sn-space-4) var(--sn-space-6);
+  border-bottom: var(--sn-border-width) solid var(--sn-line);
+  background: var(--sn-surface);
+}
+article > header :is(h1, h2, h3) { margin: 0; }
+article > footer {
+  margin: var(--sn-space-6) calc(-1 * var(--sn-space-6)) calc(-1 * var(--sn-space-6));
+  padding: var(--sn-space-4) var(--sn-space-6);
+  border-top: var(--sn-border-width) solid var(--sn-line);
+}
+
+.card {
+  background: var(--sn-surface);
+  border: var(--sn-border-width-heavy) solid var(--sn-line);
+  box-shadow: var(--sn-shadow-offset);
+  padding: var(--sn-space-6);
+}
+
+/* ============================================================
+   Forms
+   ============================================================ */
+label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: var(--sn-space-1);
+  margin-top: var(--sn-space-3);
+}
+
+input,
+select,
+textarea {
+  display: block;
+  width: 100%;
+  font-family: var(--sn-font-body);
+  font-size: var(--sn-text-body);
+  color: var(--sn-ink);
+  background: var(--sn-surface);
+  border: var(--sn-border-width) solid var(--sn-line);
+  border-radius: var(--sn-border-radius);
+  padding: var(--sn-space-2) var(--sn-space-3);
+  margin-bottom: var(--sn-space-3);
+}
+input::placeholder,
+textarea::placeholder { color: var(--sn-mid-gray); }
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  box-shadow: var(--sn-shadow-offset-sm);
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  width: auto;
+  display: inline-block;
+  accent-color: var(--sn-accent-secondary);
+  margin-right: var(--sn-space-1);
+}
+
+fieldset { border: none; margin-bottom: var(--sn-space-3); }
+
+/* ============================================================
+   Buttons
+   ============================================================ */
+button,
+[type="submit"],
+[type="button"],
+[type="reset"],
+[role="button"],
+a[role="button"] {
+  display: inline-block;
+  font-family: var(--sn-font-body);
+  font-weight: 700;
+  font-size: var(--sn-text-body);
+  line-height: 1.3;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  padding: var(--sn-space-2) var(--sn-space-4);
+  border: var(--sn-border-width-heavy) solid var(--sn-line);
+  border-radius: var(--sn-border-radius);
+  background: var(--sn-accent);
+  color: var(--sn-accent-ink);
+  box-shadow: var(--sn-shadow-offset);
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+button:hover,
+[type="submit"]:hover,
+[type="button"]:hover,
+[role="button"]:hover,
+a[role="button"]:hover {
+  color: var(--sn-accent-ink);
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 var(--sn-ink);
+}
+button:disabled,
+button[aria-busy="true"] {
+  opacity: 0.6;
+  cursor: progress;
+  transform: none;
+}
+
+/* Secondary variant */
+.secondary {
+  background: var(--sn-surface);
+  color: var(--sn-ink);
+  box-shadow: var(--sn-shadow-offset-sm);
+}
+.secondary:hover { color: var(--sn-ink); }
+
+/* Contrast variant */
+.contrast {
+  background: var(--sn-ink);
+  color: var(--sn-paper);
+}
+.contrast:hover { color: var(--sn-paper); }
+
+/* Outline variant — flat until hover */
+.outline {
+  background: transparent;
+  color: var(--sn-ink);
+  box-shadow: none;
+}
+.outline:hover {
+  background: var(--sn-accent);
+  color: var(--sn-accent-ink);
+  transform: none;
+  box-shadow: none;
+}
+.secondary.outline { background: transparent; }
+
+/* ============================================================
+   Tables
+   ============================================================ */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+  font-size: var(--sn-text-body);
+  background: var(--sn-surface);
+}
+th, td {
+  border: var(--sn-border-width) solid var(--sn-line);
+  padding: var(--sn-space-2) var(--sn-space-3);
+  text-align: left;
+}
+th {
+  background: var(--sn-accent);
+  color: var(--sn-accent-ink);
+  font-weight: 700;
+}
+
+/* ============================================================
+   Status highlights (replaces Pico's .pico-background-*-100 + <mark>)
+   ============================================================ */
+mark {
+  display: inline-block;
+  padding: 0.1em 0.5em;
+  border: var(--sn-border-width) solid var(--sn-line);
+  background: var(--sn-accent);
+  color: var(--sn-ink);
+}
+.pico-background-red-100 { background: var(--sn-status-error); color: var(--sn-ink); }
+.pico-background-green-100 { background: var(--sn-status-success); color: var(--sn-ink); }
+.pico-background-blue-100 { background: var(--sn-status-info); color: var(--sn-ink); }
+
+/* ============================================================
+   Badges (ported from the docs design system)
+   ============================================================ */
+.badge {
+  display: inline-block;
+  font-family: var(--sn-font-mono);
+  font-size: var(--sn-text-small);
+  padding: 0.1em 0.5em;
+  border: var(--sn-border-width) solid var(--sn-line);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.badge-accent { background: var(--sn-accent); color: var(--sn-accent-ink); }
+.badge-info { background: var(--sn-status-info); color: var(--sn-ink); }
+
+/* ============================================================
+   Top nav (mirrors docs/src/components/Nav.astro)
+   ============================================================ */
+.site-nav {
+  border-bottom: var(--sn-border-width-heavy) solid var(--sn-line);
+  background: var(--sn-surface);
+  padding: var(--sn-space-3) 0;
+}
+.site-nav .nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sn-space-4);
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 var(--sn-space-4);
+}
+.site-nav .nav-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sn-space-2);
+  text-decoration: none;
+  font-family: var(--sn-font-display);
+  font-size: var(--sn-text-h3);
+  color: var(--sn-ink);
+}
+.site-nav .nav-badge {
+  font-family: var(--sn-font-mono);
+  font-size: 0.7rem;
+  padding: 0.1em 0.4em;
+  border: var(--sn-border-width) solid var(--sn-line);
+  background: var(--sn-accent);
+  color: var(--sn-accent-ink);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.site-nav .nav-links {
+  display: flex;
+  align-items: center;
+  gap: var(--sn-space-3);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  flex-wrap: wrap;
+}
+.site-nav .nav-links > li { margin: 0; }
+.site-nav .nav-links a {
+  font-weight: 500;
+  text-decoration: none;
+  padding: var(--sn-space-1) var(--sn-space-2);
+  border-bottom: var(--sn-border-width) solid transparent;
+  color: var(--sn-ink);
+}
+.site-nav .nav-links a:hover {
+  border-bottom-color: var(--sn-accent);
+  color: var(--sn-ink);
+}
+.site-nav .nav-links a.active {
+  background: var(--sn-accent);
+  border: var(--sn-border-width) solid var(--sn-line);
+  box-shadow: var(--sn-shadow-offset-sm);
+  font-weight: 700;
+}
+
+/* ============================================================
+   Dropdown (Pico's <details class="dropdown"> in the user menu)
+   ============================================================ */
+details.dropdown {
+  position: relative;
+  margin: 0;
+}
+details.dropdown > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sn-space-2);
+  list-style: none;
+  cursor: pointer;
+  font-weight: 500;
+  padding: var(--sn-space-1) var(--sn-space-2);
+  border: var(--sn-border-width) solid transparent;
+}
+details.dropdown > summary::-webkit-details-marker { display: none; }
+details.dropdown[open] > summary {
+  border-color: var(--sn-line);
+  background: var(--sn-surface);
+}
+details.dropdown > ul {
+  position: absolute;
+  right: 0;
+  z-index: 20;
+  min-width: 200px;
+  margin-top: var(--sn-space-1);
+  padding: var(--sn-space-1) 0;
+  list-style: none;
+  background: var(--sn-surface);
+  border: var(--sn-border-width-heavy) solid var(--sn-line);
+  box-shadow: var(--sn-shadow-offset);
+}
+details.dropdown > ul > li { margin: 0; }
+details.dropdown > ul a,
+details.dropdown > ul button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  text-decoration: none;
+  border: none;
+  box-shadow: none;
+  background: none;
+  color: var(--sn-ink);
+  font-weight: 500;
+  padding: var(--sn-space-2) var(--sn-space-3);
+}
+details.dropdown > ul a:hover,
+details.dropdown > ul button:hover {
+  background: var(--sn-accent);
+  color: var(--sn-accent-ink);
+  transform: none;
+}
+
+/* ============================================================
+   Footer
+   ============================================================ */
+.site-footer {
+  border-top: var(--sn-border-width-heavy) solid var(--sn-line);
+  background: var(--sn-surface);
+  padding: var(--sn-space-6) var(--sn-space-4);
+  margin-top: var(--sn-space-12);
+  font-size: var(--sn-text-small);
+  color: var(--sn-mid-gray);
+  text-align: center;
+}
+.site-footer a { color: var(--sn-mid-gray); }
+
+/* ============================================================
+   Utilities
+   ============================================================ */
+.nav-avatar { border-radius: 50%; vertical-align: middle; }
+[x-cloak] { display: none !important; }
+[aria-busy="true"] { cursor: progress; }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
