@@ -224,6 +224,13 @@ article[aria-busy="true"] { box-shadow: none; }
    the card's own padding sets the bottom gap. */
 article > table:last-child { margin-bottom: 0; }
 
+/* AI/MCP surfaces (PRD-007) are marked with a violet left edge, not a
+   violet fill — DSG-002 §7: the stripe says "this section is AI-related"
+   without a second saturated colour competing with the accent. */
+.ai-activity {
+  border-left: var(--sn-border-width-heavy) solid var(--sn-accent-secondary);
+}
+
 /* ============================================================
    Forms
    ============================================================ */
