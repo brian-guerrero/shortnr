@@ -13,7 +13,7 @@ primary_region = 'iad'
   destination = '/data'
 
 [env]
-  Authentication__Enabled = 'false'
+  Authentication__Enabled = 'true'
   ASPNETCORE_ENVIRONMENT = 'Production'
   RateLimiting__TrustForwardedFor = 'true'
 
