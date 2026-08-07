@@ -1,4 +1,6 @@
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
@@ -25,6 +27,18 @@ builder.Host.UseDefaultServiceProvider((context, options) =>
 });
 
 builder.AddServiceDefaults();
+
+// Persist the Data Protection key ring to the mounted volume (same one the
+// SQLite DB lives on — see Dockerfile) rather than the container's ephemeral
+// filesystem. Without this, keys regenerate on every redeploy/cold start,
+// silently invalidating every outstanding auth cookie and OIDC correlation
+// cookie — that's what "keeps logging users out" without any visible error.
+var dataProtection = builder.Services.AddDataProtection().SetApplicationName("Shortnr");
+var dataProtectionKeyPath = builder.Configuration["DataProtection:KeyPath"];
+if (!string.IsNullOrEmpty(dataProtectionKeyPath))
+{
+    dataProtection.PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeyPath));
+}
 
 builder.Services.AddRazorPages();
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -177,6 +191,26 @@ builder.Services.AddOpenApi(options =>
 });
 
 var app = builder.Build();
+
+// Fly (and most PaaS reverse proxies) terminate TLS at the edge and forward
+// plain HTTP internally, so without this the OIDC handler builds redirect_uri
+// as http://... instead of https://..., which Auth0 rejects as an unregistered
+// callback URL. Opt-in only (like RateLimiting:TrustForwardedFor) — blindly
+// trusting X-Forwarded-* is only safe when a real proxy is guaranteed to
+// overwrite client-supplied values before they reach the app; self-hosted
+// instances without one in front must not enable this.
+if (builder.Configuration.GetValue<bool>("Hosting:TrustForwardedHeaders", defaultValue: false))
+{
+    var forwardedHeadersOptions = new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+    };
+    // The proxy hop isn't a fixed/known address on Fly's network, so clear the
+    // default network/proxy allowlist rather than reject its headers.
+    forwardedHeadersOptions.KnownNetworks.Clear();
+    forwardedHeadersOptions.KnownProxies.Clear();
+    app.UseForwardedHeaders(forwardedHeadersOptions);
+}
 
 using (var scope = app.Services.CreateScope())
 {

@@ -27,6 +27,7 @@ COPY --from=build /app/publish .
 
 ENV ASPNETCORE_URLS=http://+:8080
 ENV ConnectionStrings__DefaultConnection="Data Source=/data/shortnr.db"
+ENV DataProtection__KeyPath="/data/dataprotection-keys"
 
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "Shortnr.Web.dll"]

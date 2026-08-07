@@ -101,3 +101,75 @@ The confirmation flow is implemented in `McpToolGuard.ResolveConfirmation`, whic
 1. Explicit `confirmed=true` argument &rarr; approved immediately.
 2. Echoed `InputResponses` from an already-accepted MRTR round-trip &rarr; approved/declined.
 3. Neither present &rarr; throws `InputRequiredException` with an `InputRequest.ForElicitation` describing the action.
+
+## Deploying the OAuth server
+
+The OAuth 2.1 authorization server (`OAuthServerExtensions.cs`) is powered by
+[OpenIddict](https://documentation.openiddict.com/) and shares the process
+with the rest of shortnr. It's only registered when `Authentication:Enabled`
+is `true` — with auth off, `/connect/*` isn't mapped and MCP clients fall
+back to API-key auth.
+
+### Required settings
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `OAuth__Issuer` | `http://localhost:5156` | Public base URL of this deployment. Used as the OAuth issuer and in the DCR response's `registration_endpoint`. **Must match the real externally-reachable URL in production** (e.g. `https://your-shortnr.example.com`). |
+| `OAuth__Resource` | `http://localhost:5156/mcp` | The MCP resource URI (RFC 8707 audience). Must match the `resource=` value MCP clients send, and is what tokens are scoped to. |
+| `OAuth__AccessTokenLifetimeMinutes` | `60` | Access token lifetime. |
+| `OAuth__RefreshTokenLifetimeDays` | `14` | Refresh token lifetime. |
+
+### Signing/encryption certificates
+
+OpenIddict needs a certificate to sign tokens and one to encrypt them.
+
+- **In `Development`**, this is automatic — `AddDevelopmentSigningCertificate()`/`AddDevelopmentEncryptionCertificate()` generate ephemeral certs with no configuration needed.
+- **Everywhere else**, you must supply persistent certificates via config/secrets. Ephemeral certs would regenerate on every process restart, silently invalidating every outstanding access/refresh token on each redeploy or cold start.
+
+| Setting | Description |
+|---------|-------------|
+| `OAuth__SigningCertificate` | Base64-encoded PKCS#12 (`.pfx`) certificate used to sign tokens. Key usage must include **Digital Signature**. |
+| `OAuth__SigningCertificatePassword` | Password for the signing PFX, if it has one. Optional — omit entirely if the PFX has no password. |
+| `OAuth__EncryptionCertificate` | Base64-encoded PKCS#12 (`.pfx`) certificate used to encrypt tokens. Key usage must include **Key Encipherment** (and typically **Data Encipherment**) — a signing-only certificate here fails at startup with `The specified certificate is not a key encryption certificate.` |
+| `OAuth__EncryptionCertificatePassword` | Password for the encryption PFX, if it has one. |
+
+Missing either certificate throws a clear `InvalidOperationException` naming the missing config key at startup; a certificate with the wrong key usage throws the OpenIddict error above instead — both fail fast rather than serving requests with no signing/encryption key.
+
+**Generating self-signed certs** (fine for this purpose — they're never presented to a client, only used internally to sign/encrypt opaque tokens). PowerShell:
+
+```powershell
+foreach ($pair in @(
+    @{ Name = "signing";    Usage = "DigitalSignature" },
+    @{ Name = "encryption"; Usage = "KeyEncipherment,DataEncipherment" }
+)) {
+    $cert = New-SelfSignedCertificate -Subject "CN=shortnr-oauth-$($pair.Name)" `
+        -CertStoreLocation Cert:\CurrentUser\My -KeyExportPolicy Exportable `
+        -KeyAlgorithm RSA -KeyLength 2048 -NotAfter (Get-Date).AddYears(5) `
+        -KeyUsage $pair.Usage.Split(',')
+
+    $pfxPath = "$($pair.Name).pfx"
+    Export-PfxCertificate -Cert $cert -FilePath $pfxPath `
+        -Password (New-Object System.Security.SecureString) | Out-Null
+    Remove-Item "Cert:\CurrentUser\My\$($cert.Thumbprint)" -Confirm:$false
+
+    [Convert]::ToBase64String([IO.File]::ReadAllBytes($pfxPath)) |
+        Set-Content "$($pair.Name).pfx.b64" -NoNewline
+}
+```
+
+Then set the secrets (Fly example — never commit these):
+
+```
+fly secrets set `
+  OAuth__SigningCertificate="$(Get-Content signing.pfx.b64 -Raw)" `
+  OAuth__EncryptionCertificate="$(Get-Content encryption.pfx.b64 -Raw)"
+```
+
+(No `*CertificatePassword` needed if generated exactly as above — the script uses an empty PFX password.)
+
+### Common pitfalls
+
+- **Wrong key usage on the encryption cert** — reusing a `DigitalSignature`-only cert for `OAuth__EncryptionCertificate` throws `The specified certificate is not a key encryption certificate.` at startup. Generate it with `KeyEncipherment`/`DataEncipherment` usage instead (see above).
+- **`fly secrets set` doesn't rebuild your image** — it restarts the currently-deployed image with new env vars. If you change `OAuthServerExtensions.cs` or any other code, you need `fly deploy` too; setting secrets alone won't pick up code changes.
+- **Don't duplicate secret-managed keys in `fly.toml`'s `[env]` block** — `fly deploy` re-applies `[env]` into the same machine env map that secrets populate. A value defined in both places gets silently overwritten by whichever was applied last, which is `[env]` on every deploy — so anything sensitive or environment-specific (Authority, ClientId/Secret, certs) belongs only in `fly secrets`, never mirrored into `fly.toml`.
+- **`OAuth:Issuer` must be the real public HTTPS URL in production** — it's advertised in OAuth discovery metadata and the DCR `registration_endpoint`; leaving it as the `localhost` default breaks client discovery entirely once deployed.

@@ -16,11 +16,14 @@ primary_region = 'iad'
   Authentication__Enabled = 'true'
   ASPNETCORE_ENVIRONMENT = 'Production'
   RateLimiting__TrustForwardedFor = 'true'
-  # Auth0 tenant domain and app Client ID (not secret). Set the matching
-  # ClientSecret via `fly secrets set Authentication__Oidc__ClientSecret=...`
-  # instead — never commit it here.
-  Authentication__Oidc__Authority = 'https://YOUR_TENANT.auth0.com/'
-  Authentication__Oidc__ClientId = 'YOUR_AUTH0_CLIENT_ID'
+  # Safe to trust here: Fly's edge proxy is the only way to reach this app,
+  # and it overwrites (not appends to) X-Forwarded-* on every request.
+  Hosting__TrustForwardedHeaders = 'true'
+  # Authentication:Oidc:Authority/ClientId/ClientSecret and the OAuth signing/
+  # encryption certs are managed entirely via `fly secrets set` — do not add
+  # them here too. A `fly deploy` re-applies this [env] block into the same
+  # machine env map as secrets, so a value defined in both places here would
+  # silently overwrite whatever was set via secrets on every deploy.
 
 [http_service]
   internal_port = 8080

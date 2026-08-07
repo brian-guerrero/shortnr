@@ -38,6 +38,19 @@ Or in `appsettings.Development.json`:
 
 When disabled: `/account/login` and `/account/logout` return 404, the login link and user menu are hidden from the nav, the dashboard is accessible without signing in, and all data is shown unfiltered.
 
+## OAuth (MCP clients)
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `OAuth__Issuer` | `http://localhost:5156` | Public base URL of this deployment; must be the real `https://` URL in production. |
+| `OAuth__Resource` | `http://localhost:5156/mcp` | The MCP resource URI (RFC 8707 audience). |
+| `OAuth__AccessTokenLifetimeMinutes` | `60` | Access token lifetime. |
+| `OAuth__RefreshTokenLifetimeDays` | `14` | Refresh token lifetime. |
+| `OAuth__SigningCertificate` / `OAuth__SigningCertificatePassword` | *(dev certs auto-generated)* | Base64 PKCS#12 cert (Digital Signature key usage) used to sign OAuth tokens. Required outside `Development`. |
+| `OAuth__EncryptionCertificate` / `OAuth__EncryptionCertificatePassword` | *(dev certs auto-generated)* | Base64 PKCS#12 cert (Key Encipherment key usage) used to encrypt OAuth tokens. Required outside `Development`. |
+
+See the [MCP server docs](/shortnr/docs/mcp/#deploying-the-oauth-server) for certificate generation steps and common deployment pitfalls.
+
 ## GeoIP / MaxMind
 
 | Setting | Default | Description |
@@ -51,6 +64,12 @@ When configured, shortnr downloads the GeoLite2 City database from MaxMind and u
 - Without a license key, enrichment is a no-op: no download is attempted and clicks carry no geo data.
 - The database is never bundled with the repo; it is downloaded at runtime.
 - Per the GeoLite2 EULA, the running app displays the required attribution in its footer.
+
+## Hosting
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `Hosting__TrustForwardedHeaders` | `false` | When `true`, trust `X-Forwarded-For`/`X-Forwarded-Proto` for the request scheme/host (needed so the OIDC handler builds `https://` callback URLs when TLS is terminated at a reverse proxy). Only enable this when a proxy you control is guaranteed to overwrite these headers on every request — otherwise a client can spoof `X-Forwarded-Proto: https` to bypass HTTPS-only checks. |
 
 ## Rate limiting
 

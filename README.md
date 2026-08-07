@@ -118,9 +118,12 @@ docker run -p 8080:8080 -v shortnr-data:/data shortnr
 | `Authentication__Enabled` | `true` | Set to `false` to disable OIDC entirely — no login UI, no access control, dashboard shows all data. |
 | `Authentication__Oidc__Authority` | `http://localhost:5556/dex` | OpenID Connect issuer URL. Set automatically by `Shortnr.AppHost` when running under Aspire. |
 | `Authentication__Oidc__ClientId` / `Authentication__Oidc__ClientSecret` | `shortnr-web` / dev-only value | Must match `staticClients` in `dex/config.yaml`. |
+| `OAuth__Issuer` / `OAuth__Resource` | `http://localhost:5156` / `http://localhost:5156/mcp` | OAuth 2.1 issuer + MCP resource URI for AI clients. `Issuer` must be the real `https://` URL in production. |
+| `OAuth__SigningCertificate` / `OAuth__EncryptionCertificate` | *(dev certs auto-generated)* | Base64 PKCS#12 certs required outside `Development` — see [MCP server docs](https://brian-guerrero.github.io/shortnr/docs/mcp/#deploying-the-oauth-server) for generation steps and key-usage requirements. |
 | `GeoIp__MaxMindAccountId` | *(empty)* | MaxMind account ID. **GeoIP enrichment is disabled until both account ID and license key are set.** |
 | `GeoIp__MaxMindLicenseKey` | *(empty)* | MaxMind license key. Enables downloading GeoLite2-City from MaxMind's official endpoint on startup + Wed/Sat 12:00 UTC. |
 | `GeoIp__DatabasePath` | `wwwroot/data/GeoLite2-City.mmdb` | Where the downloaded database is stored. |
+| `Hosting__TrustForwardedHeaders` | `false` | When `true`, trust `X-Forwarded-For`/`X-Forwarded-Proto` for the request scheme/host (needed for `https://` OIDC callback URLs behind a TLS-terminating proxy). Only enable behind a proxy you control — otherwise a client can spoof `X-Forwarded-Proto: https` to bypass HTTPS-only checks. |
 | `RateLimiting__TrustForwardedFor` | `false` | When `true`, resolve the client IP from the left-most `X-Forwarded-For` hop (for deployments behind a reverse proxy). |
 | `RateLimiting__Shorten__PerMinute` | `10` | Per-IP request cap per minute for the shorten form (`POST /`). Over-limit requests get `429`. |
 | `RateLimiting__Shorten__PerDay` | `200` | Per-IP daily cap for the shorten form. |
