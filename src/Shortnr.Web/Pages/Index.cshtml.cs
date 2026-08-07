@@ -45,6 +45,7 @@ public class IndexModel : PageModel
 
         var url = Request.Form["url"].FirstOrDefault() ?? "";
         var slug = Request.Form["slug"].FirstOrDefault()?.Trim() ?? "";
+        var utm = ReadUtmParameters();
 
         var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
         Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
@@ -55,6 +56,9 @@ public class IndexModel : PageModel
         if (string.IsNullOrWhiteSpace(url))
             return await ErrorResultAsync("Enter a URL to shorten.", ownerUserId, workspaceId);
 
+        if (!utm.IsEmpty)
+            url = UtmBuilder.AppendUtm(url, utm);
+
         if (slug.Length > 0)
         {
             if (!ShortLinkCodes.IsValidSlug(slug))
@@ -64,7 +68,7 @@ public class IndexModel : PageModel
             if (collides)
                 return await ErrorResultAsync($"The custom code '{slug}' is already taken.", ownerUserId, workspaceId);
 
-            return await CreateAsync(url, slug, defaultDomain, ownerUserId, workspaceId);
+            return await CreateAsync(url, slug, defaultDomain, ownerUserId, workspaceId, utm);
         }
 
         var existing = await _db.ShortenedUrls.FirstOrDefaultAsync(l => l.DomainId == domainId && l.LongUrl == url);
@@ -76,10 +80,10 @@ public class IndexModel : PageModel
         }
 
         return await CreateAsync(url, await ShortLinkCodes.GenerateUniqueCodeAsync(code =>
-            _db.ShortenedUrls.AnyAsync(l => l.DomainId == domainId && l.ShortCode == code)), defaultDomain, ownerUserId, workspaceId);
+            _db.ShortenedUrls.AnyAsync(l => l.DomainId == domainId && l.ShortCode == code)), defaultDomain, ownerUserId, workspaceId, utm);
     }
 
-    private async Task<IActionResult> CreateAsync(string url, string shortCode, Domain? defaultDomain, long? ownerUserId, long? workspaceId)
+    private async Task<IActionResult> CreateAsync(string url, string shortCode, Domain? defaultDomain, long? ownerUserId, long? workspaceId, UtmParameters? utm = null)
     {
         var shortened = new ShortenedUrl
         {
@@ -90,6 +94,17 @@ public class IndexModel : PageModel
             OwnerUserId = workspaceId is not null ? null : ownerUserId,
             WorkspaceId = workspaceId
         };
+        if (utm is not null && !utm.IsEmpty)
+        {
+            shortened.Metadata = new ShortenedUrlMetadata
+            {
+                UtmSource = utm.Source,
+                UtmMedium = utm.Medium,
+                UtmCampaign = utm.Campaign,
+                UtmTerm = utm.Term,
+                UtmContent = utm.Content
+            };
+        }
         _db.ShortenedUrls.Add(shortened);
         await _db.SaveChangesAsync();
 
@@ -107,9 +122,16 @@ public class IndexModel : PageModel
         return Partial("Shared/_PostResult", new PostResultViewModel { HasError = true, ErrorMessage = message, RecentLinks = recentLinks });
     }
 
+    private UtmParameters ReadUtmParameters() =>
+        new(
+            Source: Request.Form["utm_source"].FirstOrDefault(),
+            Medium: Request.Form["utm_medium"].FirstOrDefault(),
+            Campaign: Request.Form["utm_campaign"].FirstOrDefault(),
+            Term: Request.Form["utm_term"].FirstOrDefault(),
+            Content: Request.Form["utm_content"].FirstOrDefault());
+
     private async Task<Domain?> ResolveDefaultDomainAsync(long? ownerUserId)
-    {
-        if (ownerUserId is null)
+    {        if (ownerUserId is null)
             return null;
 
         return await _db.Domains.FirstOrDefaultAsync(d =>

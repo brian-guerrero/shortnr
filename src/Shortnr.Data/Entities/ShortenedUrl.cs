@@ -15,6 +15,7 @@ public class ShortenedUrl
     public User? Owner { get; set; }
     public Domain? Domain { get; set; }
     public Workspace? Workspace { get; set; }
+    public ShortenedUrlMetadata? Metadata { get; set; }
 
     public string DisplayUrl() => Domain?.Hostname is { Length: > 0 } host
         ? $"//{host}/{ShortCode}"

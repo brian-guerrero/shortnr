@@ -6,6 +6,7 @@ namespace Shortnr.Data;
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
     public DbSet<ShortenedUrl> ShortenedUrls => Set<ShortenedUrl>();
+    public DbSet<ShortenedUrlMetadata> ShortenedUrlMetadatas => Set<ShortenedUrlMetadata>();
     public DbSet<ClickEvent> ClickEvents => Set<ClickEvent>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Domain> Domains => Set<Domain>();
@@ -50,6 +51,22 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .WithMany(w => w.ShortenedUrls)
                 .HasForeignKey(e => e.WorkspaceId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Metadata)
+                .WithOne(m => m.ShortenedUrl)
+                .HasForeignKey<ShortenedUrlMetadata>(m => m.ShortenedUrlId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ShortenedUrlMetadata>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UtmSource).HasMaxLength(512);
+            entity.Property(e => e.UtmMedium).HasMaxLength(512);
+            entity.Property(e => e.UtmCampaign).HasMaxLength(512);
+            entity.Property(e => e.UtmTerm).HasMaxLength(512);
+            entity.Property(e => e.UtmContent).HasMaxLength(512);
+            entity.HasIndex(e => e.ShortenedUrlId).IsUnique();
         });
 
         modelBuilder.Entity<Domain>(entity =>
