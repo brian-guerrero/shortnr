@@ -1,10 +1,10 @@
-# fly.toml app configuration file generated for shortnr on 2026-08-06T05:11:16Z
+# fly.toml app configuration file generated for shortnr on 2026-08-07T04:43:10Z
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
 app = 'shortnr'
-primary_region = 'iad'
+primary_region = 'ord'
 
 [build]
 
@@ -20,7 +20,7 @@ primary_region = 'iad'
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = 'stop'
+  auto_stop_machines = true
   auto_start_machines = true
   min_machines_running = 0
   processes = ['app']
