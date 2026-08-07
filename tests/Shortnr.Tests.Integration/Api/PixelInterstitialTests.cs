@@ -58,8 +58,7 @@ public class PixelInterstitialTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("fbq('init', '555123456')", body);
-        Assert.Contains("window.location.replace", body);
-        Assert.Contains("https://example.com/meta-dest", body);
+        Assert.Contains("window.location.replace(\"https://example.com/meta-dest\");", body);
         Assert.Contains("no-store", response.Headers.CacheControl!.ToString());
     }
 

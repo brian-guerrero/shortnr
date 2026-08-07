@@ -16,7 +16,7 @@
 </head>
 <body>
     <script>
-        window.location.replace(@destinationJson);
+        window.location.replace(@Html.Raw(destinationJson));
     </script>
     <noscript>
         <p>Redirecting to <a href="@destination">@destination</a>…</p>
