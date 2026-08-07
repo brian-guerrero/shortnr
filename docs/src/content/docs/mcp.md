@@ -64,7 +64,7 @@ The MCP endpoint is at `https://your-shortnr.example.com/mcp`.
 | `add_link_to_bio_page` | Add a link to your bio page |
 | `remove_link_from_bio_page` | Remove a link from your bio page |
 | `reorder_bio_page` | Reorder links on your bio page |
-| `set_bio_page_theme` | Change your bio page theme (default, sunset, ocean, forest, midnight) |
+| `set_bio_page_theme` | Change your bio page theme (default, sunset, ocean, forest, midnight, brutal) |
 | `set_bio_page_text` | Update your bio page display text |
 
 ### Destructive action confirmation

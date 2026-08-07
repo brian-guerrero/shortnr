@@ -40,6 +40,7 @@
   --sn-shadow-offset: 4px 4px 0 var(--sn-ink);
   --sn-shadow-offset-sm: 2px 2px 0 var(--sn-ink);
   --sn-shadow-offset-lg: 8px 8px 0 var(--sn-ink);
+  --sn-shadow-active: 1px 1px 0 var(--sn-ink);
   --sn-space-1: 4px;
   --sn-space-2: 8px;
   --sn-space-3: 12px;

@@ -1,10 +1,9 @@
 @{
     var theme = (string?)ViewData["BioTheme"] ?? "default";
     var title = (string?)ViewData["BioTitle"] ?? "shortnr";
-    var picoTheme = theme == "midnight" ? "dark" : "light";
 }
 <!DOCTYPE html>
-<html lang="en" data-bio-theme="@theme" data-theme="@picoTheme">
+<html lang="en" data-bio-theme="@theme">
 
 <head>
     <meta charset="utf-8" />
@@ -34,6 +33,13 @@
         [data-bio-theme="midnight"] {
             --bio-bg: #1e2229; --bio-fg: #e6e9ef; --bio-accent: #7aa2f7;
             --bio-card: #2a303b; --bio-muted: #9aa4b2; --bio-accent-fg: #10141a;
+        }
+        /* The sixth, neo-brutalist theme (DSG-002 §5). Same custom-property
+           mechanism as the five soft themes above; the shell overrides below
+           are scoped to it so the others keep their rounded/soft treatment. */
+        [data-bio-theme="brutal"] {
+            --bio-bg: #faf9f5; --bio-fg: #111111; --bio-accent: #ffd23f;
+            --bio-card: #ffffff; --bio-muted: #8a8578; --bio-accent-fg: #111111;
         }
 
         body {
@@ -97,6 +103,36 @@
         }
         .bio-404 {
             text-align: center;
+        }
+
+        [data-bio-theme="brutal"] .bio-card {
+            border: var(--sn-border-width-heavy) solid var(--sn-line);
+            border-radius: 0;
+            box-shadow: var(--sn-shadow-offset-lg);
+        }
+        [data-bio-theme="brutal"] .bio-avatar {
+            border: var(--sn-border-width-heavy) solid var(--sn-line);
+            border-radius: 0;
+        }
+        [data-bio-theme="brutal"] .bio-name {
+            font-family: var(--sn-font-display);
+            font-size: var(--sn-text-h1);
+        }
+        [data-bio-theme="brutal"] .bio-links a {
+            border: var(--sn-border-width-heavy) solid var(--sn-line);
+            border-radius: 0;
+            box-shadow: var(--sn-shadow-offset);
+            font-weight: 700;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        [data-bio-theme="brutal"] .bio-links a:hover {
+            opacity: 1;
+            transform: translate(1px, 1px);
+            box-shadow: 3px 3px 0 var(--sn-ink);
+        }
+        [data-bio-theme="brutal"] .bio-links a:active {
+            transform: translate(3px, 3px);
+            box-shadow: var(--sn-shadow-active);
         }
     </style>
 </head>
