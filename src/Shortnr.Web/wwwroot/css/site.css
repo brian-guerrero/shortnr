@@ -490,6 +490,29 @@ details.dropdown > ul button:hover {
   transform: none;
 }
 
+/* Nav-link dropdowns (Dashboard / Settings groups) hang to the left,
+   under the trigger, instead of the user menu's right alignment. */
+.site-nav .nav-links details.nav-dropdown > ul {
+  right: auto;
+  left: 0;
+}
+.site-nav .nav-links details.nav-dropdown > summary::after {
+  content: "▾";
+  font-size: 0.6em;
+  margin-inline-start: 0.15em;
+}
+
+/* User account menu gets a permanent outline so it reads as a control,
+   not just plain nav text; a shadow pops in on hover/open for feedback. */
+details.dropdown.user-menu > summary {
+  border-color: var(--sn-line);
+  background: var(--sn-surface);
+}
+details.dropdown.user-menu > summary:hover,
+details.dropdown.user-menu[open] > summary {
+  box-shadow: var(--sn-shadow-offset-sm);
+}
+
 /* ============================================================
    Footer
    ============================================================ */
