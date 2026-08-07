@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -90,12 +91,18 @@ public static class OAuthServerExtensions
                 // (validation runs in-process, so encryption is not required).
                 options.DisableAccessTokenEncryption();
 
-                // Ephemeral dev-only certificates. Production must supply
-                // signing/encryption certs via config (follow-up).
+                // Dev-only ephemeral certificates outside Development; real
+                // deployments load persistent PKCS#12 certs from config so
+                // outstanding tokens survive process restarts/redeploys.
                 if (env.IsDevelopment())
                 {
                     options.AddDevelopmentEncryptionCertificate()
                            .AddDevelopmentSigningCertificate();
+                }
+                else
+                {
+                    options.AddEncryptionCertificate(LoadCertificate(config, "OAuth:EncryptionCertificate", "OAuth:EncryptionCertificatePassword"));
+                    options.AddSigningCertificate(LoadCertificate(config, "OAuth:SigningCertificate", "OAuth:SigningCertificatePassword"));
                 }
 
                 var aspNetCore = options.UseAspNetCore()
@@ -123,6 +130,24 @@ public static class OAuthServerExtensions
             });
 
         return services;
+    }
+
+    /// <summary>
+    /// Loads a PKCS#12 (.pfx) certificate from a base64-encoded config value.
+    /// Required outside Development — supply via secrets/env (e.g.
+    /// <c>OAuth__SigningCertificate</c>/<c>OAuth__SigningCertificatePassword</c>
+    /// on Fly), never commit real cert material to source control.
+    /// </summary>
+    private static X509Certificate2 LoadCertificate(IConfiguration config, string base64Key, string passwordKey)
+    {
+        var base64 = config[base64Key];
+        if (string.IsNullOrEmpty(base64))
+        {
+            throw new InvalidOperationException(
+                $"'{base64Key}' must be configured (base64-encoded PKCS#12) outside Development.");
+        }
+
+        return X509CertificateLoader.LoadPkcs12(Convert.FromBase64String(base64), config[passwordKey]);
     }
 
     /// <summary>

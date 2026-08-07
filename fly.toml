@@ -16,6 +16,11 @@ primary_region = 'iad'
   Authentication__Enabled = 'true'
   ASPNETCORE_ENVIRONMENT = 'Production'
   RateLimiting__TrustForwardedFor = 'true'
+  # Auth0 tenant domain and app Client ID (not secret). Set the matching
+  # ClientSecret via `fly secrets set Authentication__Oidc__ClientSecret=...`
+  # instead — never commit it here.
+  Authentication__Oidc__Authority = 'https://YOUR_TENANT.auth0.com/'
+  Authentication__Oidc__ClientId = 'YOUR_AUTH0_CLIENT_ID'
 
 [http_service]
   internal_port = 8080
