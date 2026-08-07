@@ -14,6 +14,7 @@ public class IndexModel : PageModel
     private readonly WebhookEventDispatcher _webhookDispatcher;
 
     public List<ShortenedUrl> RecentLinks { get; set; } = [];
+    public List<PixelSnippet> PixelSnippets { get; set; } = [];
     public bool IsHtmxRequest { get; set; }
     public string? DefaultHostname { get; set; }
     public ActiveWorkspaceContext? Workspace { get; set; }
@@ -34,6 +35,7 @@ public class IndexModel : PageModel
         var defaultDomain = await ResolveDefaultDomainAsync(ownerUserId);
         DefaultHostname = defaultDomain?.Hostname;
         RecentLinks = await RecentLinksAsync(ownerUserId, Workspace?.WorkspaceId);
+        PixelSnippets = await _db.PixelSnippets.OrderBy(p => p.Id).ToListAsync();
     }
 
     public async Task<IActionResult> OnPost()
@@ -43,6 +45,13 @@ public class IndexModel : PageModel
 
         var url = Request.Form["url"].FirstOrDefault() ?? "";
         var slug = Request.Form["slug"].FirstOrDefault()?.Trim() ?? "";
+        var utm = ReadUtmParameters();
+        var pixelSnippetId = ReadPixelSnippetId();
+        var pixelValue = await ResolvePixelValueAsync(pixelSnippetId,
+            Request.Form["pixel_id"].FirstOrDefault(),
+            Request.Form["pixel_snippet"].FirstOrDefault());
+        var iosDeepLink = Request.Form["ios_deep_link"].FirstOrDefault()?.Trim() ?? "";
+        var androidDeepLink = Request.Form["android_deep_link"].FirstOrDefault()?.Trim() ?? "";
 
         var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
         Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
@@ -53,6 +62,9 @@ public class IndexModel : PageModel
         if (string.IsNullOrWhiteSpace(url))
             return await ErrorResultAsync("Enter a URL to shorten.", ownerUserId, workspaceId);
 
+        if (!utm.IsEmpty)
+            url = UtmBuilder.AppendUtm(url, utm);
+
         if (slug.Length > 0)
         {
             if (!ShortLinkCodes.IsValidSlug(slug))
@@ -62,22 +74,27 @@ public class IndexModel : PageModel
             if (collides)
                 return await ErrorResultAsync($"The custom code '{slug}' is already taken.", ownerUserId, workspaceId);
 
-            return await CreateAsync(url, slug, defaultDomain, ownerUserId, workspaceId);
+            return await CreateAsync(url, slug, defaultDomain, ownerUserId, workspaceId, utm, pixelSnippetId, pixelValue, iosDeepLink, androidDeepLink);
         }
 
-        var existing = await _db.ShortenedUrls.FirstOrDefaultAsync(l => l.DomainId == domainId && l.LongUrl == url);
-        if (existing is not null)
+        var hasSmartLinkMetadata = !utm.IsEmpty || pixelSnippetId is not null
+            || iosDeepLink.Length > 0 || androidDeepLink.Length > 0;
+        if (!hasSmartLinkMetadata)
         {
-            var baseUrl = BuildShortUrl(defaultDomain, existing.ShortCode);
-            var recentLinks = await RecentLinksAsync(ownerUserId, workspaceId);
-            return Partial("Shared/_PostResult", new PostResultViewModel { ShortUrl = baseUrl, ShortCode = existing.ShortCode, RecentLinks = recentLinks });
+            var existing = await _db.ShortenedUrls.FirstOrDefaultAsync(l => l.DomainId == domainId && l.LongUrl == url);
+            if (existing is not null)
+            {
+                var baseUrl = BuildShortUrl(defaultDomain, existing.ShortCode);
+                var recentLinks = await RecentLinksAsync(ownerUserId, workspaceId);
+                return Partial("Shared/_PostResult", new PostResultViewModel { ShortUrl = baseUrl, ShortCode = existing.ShortCode, RecentLinks = recentLinks });
+            }
         }
 
         return await CreateAsync(url, await ShortLinkCodes.GenerateUniqueCodeAsync(code =>
-            _db.ShortenedUrls.AnyAsync(l => l.DomainId == domainId && l.ShortCode == code)), defaultDomain, ownerUserId, workspaceId);
+            _db.ShortenedUrls.AnyAsync(l => l.DomainId == domainId && l.ShortCode == code)), defaultDomain, ownerUserId, workspaceId, utm, pixelSnippetId, pixelValue, iosDeepLink, androidDeepLink);
     }
 
-    private async Task<IActionResult> CreateAsync(string url, string shortCode, Domain? defaultDomain, long? ownerUserId, long? workspaceId)
+    private async Task<IActionResult> CreateAsync(string url, string shortCode, Domain? defaultDomain, long? ownerUserId, long? workspaceId, UtmParameters? utm = null, long? pixelSnippetId = null, string? pixelValue = null, string? iosDeepLink = null, string? androidDeepLink = null)
     {
         var shortened = new ShortenedUrl
         {
@@ -88,6 +105,21 @@ public class IndexModel : PageModel
             OwnerUserId = workspaceId is not null ? null : ownerUserId,
             WorkspaceId = workspaceId
         };
+        if (utm is not null && !utm.IsEmpty || pixelSnippetId is not null || iosDeepLink is not null && iosDeepLink.Length > 0 || androidDeepLink is not null && androidDeepLink.Length > 0)
+        {
+            shortened.Metadata = new ShortenedUrlMetadata
+            {
+                UtmSource = utm?.Source,
+                UtmMedium = utm?.Medium,
+                UtmCampaign = utm?.Campaign,
+                UtmTerm = utm?.Term,
+                UtmContent = utm?.Content,
+                PixelSnippetId = pixelSnippetId,
+                PixelId = pixelValue,
+                IosDeepLink = string.IsNullOrWhiteSpace(iosDeepLink) ? null : iosDeepLink,
+                AndroidDeepLink = string.IsNullOrWhiteSpace(androidDeepLink) ? null : androidDeepLink
+            };
+        }
         _db.ShortenedUrls.Add(shortened);
         await _db.SaveChangesAsync();
 
@@ -105,9 +137,39 @@ public class IndexModel : PageModel
         return Partial("Shared/_PostResult", new PostResultViewModel { HasError = true, ErrorMessage = message, RecentLinks = recentLinks });
     }
 
-    private async Task<Domain?> ResolveDefaultDomainAsync(long? ownerUserId)
+    private UtmParameters ReadUtmParameters() =>
+        new(
+            Source: Request.Form["utm_source"].FirstOrDefault(),
+            Medium: Request.Form["utm_medium"].FirstOrDefault(),
+            Campaign: Request.Form["utm_campaign"].FirstOrDefault(),
+            Term: Request.Form["utm_term"].FirstOrDefault(),
+            Content: Request.Form["utm_content"].FirstOrDefault());
+
+    /// <summary>Parses the chosen pixel type into a PixelSnippet id, or null when none/invalid.</summary>
+    private long? ReadPixelSnippetId()
     {
-        if (ownerUserId is null)
+        var raw = Request.Form["pixel_type"].FirstOrDefault();
+        return long.TryParse(raw, out var id) ? id : null;
+    }
+
+    /// <summary>
+    /// Resolves the metadata's PixelId value: the pixel ID for template snippets,
+    /// or the full pasted HTML for the custom snippet.
+    /// </summary>
+    private async Task<string?> ResolvePixelValueAsync(long? pixelSnippetId, string? pixelId, string? customSnippet)
+    {
+        if (pixelSnippetId is null)
+            return null;
+
+        var snippet = await _db.PixelSnippets.FirstOrDefaultAsync(p => p.Id == pixelSnippetId);
+        if (snippet is null)
+            return null;
+
+        return snippet.IsCustom ? customSnippet : pixelId;
+    }
+
+    private async Task<Domain?> ResolveDefaultDomainAsync(long? ownerUserId)
+    {        if (ownerUserId is null)
             return null;
 
         return await _db.Domains.FirstOrDefaultAsync(d =>

@@ -1,0 +1,25 @@
+@using System.Text.Json
+@model Shortnr.Web.Features.ClickTracking.PixelInterstitialViewModel
+@{
+    var destination = Model.DestinationUrl;
+    var destinationJson = JsonSerializer.Serialize(destination);
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>Redirecting…</title>
+    <noscript><meta http-equiv="refresh" content="0;url=@destination"></noscript>
+    @Html.Raw(Model.PixelSnippetHtml)
+</head>
+<body>
+    <script>
+        window.location.replace(@Html.Raw(destinationJson));
+    </script>
+    <noscript>
+        <p>Redirecting to <a href="@destination">@destination</a>…</p>
+    </noscript>
+</body>
+</html>

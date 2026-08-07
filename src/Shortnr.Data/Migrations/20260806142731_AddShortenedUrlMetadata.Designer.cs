@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Shortnr.Data;
 
@@ -10,9 +11,11 @@ using Shortnr.Data;
 namespace Shortnr.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260806142731_AddShortenedUrlMetadata")]
+    partial class AddShortenedUrlMetadata
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
@@ -524,53 +527,6 @@ namespace Shortnr.Data.Migrations
                     b.ToTable("Domains");
                 });
 
-            modelBuilder.Entity("Shortnr.Data.Entities.PixelSnippet", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("IsCustom")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("SnippetTemplate")
-                        .IsRequired()
-                        .HasMaxLength(8192)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("PixelSnippets");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1L,
-                            IsCustom = false,
-                            Name = "Meta Pixel",
-                            SnippetTemplate = "<script>\n!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');\nfbq('init', '{{PIXEL_ID}}');\nfbq('track', 'PageView');\n</script>"
-                        },
-                        new
-                        {
-                            Id = 2L,
-                            IsCustom = false,
-                            Name = "Google Ads",
-                            SnippetTemplate = "<script async src=\"https://www.googletagmanager.com/gtag/js?id={{PIXEL_ID}}\"></script>\n<script>\nwindow.dataLayer = window.dataLayer || [];\nfunction gtag(){dataLayer.push(arguments);}\ngtag('js', new Date());\ngtag('config', '{{PIXEL_ID}}');\n</script>"
-                        },
-                        new
-                        {
-                            Id = 3L,
-                            IsCustom = true,
-                            Name = "Custom snippet",
-                            SnippetTemplate = ""
-                        });
-                });
-
             modelBuilder.Entity("Shortnr.Data.Entities.ShortenedUrl", b =>
                 {
                     b.Property<long>("Id")
@@ -626,21 +582,6 @@ namespace Shortnr.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("AndroidDeepLink")
-                        .HasMaxLength(2048)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("IosDeepLink")
-                        .HasMaxLength(2048)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("PixelId")
-                        .HasMaxLength(8192)
-                        .HasColumnType("TEXT");
-
-                    b.Property<long?>("PixelSnippetId")
-                        .HasColumnType("INTEGER");
-
                     b.Property<long>("ShortenedUrlId")
                         .HasColumnType("INTEGER");
 
@@ -665,8 +606,6 @@ namespace Shortnr.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("PixelSnippetId");
 
                     b.HasIndex("ShortenedUrlId")
                         .IsUnique();
@@ -965,18 +904,11 @@ namespace Shortnr.Data.Migrations
 
             modelBuilder.Entity("Shortnr.Data.Entities.ShortenedUrlMetadata", b =>
                 {
-                    b.HasOne("Shortnr.Data.Entities.PixelSnippet", "PixelSnippet")
-                        .WithMany()
-                        .HasForeignKey("PixelSnippetId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("Shortnr.Data.Entities.ShortenedUrl", "ShortenedUrl")
                         .WithOne("Metadata")
                         .HasForeignKey("Shortnr.Data.Entities.ShortenedUrlMetadata", "ShortenedUrlId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("PixelSnippet");
 
                     b.Navigation("ShortenedUrl");
                 });
