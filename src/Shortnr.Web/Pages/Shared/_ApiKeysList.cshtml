@@ -69,7 +69,7 @@ else
                             <form hx-post="/settings/api-keys?handler=Revoke" hx-target="#api-keys-list" hx-swap="innerHTML" style="display:inline;">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="id" value="@key.Id">
-                                <button type="submit" class="secondary" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Revoke</button>
+                                <button type="submit" class="danger btn-sm">Revoke</button>
                             </form>
                         }
                     </td>

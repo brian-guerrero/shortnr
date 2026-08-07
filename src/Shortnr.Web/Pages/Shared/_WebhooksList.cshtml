@@ -60,7 +60,7 @@ else
                             <form hx-post="/settings/webhooks?handler=Revoke" hx-target="#webhooks-list" hx-swap="innerHTML" style="display:inline;">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="id" value="@webhook.Id">
-                                <button type="submit" class="secondary" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Disable</button>
+                                <button type="submit" class="secondary btn-sm">Disable</button>
                             </form>
                         }
                         else
@@ -68,7 +68,7 @@ else
                             <form hx-post="/settings/webhooks?handler=Activate" hx-target="#webhooks-list" hx-swap="innerHTML" style="display:inline;">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="id" value="@webhook.Id">
-                                <button type="submit" class="contrast" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Re-enable</button>
+                                <button type="submit" class="secondary btn-sm">Re-enable</button>
                             </form>
                         }
                     </td>

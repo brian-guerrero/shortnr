@@ -63,11 +63,11 @@ else
                             <form hx-post="/settings/domains?handler=Verify" hx-target="#domains-list" hx-swap="innerHTML" style="display:inline;">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="id" value="@domain.Id">
-                                <select name="method" style="font-size: 0.75rem; padding: 0.2rem; margin-bottom: 0; width: auto;" title="Verification method">
+                                <select name="method" class="input-inline" title="Verification method">
                                     <option value="file">Verify via file</option>
                                     <option value="txt">Verify via DNS TXT</option>
                                 </select>
-                                <button type="submit" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Verify</button>
+                                <button type="submit" class="btn-sm">Verify</button>
                             </form>
                         }
                         @if (domain.IsVerified && !domain.IsDefault)
@@ -75,13 +75,13 @@ else
                             <form hx-post="/settings/domains?handler=SetDefault" hx-target="#domains-list" hx-swap="innerHTML" style="display:inline;">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="id" value="@domain.Id">
-                                <button type="submit" class="secondary" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Make default</button>
+                                <button type="submit" class="secondary btn-sm">Make default</button>
                             </form>
                         }
                         <form hx-post="/settings/domains?handler=Delete" hx-target="#domains-list" hx-swap="innerHTML" style="display:inline;">
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="id" value="@domain.Id">
-                            <button type="submit" class="secondary" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Delete</button>
+                            <button type="submit" class="danger btn-sm">Delete</button>
                         </form>
                     </td>
                 </tr>

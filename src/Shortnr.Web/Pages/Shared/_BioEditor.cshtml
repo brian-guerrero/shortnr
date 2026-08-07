@@ -133,7 +133,7 @@ else
                                 <form hx-post="/bio/edit?handler=ToggleLink" hx-target="#bio-editor" hx-swap="innerHTML" style="display:inline;">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="id" value="@entry.Id">
-                                    <button type="submit" class="secondary" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">
+                                    <button type="submit" class="secondary btn-sm">
                                         @(entry.IsVisible ? "Hide" : "Show")
                                     </button>
                                 </form>
@@ -145,7 +145,7 @@ else
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="id" value="@entry.Id">
                                         <input type="hidden" name="direction" value="up">
-                                        <button type="submit" class="secondary" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">↑</button>
+                                        <button type="submit" class="secondary btn-sm">↑</button>
                                     </form>
                                 }
                                 @if (i < bioLinks.Count - 1)
@@ -154,7 +154,7 @@ else
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="id" value="@entry.Id">
                                         <input type="hidden" name="direction" value="down">
-                                        <button type="submit" class="secondary" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">↓</button>
+                                        <button type="submit" class="secondary btn-sm">↓</button>
                                     </form>
                                 }
                             </td>
@@ -162,7 +162,7 @@ else
                                 <form hx-post="/bio/edit?handler=RemoveLink" hx-target="#bio-editor" hx-swap="innerHTML" style="display:inline;">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="id" value="@entry.Id">
-                                    <button type="submit" class="secondary" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Remove</button>
+                                    <button type="submit" class="secondary btn-sm">Remove</button>
                                 </form>
                             </td>
                         </tr>

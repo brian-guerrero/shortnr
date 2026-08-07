@@ -29,14 +29,14 @@
                 <li>
                     <form method="post" action="/workspace/switch" style="margin: 0; display: inline;">
                         <input type="hidden" name="slug" value="@ws.Slug">
-                        <button type="submit" class="secondary" style="padding: 0.25rem 0.75rem; border: none; background: none; width: 100%; text-align: left; font-size: 0.85rem; @(workspaceCtx?.WorkspaceId == ws.Id ? "font-weight: bold;" : "")">@ws.Name</button>
+                        <button type="submit" class="@(workspaceCtx?.WorkspaceId == ws.Id ? "is-active" : null)">@ws.Name</button>
                     </form>
                 </li>
             }
             <li>
                 <form method="post" action="/workspace/switch" style="margin: 0; display: inline;">
                     <input type="hidden" name="slug" value="personal">
-                    <button type="submit" class="secondary" style="padding: 0.25rem 0.75rem; border: none; background: none; width: 100%; text-align: left; font-size: 0.85rem; @(workspaceCtx is null ? "font-weight: bold;" : "")">Personal</button>
+                    <button type="submit" class="@(workspaceCtx is null ? "is-active" : null)">Personal</button>
                 </form>
             </li>
             <li><hr style="margin: 0.25rem 0;"></li>
