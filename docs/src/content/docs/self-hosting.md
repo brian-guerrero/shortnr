@@ -79,7 +79,7 @@ server {
 }
 ```
 
-When behind a proxy, set `RateLimiting__TrustForwardedFor=true` so shortnr resolves the client IP from `X-Forwarded-For` instead of the proxy's address.
+When behind a proxy, set `RateLimiting__TrustForwardedFor=true` so shortnr resolves the client IP from `X-Forwarded-For` instead of the proxy's address, and `Hosting__TrustForwardedHeaders=true` so it sees the real `https` scheme (needed for correct OIDC callback URLs — without it, the OIDC handler builds `redirect_uri` as `http://...` and your IdP will reject it as an unregistered callback). Only set either flag when a proxy you control is guaranteed to overwrite these headers on every request, never on a directly internet-exposed instance.
 
 ## Production checklist
 

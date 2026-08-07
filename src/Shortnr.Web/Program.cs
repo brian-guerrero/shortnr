@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
@@ -177,6 +178,26 @@ builder.Services.AddOpenApi(options =>
 });
 
 var app = builder.Build();
+
+// Fly (and most PaaS reverse proxies) terminate TLS at the edge and forward
+// plain HTTP internally, so without this the OIDC handler builds redirect_uri
+// as http://... instead of https://..., which Auth0 rejects as an unregistered
+// callback URL. Opt-in only (like RateLimiting:TrustForwardedFor) — blindly
+// trusting X-Forwarded-* is only safe when a real proxy is guaranteed to
+// overwrite client-supplied values before they reach the app; self-hosted
+// instances without one in front must not enable this.
+if (builder.Configuration.GetValue<bool>("Hosting:TrustForwardedHeaders", defaultValue: false))
+{
+    var forwardedHeadersOptions = new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+    };
+    // The proxy hop isn't a fixed/known address on Fly's network, so clear the
+    // default network/proxy allowlist rather than reject its headers.
+    forwardedHeadersOptions.KnownNetworks.Clear();
+    forwardedHeadersOptions.KnownProxies.Clear();
+    app.UseForwardedHeaders(forwardedHeadersOptions);
+}
 
 using (var scope = app.Services.CreateScope())
 {

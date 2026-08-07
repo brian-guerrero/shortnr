@@ -52,6 +52,12 @@ When configured, shortnr downloads the GeoLite2 City database from MaxMind and u
 - The database is never bundled with the repo; it is downloaded at runtime.
 - Per the GeoLite2 EULA, the running app displays the required attribution in its footer.
 
+## Hosting
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `Hosting__TrustForwardedHeaders` | `false` | When `true`, trust `X-Forwarded-For`/`X-Forwarded-Proto` for the request scheme/host (needed so the OIDC handler builds `https://` callback URLs when TLS is terminated at a reverse proxy). Only enable this when a proxy you control is guaranteed to overwrite these headers on every request — otherwise a client can spoof `X-Forwarded-Proto: https` to bypass HTTPS-only checks. |
+
 ## Rate limiting
 
 | Setting | Default | Description |
