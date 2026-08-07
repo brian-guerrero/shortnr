@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Shortnr.Data.Entities;
-using Shortnr.Web.Services;
 
 namespace Shortnr.Web.Pages.Settings;
 

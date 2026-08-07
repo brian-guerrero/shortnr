@@ -1,13 +1,8 @@
-using System.Threading.Channels;
 using System.Threading.RateLimiting;
-using DnsClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
 using Shortnr.Data;
-using Shortnr.Web.Extensions;
-using Shortnr.Web.Models;
-using Shortnr.Web.Services;
 using ModelContextProtocol.AspNetCore;
 using ModelContextProtocol.AspNetCore.Authentication;
 using ModelContextProtocol.Authentication;
@@ -16,76 +11,51 @@ using OpenIddict.Validation.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Validate scopes in development to catch DI lifetime mistakes before production
+// (article: "Validate scopes before production does it for you"). This surfaces
+// singletons capturing scoped services, missing registrations, and other
+// lifetime bugs that would otherwise only appear under load.
+builder.Host.UseDefaultServiceProvider((context, options) =>
+{
+    if (context.HostingEnvironment.IsDevelopment())
+    {
+        options.ValidateScopes = true;
+        options.ValidateOnBuild = true;
+    }
+});
+
 builder.AddServiceDefaults();
 
 builder.Services.AddRazorPages();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")).UseOpenIddict());
-builder.Services.AddSingleton(Channel.CreateUnbounded<ClickRecord>());
-builder.Services.AddSingleton(sp =>
-{
-    var config = sp.GetRequiredService<IConfiguration>();
-    var logger = sp.GetRequiredService<ILogger<GeoIpService>>();
-    var configuredPath = config["GeoIp:DatabasePath"];
-    var path = !string.IsNullOrWhiteSpace(configuredPath)
-        ? configuredPath
-        : Path.Combine(sp.GetRequiredService<IWebHostEnvironment>().WebRootPath, "data", "GeoLite2-City.mmdb");
-    return new GeoIpService(path, logger);
-});
-builder.Services.AddHostedService<GeoIpUpdateService>();
-builder.Services.AddHostedService<ClickBatchProcessor>();
-builder.Services.AddSingleton<QrService>();
 
-// User provisioning queue — drained by UserProvisioningProcessor on every login.
-// Registered unconditionally so DI is always consistent; the processor is a no-op
-// when auth is disabled.
-builder.Services.AddSingleton(Channel.CreateUnbounded<PendingUserLogin>());
-builder.Services.AddSingleton(Channel.CreateUnbounded<object>());
-builder.Services.AddHostedService<UserProvisioningProcessor>();
+// ── Feature module registrations ──────────────────────────────────────────────
+// Each feature owns its own DI composition boundary (article: "treat DI
+// registration as composition — each module should own its own registration
+// boundary"). Program.cs wires the modules together; the modules decide how
+// their own services are composed.
+builder.Services
+    .AddShortLinksFeature()
+    .AddClickTrackingFeature()
+    .AddGeoIpFeature()
+    .AddAuthenticationFeature(builder.Configuration, builder.Environment)
+    .AddDomainsFeature()
+    .AddWorkspacesFeature()
+    .AddBioPagesFeature()
+    .AddWebhooksFeature()
+    .AddApiFeature()
+    .AddMcpFeature()
+    .AddOAuthFeature(builder.Configuration, builder.Environment)
+    .AddEmailFeature(builder.Configuration)
+    .AddAiActivityFeature()
+    .AddInfrastructureFeature(builder.Configuration);
 
-// AI/MCP activity queue — drained by AiActivityProcessor. Registered unconditionally
-// so DI is always consistent; nothing writes to it until an MCP tool is called.
-builder.Services.AddSingleton(Channel.CreateUnbounded<AiActivityRecord>());
-builder.Services.AddHostedService<AiActivityProcessor>();
-
-// Webhook delivery queue — drained by WebhookDeliveryService. Registered unconditionally
-// so DI is always consistent; nothing writes to it until webhooks are configured.
-builder.Services.AddSingleton(Channel.CreateUnbounded<Shortnr.Web.Models.WebhookDeliveryRecord>());
-builder.Services.AddHostedService<Shortnr.Web.Services.WebhookDeliveryService>();
-builder.Services.AddSingleton<Shortnr.Web.Services.WebhookEventDispatcher>();
-builder.Services.AddHttpClient("WebhookDelivery", client =>
-{
-    client.Timeout = TimeSpan.FromSeconds(10);
-    client.MaxResponseContentBufferSize = 1024 * 1024;
-});
-
-builder.Services.AddScoped<UserIdentityService>();
-builder.Services.AddScoped<WorkspaceService>();
-builder.Services.AddScoped<WorkspaceAuthorizationService>();
-builder.Services.AddScoped<ViewRenderService>();
-builder.Services.AddSingleton<EmailService>();
-builder.Services.AddHttpContextAccessor();
-builder.Services.AddHttpClient<DomainVerifierService>(client => client.Timeout = TimeSpan.FromSeconds(15));
-builder.Services.Configure<RateLimitingOptions>(builder.Configuration.GetSection("RateLimiting"));
-
-// Enforces the per-IP shorten-form limit inside IndexModel.OnPost. Razor Pages do not honor
-// [EnableRateLimiting] on handler methods (see dotnet/AspNetCore.Docs#28714) and a class-level
-// attribute would also throttle the landing-page GET, so the shorten limit is applied manually.
-builder.Services.AddSingleton<ShortenRateLimiter>();
-builder.Services.AddSingleton<IDnsQuery>(new LookupClient());
-builder.Services.AddSingleton<ITxtDnsResolver, DnsClientTxtResolver>();
-
-builder.Services.AddOidcAuthentication(builder.Configuration, builder.Environment);
-
-// OAuth 2.1 authorization server for MCP clients (OpenIddict), fronting the
-// OIDC/Dex login above. No-ops when auth is disabled.
-builder.Services.AddOAuthServer(builder.Configuration, builder.Environment);
-
-// API-key authentication for /api/v1. Registered unconditionally so the
-// policy resolves even when OIDC is disabled; with no keys in the database
-// the endpoints simply always return 401 in that mode.
+// ── Cross-cutting: authentication schemes, policies, rate limiting ──────────
+// These span multiple feature boundaries and are wired at the composition root.
 var oauthResource = OAuthServerExtensions.ResolveResource(builder.Configuration);
 var oauthIssuer = OAuthServerExtensions.ResolveIssuer(builder.Configuration);
+
 builder.Services.AddAuthentication()
     .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, ApiKeyHandler>(
         ApiKeyHandler.SchemeName, _ => { })
@@ -94,10 +64,6 @@ builder.Services.AddAuthentication()
     // ApiKeyHandler handle *authentication* of presented credentials.
     .AddMcp(options =>
     {
-        // McpAuthenticationOptions forwards authentication to a "Bearer" scheme
-        // by default; we have none (OpenIddict validation plays that role), so
-        // the Mcp scheme only handles challenges (401 + WWW-Authenticate +
-        // protected-resource metadata) while ApiKey/OpenIddict do the auth.
         options.ForwardAuthenticate = null;
         options.ResourceMetadata = new ProtectedResourceMetadata
         {
@@ -106,23 +72,6 @@ builder.Services.AddAuthentication()
             ScopesSupported = [ApiKeyScopes.McpRead, ApiKeyScopes.McpWrite]
         };
     });
-
-// Model Context Protocol server. The HTTP transport is stateless (each request
-// is an independent JSON-RPC invocation) and tools are discovered from this
-// assembly via the [McpServerTool] / [McpServerToolType] attributes.
-builder.Services.AddMcpServer(options =>
-{
-    options.ServerInstructions = "shortnr MCP server: manage short links and link-in-bio pages. Read tools require the mcp:read scope, write tools require mcp:write.";
-    options.ServerInfo = new Implementation
-    {
-        Name = "shortnr",
-        Version = "1.0.0",
-        Description = "URL shortener and link-in-bio management"
-    };
-})
-.WithHttpTransport(options => options.Stateless = true)
-.WithToolsFromAssembly()
-.WithResourcesFromAssembly();
 
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(ApiKeyHandler.SchemeName, policy => policy
@@ -145,10 +94,7 @@ builder.Services.AddAuthorizationBuilder()
         .RequireAuthenticatedUser()
         .RequireClaim(ApiKeyScopes.ScopeClaim, ApiKeyScopes.McpWrite))
     // The /mcp endpoint itself only needs one mcp scope; individual tools enforce
-    // read vs write granularity from the principal's scope claims. When auth is
-    // enabled the endpoint also accepts OAuth bearer tokens (OpenIddict
-    // validation) and, on failure, challenges the MCP scheme so clients get the
-    // RFC 9728 401 + WWW-Authenticate + protected-resource metadata.
+    // read vs write granularity from the principal's scope claims.
     .AddPolicy("mcp", policy =>
     {
         policy.RequireAuthenticatedUser()

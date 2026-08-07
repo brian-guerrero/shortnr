@@ -7,7 +7,6 @@ using System.Text.Json;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
 using Shortnr.Tests.Integration.Infrastructure;
-using Shortnr.Web.Services;
 
 namespace Shortnr.Tests.Integration.OAuth;
 

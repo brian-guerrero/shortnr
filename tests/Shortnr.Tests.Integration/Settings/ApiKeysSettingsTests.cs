@@ -5,7 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Shortnr.Data;
 using Shortnr.Data.Entities;
 using Shortnr.Tests.Integration.Infrastructure;
-using Shortnr.Web.Services;
 
 namespace Shortnr.Tests.Integration.Settings;
 

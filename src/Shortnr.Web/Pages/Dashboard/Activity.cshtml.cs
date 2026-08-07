@@ -2,8 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
-using Shortnr.Web.Models;
-using Shortnr.Web.Services;
 
 namespace Shortnr.Web.Pages;
 

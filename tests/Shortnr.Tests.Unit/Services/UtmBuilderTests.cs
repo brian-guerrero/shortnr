@@ -1,6 +1,3 @@
-using Shortnr.Web.Models;
-using Shortnr.Web.Services;
-
 namespace Shortnr.Tests.Unit.Services;
 
 public class UtmBuilderTests

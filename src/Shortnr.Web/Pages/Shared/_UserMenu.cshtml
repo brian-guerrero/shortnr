@@ -1,6 +1,6 @@
 @using System.Security.Claims
-@inject Shortnr.Web.Services.UserIdentityService _identity
-@inject Shortnr.Web.Services.WorkspaceService _workspaceService
+@inject Shortnr.Web.Features.Authentication.IUserIdentityService _identity
+@inject Shortnr.Web.Features.Workspaces.WorkspaceService _workspaceService
 
 @{
     var email     = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");

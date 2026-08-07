@@ -27,7 +27,7 @@
         <textarea name="bioText" id="bio-text" rows="3" maxlength="2000"></textarea>
         <label for="bio-theme">Theme</label>
         <select name="theme" id="bio-theme">
-            @foreach (var theme in Shortnr.Web.Services.BioThemes.All)
+            @foreach (var theme in Shortnr.Web.Features.BioPages.BioThemes.All)
             {
                 <option value="@theme">@theme</option>
             }
@@ -54,7 +54,7 @@ else
                 <textarea name="bioText" id="bio-text" rows="3" maxlength="2000">@Model.BioPage.BioText</textarea>
                 <label for="bio-theme">Theme</label>
                 <select name="theme" id="bio-theme">
-                    @foreach (var theme in Shortnr.Web.Services.BioThemes.All)
+                    @foreach (var theme in Shortnr.Web.Features.BioPages.BioThemes.All)
                     {
                         <option value="@theme" selected="@(Model.BioPage.Theme == theme)">@theme</option>
                     }
@@ -123,9 +123,9 @@ else
                                 @entry.Title
                             </td>
                             <td>
-                                <a href="@Shortnr.Web.Helpers.ShortUrlHelper.DisplayHref(Context.Request.Scheme, link?.Domain?.Hostname, link?.ShortCode ?? "")"
+                                <a href="@Shortnr.Web.Features.ShortLinks.ShortUrlHelper.DisplayHref(Context.Request.Scheme, link?.Domain?.Hostname, link?.ShortCode ?? "")"
                                    target="_blank" rel="noopener">
-                                    @Shortnr.Web.Helpers.ShortUrlHelper.DisplayText(link?.Domain?.Hostname, link?.ShortCode ?? "")
+                                    @Shortnr.Web.Features.ShortLinks.ShortUrlHelper.DisplayText(link?.Domain?.Hostname, link?.ShortCode ?? "")
                                 </a>
                             </td>
                             <td>@(link?.ClickCount ?? 0)</td>

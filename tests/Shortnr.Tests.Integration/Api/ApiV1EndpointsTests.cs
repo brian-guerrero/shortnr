@@ -6,8 +6,6 @@ using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
 using Shortnr.Data.Entities;
 using Shortnr.Tests.Integration.Infrastructure;
-using Shortnr.Web.Models;
-using Shortnr.Web.Services;
 
 namespace Shortnr.Tests.Integration.Api;
 

@@ -1,5 +1,3 @@
-using Shortnr.Web.Services;
-
 namespace Shortnr.Tests.Unit.Services;
 
 public class UserAgentDeviceDetectorTests

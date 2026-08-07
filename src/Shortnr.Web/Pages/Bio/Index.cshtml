@@ -43,7 +43,7 @@ else
             {
                 var link = entry.ShortenedUrl;
                 <li>
-                    <a href="@Shortnr.Web.Helpers.ShortUrlHelper.DisplayHref(Request.Scheme, link?.Domain?.Hostname, link?.ShortCode ?? "")"
+                    <a href="@Shortnr.Web.Features.ShortLinks.ShortUrlHelper.DisplayHref(Request.Scheme, link?.Domain?.Hostname, link?.ShortCode ?? "")"
                        target="_blank" rel="noopener">
                         @entry.Title
                     </a>

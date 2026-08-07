@@ -1,5 +1,4 @@
 using System.Net;
-using Shortnr.Web.Services;
 
 namespace Shortnr.Tests.Unit.Services;
 
