@@ -9,56 +9,73 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>shortnr</title>
-    <link rel="stylesheet" href="/lib/pico/css/pico.min.css">
-    <link rel="stylesheet" href="/lib/pico/css/pico.colors.min.css">
+    <meta name="theme-color" content="#111111" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="/css/site.css">
     <script src="/lib/htmx/dist/htmx.min.js"></script>
     <script src="/lib/htmx-ext-sse/dist/sse.min.js"></script>
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
     <link rel="manifest" href="/site.webmanifest">
-    <style>
-        .nav-avatar { border-radius: 50%; vertical-align: middle; }
-        [x-cloak] { display: none !important; }
-    </style>
 </head>
 
 <body hx-ext="sse">
-    <nav class="container" style="max-width: 960px; padding-top: 1rem;">
-        <ul>
-            <li><strong><a href="/" style="--pico-text-decoration: none;">shortnr</a></strong></li>
-        </ul>
-        <ul>
-            @if (!authEnabled || User.Identity?.IsAuthenticated == true)
-            {
-                <li><a href="/dashboard">Dashboard</a></li>
-                <li><a href="/dashboard/activity">AI activity</a></li>
-                <li><a href="/bio/edit">Bio page</a></li>
-                <li><a href="/settings/domains">Domains</a></li>
-                <li><a href="/settings/workspaces">Workspaces</a></li>
-                <li><a href="/settings/api-keys">API keys</a></li>
-                <li><a href="/settings/webhooks">Webhooks</a></li>
-            }
-            @if (authEnabled)
-            {
-                if (User.Identity?.IsAuthenticated == true)
-                {
-                    <li>@await Html.PartialAsync("Shared/_UserMenu")</li>
-                }
-                else
-                {
-                    <li><a href="/account/login">Log in</a></li>
-                }
-            }
-        </ul>
-    </nav>
-    <main class="container" style="max-width: 960px; padding-top: 1rem;">
+    <header class="site-nav">
+        <div class="nav-inner">
+            <a href="/" class="nav-brand">
+                <span>shortnr</span>
+                <span class="nav-badge">app</span>
+            </a>
+            <nav aria-label="Main navigation">
+                <ul class="nav-links">
+                    @if (!authEnabled || User.Identity?.IsAuthenticated == true)
+                    {
+                        <li>
+                            <details class="dropdown nav-dropdown">
+                                <summary>Dashboard</summary>
+                                <ul>
+                                    <li><a href="/dashboard">Overview</a></li>
+                                    <li><a href="/dashboard/activity">AI activity</a></li>
+                                </ul>
+                            </details>
+                        </li>
+                        <li><a href="/bio/edit">Bio page</a></li>
+                        <li>
+                            <details class="dropdown nav-dropdown">
+                                <summary>Settings</summary>
+                                <ul>
+                                    <li><a href="/settings/domains">Domains</a></li>
+                                    <li><a href="/settings/workspaces">Workspaces</a></li>
+                                    <li><a href="/settings/api-keys">API keys</a></li>
+                                    <li><a href="/settings/webhooks">Webhooks</a></li>
+                                </ul>
+                            </details>
+                        </li>
+                    }
+                    @if (authEnabled)
+                    {
+                        if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <li>@await Html.PartialAsync("Shared/_UserMenu")</li>
+                        }
+                        else
+                        {
+                            <li><a href="/account/login">Log in</a></li>
+                        }
+                    }
+                </ul>
+            </nav>
+        </div>
+    </header>
+    <main class="container" style="padding-top: var(--sn-space-6);">
         @RenderBody()
     </main>
 
     @await RenderSectionAsync("Scripts", required: false)
 
-    <footer class="container" style="max-width: 960px; padding: 2rem 0 1rem; text-align: center; color: var(--pico-muted-color); font-size: 0.8rem;">
+    <footer class="site-footer">
         <p>This product includes GeoLite2 data created by MaxMind, available from <a href="https://www.maxmind.com" target="_blank" rel="noopener">https://www.maxmind.com</a>.</p>
     </footer>
 </body>

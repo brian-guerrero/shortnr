@@ -4,14 +4,6 @@
   "defaultDestination": "wwwroot/lib",
   "libraries": [
     {
-      "library": "@picocss/pico@2.1.1",
-      "destination": "wwwroot/lib/pico",
-      "files": [
-        "css/pico.min.css",
-        "css/pico.colors.min.css"
-      ]
-    },
-    {
       "library": "chart.js@4.4.9",
       "destination": "wwwroot/lib/chartjs",
       "files": [
