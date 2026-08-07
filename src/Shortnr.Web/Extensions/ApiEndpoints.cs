@@ -153,12 +153,14 @@ public static class ApiEndpoints
         });
 
         app.MapGet("/{shortCode}", async (string shortCode, AppDbContext db,
-            Channel<ClickRecord> clickChannel, HttpContext context, ILoggerFactory loggerFactory) =>
+            Channel<ClickRecord> clickChannel, HttpContext context,
+            ViewRenderService viewRender, ILoggerFactory loggerFactory) =>
         {
             var logger = loggerFactory.CreateLogger("Shortnr.Api.Redirect");
 
-            // Project to only the columns needed — scalar/anonymous projections are
-            // never change-tracked, keeping the hottest endpoint allocation-light.
+            // AsNoTracking keeps the hottest endpoint allocation-light; the
+            // metadata/pixel-snippet LEFT JOINs are cheap on the unique
+            // ShortenedUrlId index and are what lets us decide 302 vs interstitial.
             var host = context.Request.Host.Host?.ToLowerInvariant();
             var domainId = host is not null
                 ? await db.Domains
@@ -168,8 +170,10 @@ public static class ApiEndpoints
                 : null;
 
             var link = await db.ShortenedUrls
+                .AsNoTracking()
+                .Include(l => l.Metadata)
+                .ThenInclude(m => m.PixelSnippet)
                 .Where(l => l.DomainId == domainId && l.ShortCode == shortCode)
-                .Select(l => new { l.Id, l.LongUrl })
                 .FirstOrDefaultAsync();
 
             if (link is null)
@@ -183,17 +187,35 @@ public static class ApiEndpoints
                 ? forwardedFor.Split(',')[0].Trim()
                 : context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
+            var userAgent = context.Request.Headers["User-Agent"].FirstOrDefault() ?? "";
+
             clickChannel.Writer.TryWrite(new ClickRecord
             {
                 ShortenedUrlId = link.Id,
                 IpAddress = ip,
-                UserAgent = context.Request.Headers["User-Agent"].FirstOrDefault() ?? "",
+                UserAgent = userAgent,
                 Referer = context.Request.Headers["Referer"].FirstOrDefault() ?? ""
             });
 
+            var destination = UserAgentDeviceDetector.ResolveDestination(
+                link.LongUrl, link.Metadata?.IosDeepLink, link.Metadata?.AndroidDeepLink, userAgent);
+            var pixelSnippet = link.Metadata?.PixelSnippet;
+            if (pixelSnippet is not null)
+            {
+                var snippetHtml = PixelSnippetRenderer.Render(pixelSnippet, link.Metadata.PixelId);
+                if (!string.IsNullOrWhiteSpace(snippetHtml))
+                {
+                    var html = await viewRender.RenderAsync(context, "_PixelInterstitial",
+                        new PixelInterstitialViewModel(destination, snippetHtml));
+                    context.Response.Headers.CacheControl = "no-store";
+                    logger.LogInformation("Serving pixel interstitial shortCode={ShortCode} host={Host} ip={Ip}", shortCode, host, ip);
+                    return Results.Content(html, "text/html");
+                }
+            }
+
             logger.LogInformation("Redirect shortCode={ShortCode} host={Host} ip={Ip}", shortCode, host, ip);
 
-            return Results.Redirect(link.LongUrl);
+            return Results.Redirect(destination);
         }).RequireRateLimiting("redirect-ip");
 
         return app;

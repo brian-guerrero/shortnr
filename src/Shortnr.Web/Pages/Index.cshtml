@@ -7,7 +7,7 @@
     <header>
         <h1>shortnr @if (Model.Workspace is not null) { @await Html.PartialAsync("Shared/_WorkspaceBadge", Model.Workspace) }</h1>
     </header>
-    <form hx-post="/" hx-target="#result" hx-swap="innerHTML" x-data="{ showAdvanced: false }">
+    <form hx-post="/" hx-target="#result" hx-swap="innerHTML" x-data="{ showAdvanced: false, showPixel: false, pixelIsCustom: false }">
         @Html.AntiForgeryToken()
         <label for="url">Enter a long URL</label>
         <input type="url" name="url" id="url" placeholder="https://example.com/very/long/path" required>
@@ -34,6 +34,37 @@
 
             <label for="utm_content">UTM content <small>(optional)</small></label>
             <input type="text" name="utm_content" id="utm_content" placeholder="hero-banner" maxlength="512">
+
+            <label for="pixel_type">Retargeting pixel <small>(optional)</small></label>
+            <select name="pixel_type" id="pixel_type"
+                    @@change="showPixel = $event.target.value !== ''; pixelIsCustom = $event.target.selectedOptions[0]?.dataset.custom === 'true'">
+                <option value="">None</option>
+                @foreach (var snippet in Model.PixelSnippets)
+                {
+                    <option value="@snippet.Id" data-custom="@snippet.IsCustom.ToString().ToLowerInvariant()">@snippet.Name</option>
+                }
+            </select>
+            <div x-show="showPixel" x-cloak>
+                <template x-if="!pixelIsCustom">
+                    <div>
+                        <label for="pixel_id">Pixel ID <small>(for Meta/Google templates)</small></label>
+                        <input type="text" name="pixel_id" id="pixel_id" placeholder="e.g. 1234567890123" maxlength="256">
+                    </div>
+                </template>
+                <template x-if="pixelIsCustom">
+                    <div>
+                        <label for="pixel_snippet">Custom snippet HTML <small>(for custom snippets)</small></label>
+                        <textarea name="pixel_snippet" id="pixel_snippet" rows="6" maxlength="8192" placeholder="&lt;script&gt;…&lt;/script&gt;"></textarea>
+                    </div>
+                </template>
+            </div>
+
+            <label for="ios_deep_link">iOS deep link <small>(optional, App Store / URI scheme)</small></label>
+            <input type="text" name="ios_deep_link" id="ios_deep_link" maxlength="2048"
+                   placeholder="https://apps.apple.com/app/id123456789 or myapp://open">
+            <label for="android_deep_link">Android deep link <small>(optional, Play Store / app link)</small></label>
+            <input type="text" name="android_deep_link" id="android_deep_link" maxlength="2048"
+                   placeholder="https://play.google.com/store/apps/details?id=com.example.app">
         </div>
         <button type="submit">Shorten</button>
     </form>
