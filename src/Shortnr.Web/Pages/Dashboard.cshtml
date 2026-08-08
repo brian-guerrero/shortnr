@@ -61,12 +61,49 @@
 @section Scripts {
 <script src="/lib/chartjs/dist/chart.umd.min.js"></script>
 <script>
+// Chart colours come from the design tokens rather than Chart.js defaults,
+// so the charts stay in the same palette as the cards and badges around
+// them (DSG-002 §1, flagged in DSG-003 as JS-embedded colour that a
+// stylesheet swap alone would miss).
+const TOKEN = (name, fallback) =>
+    getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+
+const INK = TOKEN('--sn-ink', '#111111');
+const PAPER = TOKEN('--sn-paper', '#faf9f5');
+const ACCENT = TOKEN('--sn-accent', '#ffd23f');
+const VIOLET = TOKEN('--sn-accent-secondary', '#7c5cff');
+
+// Mixes two #rrggbb tokens, so the two extra series the geo chart can need
+// (it shows up to ten countries) are still derived from the token set
+// rather than reintroducing off-palette colours.
+const mix = (from, to, t) => {
+    const parse = (h) => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+    const [r1, g1, b1] = parse(from), [r2, g2, b2] = parse(to);
+    const step = (a, b) => Math.round(a + (b - a) * t).toString(16).padStart(2, '0');
+    return '#' + step(r1, r2) + step(g1, g2) + step(b1, b2);
+};
+
+// Qualitative series: the accent leads, violet anchors second, then the
+// status tokens and the structural neutrals. Ink borders keep adjacent
+// slices legible the same way they separate table cells.
 const COLORS = [
-    'rgba(54, 162, 235, 0.8)', 'rgba(255, 99, 132, 0.8)', 'rgba(75, 192, 192, 0.8)',
-    'rgba(255, 159, 64, 0.8)', 'rgba(153, 102, 255, 0.8)', 'rgba(255, 205, 86, 0.8)',
-    'rgba(201, 203, 207, 0.8)', 'rgba(34, 139, 34, 0.8)', 'rgba(220, 20, 60, 0.8)',
-    'rgba(0, 191, 255, 0.8)'
+    ACCENT,
+    VIOLET,
+    TOKEN('--sn-status-info', '#6ec1ff'),
+    TOKEN('--sn-status-success', '#3ddc84'),
+    TOKEN('--sn-status-error', '#ff4d4d'),
+    INK,
+    TOKEN('--sn-mid-gray', '#8a8578'),
+    TOKEN('--sn-status-neutral', '#e8e4d9'),
+    mix(ACCENT, INK, 0.45),
+    mix(VIOLET, PAPER, 0.5)
 ];
+
+const seriesColors = (count) =>
+    Array.from({ length: count }, (_, i) => COLORS[i % COLORS.length]);
+
+Chart.defaults.font.family = TOKEN('--sn-font-body', 'system-ui, sans-serif');
+Chart.defaults.color = INK;
 
 (function() {
     var rc = document.getElementById('recent-clicks');
@@ -142,9 +179,9 @@ function chartComponent() {
                         datasets: [{
                             label: 'Clicks',
                             data: values,
-                            backgroundColor: 'rgba(54, 162, 235, 0.6)',
-                            borderColor: 'rgba(54, 162, 235, 1)',
-                            borderWidth: 1
+                            backgroundColor: ACCENT,
+                            borderColor: INK,
+                            borderWidth: 2
                         }]
                     },
                     options: {
@@ -175,8 +212,9 @@ function chartComponent() {
                         labels,
                         datasets: [{
                             data: values,
-                            backgroundColor: COLORS.slice(0, labels.length),
-                            borderWidth: 1
+                            backgroundColor: seriesColors(labels.length),
+                            borderColor: INK,
+                            borderWidth: 2
                         }]
                     },
                     options: {
