@@ -479,11 +479,39 @@ mark {
   color: var(--sn-ink);
 }
 
-/* Recent-clicks detail row (revealed by the dashboard's row toggle). */
+/* Sortable tables (dashboard recent clicks) — DSG-002 §7. The active-sort
+   column inverts so it is scannable among five identical accent headers,
+   and the ▲/▼ glyph is set in the accent so it separates from the label. */
+.sortable th { cursor: pointer; user-select: none; white-space: nowrap; }
+.sortable tbody tr:not(.detail-row) { cursor: pointer; }
+.sortable th.sorted {
+  background: var(--sn-ink);
+  color: var(--sn-paper);
+}
+.sort-indicator {
+  margin-inline-start: var(--sn-space-1);
+  color: var(--sn-accent);
+}
+
+/* Recent-clicks detail row (revealed by the dashboard's row toggle). The
+   accent left edge plus the inset reads as "nested under the row above",
+   rather than as a seventh sibling row. */
 .detail-row > td {
   background: var(--sn-status-neutral);
   font-size: var(--sn-text-small);
+  border-left: var(--sn-border-width) solid var(--sn-accent);
+  padding-left: var(--sn-space-6);
 }
+
+/* A control strip hanging off the bottom of a table (per-page selector). */
+.table-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sn-space-2);
+  margin-top: var(--sn-space-2);
+  font-size: var(--sn-text-small);
+}
+.table-controls label { margin: 0; }
 
 /* ============================================================
    Badges (ported from the docs design system)
