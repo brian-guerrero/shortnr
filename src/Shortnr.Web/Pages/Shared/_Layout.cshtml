@@ -22,10 +22,16 @@
             if (scheme !== 'light' && scheme !== 'dark') {
                 scheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
             }
-            document.documentElement.setAttribute('data-color-scheme', scheme);
+            var root = document.documentElement;
+            root.setAttribute('data-color-scheme', scheme);
+            // The mobile nav only collapses behind the hamburger once this
+            // class lands, so a phone with JavaScript disabled still gets
+            // the full, wrapped link list instead of an unreachable menu.
+            root.classList.add('js');
         })();
     </script>
     <script src="/js/color-scheme.js" defer></script>
+    <script src="/js/nav-toggle.js" defer></script>
     <script src="/lib/htmx/dist/htmx.min.js"></script>
     <script src="/lib/htmx-ext-sse/dist/sse.min.js"></script>
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
@@ -41,7 +47,13 @@
                 <span>shortnr</span>
                 <span class="nav-badge">app</span>
             </a>
-            <nav aria-label="Main navigation">
+            @* Hidden until the script reveals it, so it is not a dead
+               control when JavaScript is unavailable — the full link list
+               below is still reachable (just wrapped) without JS. *@
+            <button type="button" class="nav-toggle" data-nav-toggle
+                    aria-expanded="false" aria-controls="primary-nav"
+                    aria-label="Toggle navigation menu" hidden>☰</button>
+            <nav aria-label="Main navigation" id="primary-nav">
                 <ul class="nav-links">
                     @if (!authEnabled || User.Identity?.IsAuthenticated == true)
                     {
