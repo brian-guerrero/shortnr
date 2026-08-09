@@ -127,13 +127,13 @@ public static class InsightHeuristics
         }
     }
 
-    /// <summary>Normalizes a raw token into a displayable tag (lowercase, alphanumeric + dashes).</summary>
+    /// <summary>Normalizes a raw token into a displayable tag (lowercase, alphanumeric, dots and dashes).</summary>
     public static string CleanTag(string raw)
     {
         if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
 
         var cleaned = raw.ToLowerInvariant().Trim().Replace(' ', '-');
-        cleaned = new string(cleaned.Where(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_').ToArray());
+        cleaned = new string(cleaned.Where(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_' or '.').ToArray());
 
         while (cleaned.Contains("--", StringComparison.Ordinal))
             cleaned = cleaned.Replace("--", "-", StringComparison.Ordinal);
