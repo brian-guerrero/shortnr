@@ -1,4 +1,16 @@
 @model Shortnr.Web.Pages.InsightsModel
+@if (Model.ErrorMessage is not null)
+{
+    <mark class="pico-background-red-100" style="display:block; margin-bottom: 1rem;">
+        <strong>@Model.ErrorMessage</strong>
+    </mark>
+}
+@if (Model.StatusMessage is not null)
+{
+    <mark class="pico-background-green-100" style="display:block; margin-bottom: 1rem;">
+        <strong>@Model.StatusMessage</strong>
+    </mark>
+}
 @if (Model.Suggestions.Count == 0)
 {
     <article>

@@ -25,6 +25,7 @@ public class ShortnrWebAppFactory : WebApplicationFactory<Program>
     public const string TestIssuer = "http://test.issuer";
 
     private readonly bool _authEnabled;
+    private readonly bool _aiInsightsEnabled;
     private readonly string _dbPath = Path.Combine(
         Path.GetTempPath(), $"shortnr-test-{Guid.NewGuid():N}.db");
 
@@ -32,9 +33,14 @@ public class ShortnrWebAppFactory : WebApplicationFactory<Program>
     /// Value written to <c>Authentication:Enabled</c> in the test configuration.
     /// Defaults to <c>true</c>.
     /// </param>
-    public ShortnrWebAppFactory(bool authEnabled = true)
+    /// <param name="aiInsightsEnabled">
+    /// Value written to <c>AiInsights:Enabled</c> in the test configuration.
+    /// Defaults to <c>false</c> (the feature is opt-in).
+    /// </param>
+    public ShortnrWebAppFactory(bool authEnabled = true, bool aiInsightsEnabled = false)
     {
         _authEnabled = authEnabled;
+        _aiInsightsEnabled = aiInsightsEnabled;
     }
 
     /// <summary>Creates an <see cref="HttpClient"/> with auto-redirect disabled.</summary>
@@ -52,6 +58,7 @@ public class ShortnrWebAppFactory : WebApplicationFactory<Program>
             {
                 ["ConnectionStrings:DefaultConnection"] = $"DataSource={_dbPath}",
                 ["Authentication:Enabled"] = _authEnabled ? "true" : "false",
+                ["AiInsights:Enabled"] = _aiInsightsEnabled ? "true" : "false",
                 ["Authentication:Oidc:Authority"] = TestIssuer,
                 ["Authentication:Oidc:ClientId"] = "test-client",
                 ["Authentication:Oidc:ClientSecret"] = "test-secret",
