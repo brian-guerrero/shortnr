@@ -1,0 +1,45 @@
+@model Shortnr.Web.Pages.InsightsModel
+@if (Model.Suggestions.Count == 0)
+{
+    <article>
+        <p>No tag suggestions yet. Links with @Model.MinClicksForAnalysis+ clicks are analyzed every
+        @Model.AnalysisIntervalHours hours; suggestions will appear here for you to accept or dismiss.</p>
+    </article>
+}
+else
+{
+    <table role="grid">
+        <thead>
+            <tr>
+                <th>Link</th>
+                <th>Suggested tag</th>
+                <th>Why</th>
+                <th>Clicks</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var s in Model.Suggestions)
+            {
+                <tr>
+                    <td><code>@s.ShortCode</code></td>
+                    <td><code>@s.SuggestedTag</code></td>
+                    <td>@s.SourceLabel</td>
+                    <td>@s.ClickCount</td>
+                    <td>
+                        <form method="post" hx-post="/insights?handler=accept" hx-target="#insights-list" hx-swap="innerHTML" style="display: inline;">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@s.Id">
+                            <button type="submit" class="outline">Accept</button>
+                        </form>
+                        <form method="post" hx-post="/insights?handler=dismiss" hx-target="#insights-list" hx-swap="innerHTML" style="display: inline;">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@s.Id">
+                            <button type="submit" class="outline secondary">Dismiss</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

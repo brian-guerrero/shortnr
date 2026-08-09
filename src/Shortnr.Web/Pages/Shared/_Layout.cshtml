@@ -38,6 +38,10 @@
                                 <ul>
                                     <li><a href="/dashboard">Overview</a></li>
                                     <li><a href="/dashboard/activity">AI activity</a></li>
+                                    @if (_config.GetValue<bool>("AiInsights:Enabled", defaultValue: false))
+                                    {
+                                        <li><a href="/insights">AI insights</a></li>
+                                    }
                                 </ul>
                             </details>
                         </li>

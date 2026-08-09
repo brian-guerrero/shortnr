@@ -1,0 +1,22 @@
+@page "/insights"
+@model Shortnr.Web.Pages.InsightsModel
+@{
+    ViewData["Title"] = "AI Insights";
+}
+<hgroup>
+    <h1>AI Insights</h1>
+    <p>Suggested tags based on your links' click patterns. Accept to apply a tag, or dismiss it.</p>
+</hgroup>
+
+@if (Model.StatusMessage is not null)
+{
+    <p class="pico-background-green-100">@Model.StatusMessage</p>
+}
+@if (Model.ErrorMessage is not null)
+{
+    <p class="pico-background-red-100">@Model.ErrorMessage</p>
+}
+
+<div id="insights-list">
+    @await Html.PartialAsync("Shared/_InsightsList", Model)
+</div>
