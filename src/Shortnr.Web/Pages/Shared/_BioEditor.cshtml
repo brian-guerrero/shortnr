@@ -98,7 +98,7 @@ else
     {
         var bioLinks = Model.BioPage.Links.ToList();
         <div class="overflow-auto">
-            <table>
+            <table class="stacked-table">
                 <thead>
                     <tr>
                         <th>Title</th>
@@ -115,21 +115,21 @@ else
                         var entry = bioLinks[i];
                         var link = entry.ShortenedUrl;
                         <tr>
-                            <td>
+                            <td data-label="Title">
                                 @if (!entry.IsVisible)
                                 {
                                     <mark>hidden</mark>
                                 }
                                 @entry.Title
                             </td>
-                            <td>
+                            <td data-label="Short URL">
                                 <a href="@Shortnr.Web.Features.ShortLinks.ShortUrlHelper.DisplayHref(Context.Request.Scheme, link?.Domain?.Hostname, link?.ShortCode ?? "")"
                                    target="_blank" rel="noopener">
                                     @Shortnr.Web.Features.ShortLinks.ShortUrlHelper.DisplayText(link?.Domain?.Hostname, link?.ShortCode ?? "")
                                 </a>
                             </td>
-                            <td>@(link?.ClickCount ?? 0)</td>
-                            <td>
+                            <td data-label="Clicks">@(link?.ClickCount ?? 0)</td>
+                            <td data-label="Visible">
                                 <form hx-post="/bio/edit?handler=ToggleLink" hx-target="#bio-editor" hx-swap="innerHTML" style="display:inline;">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="id" value="@entry.Id">
@@ -138,7 +138,7 @@ else
                                     </button>
                                 </form>
                             </td>
-                            <td>
+                            <td data-label="Order">
                                 @if (i > 0)
                                 {
                                     <form hx-post="/bio/edit?handler=MoveLink" hx-target="#bio-editor" hx-swap="innerHTML" style="display:inline;">
@@ -158,7 +158,7 @@ else
                                     </form>
                                 }
                             </td>
-                            <td>
+                            <td data-label="Remove">
                                 <form hx-post="/bio/edit?handler=RemoveLink" hx-target="#bio-editor" hx-swap="innerHTML" style="display:inline;">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="id" value="@entry.Id">

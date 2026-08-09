@@ -9,26 +9,28 @@
 else
 {
     <article class="ai-activity">
-        <table role="grid">
-            <thead>
-                <tr>
-                    <th>When</th>
-                    <th>Action</th>
-                    <th>Summary</th>
-                    <th>API key</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var row in Model)
-                {
+        <div class="overflow-auto">
+            <table role="grid">
+                <thead>
                     <tr>
-                        <td>@row.CreatedAtUtc.ToLocalTime().ToString("g")</td>
-                        <td><code>@row.Action</code></td>
-                        <td>@row.Summary</td>
-                        <td>@(row.ApiKeyLabel ?? "—")</td>
+                        <th>When</th>
+                        <th>Action</th>
+                        <th>Summary</th>
+                        <th>API key</th>
                     </tr>
-                }
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model)
+                    {
+                        <tr>
+                            <td>@row.CreatedAtUtc.ToLocalTime().ToString("g")</td>
+                            <td><code>@row.Action</code></td>
+                            <td>@row.Summary</td>
+                            <td>@(row.ApiKeyLabel ?? "—")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
     </article>
 }

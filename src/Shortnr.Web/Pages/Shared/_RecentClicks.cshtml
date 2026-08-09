@@ -28,42 +28,44 @@
 }
 else
 {
-    <table class="sortable">
-        <thead>
-            <tr>
-                @{
-                    SortableHeader("shortCode", "Short URL");
-                    SortableHeader("countryCode", "Country");
-                    SortableHeader("browser", "Browser");
-                    SortableHeader("operatingSystem", "OS");
-                    SortableHeader("referer", "Referer");
-                    SortableHeader("clickedAtUtc", "Time");
-                }
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var click in Model)
-            {
+    <div class="overflow-auto">
+        <table class="sortable">
+            <thead>
                 <tr>
-                    <td><a href="@ShortUrlHelper.DisplayHref(Context.Request.Scheme, click.Hostname, click.ShortCode)" target="_blank">@ShortUrlHelper.DisplayText(click.Hostname, click.ShortCode)</a></td>
-                    <td>@click.CountryCode</td>
-                    <td>@click.Browser @click.BrowserVersion</td>
-                    <td>@click.OperatingSystem @click.OSVersion</td>
-                    <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
-                        title="@click.Referer">@click.Referer</td>
-                    <td>@click.ClickedAtUtc.ToLocalTime().ToString("g")</td>
+                    @{
+                        SortableHeader("shortCode", "Short URL");
+                        SortableHeader("countryCode", "Country");
+                        SortableHeader("browser", "Browser");
+                        SortableHeader("operatingSystem", "OS");
+                        SortableHeader("referer", "Referer");
+                        SortableHeader("clickedAtUtc", "Time");
+                    }
                 </tr>
-                <tr style="display: none;" class="detail-row" data-click-id="@click.Id">
-                    <td colspan="6">
-                        <strong>IP:</strong> @click.IpAddress |
-                        <strong>UA:</strong> @click.UserAgent |
-                        <strong>Device:</strong> @click.DeviceFamily |
-                        <strong>City:</strong> @click.CityName
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @foreach (var click in Model)
+                {
+                    <tr>
+                        <td><a href="@ShortUrlHelper.DisplayHref(Context.Request.Scheme, click.Hostname, click.ShortCode)" target="_blank">@ShortUrlHelper.DisplayText(click.Hostname, click.ShortCode)</a></td>
+                        <td>@click.CountryCode</td>
+                        <td>@click.Browser @click.BrowserVersion</td>
+                        <td>@click.OperatingSystem @click.OSVersion</td>
+                        <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                            title="@click.Referer">@click.Referer</td>
+                        <td>@click.ClickedAtUtc.ToLocalTime().ToString("g")</td>
+                    </tr>
+                    <tr style="display: none;" class="detail-row" data-click-id="@click.Id">
+                        <td colspan="6">
+                            <strong>IP:</strong> @click.IpAddress |
+                            <strong>UA:</strong> @click.UserAgent |
+                            <strong>Device:</strong> @click.DeviceFamily |
+                            <strong>City:</strong> @click.CityName
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
     <div class="table-controls">
         <label for="per-page">Per page:</label>
         <select id="per-page" class="input-inline"

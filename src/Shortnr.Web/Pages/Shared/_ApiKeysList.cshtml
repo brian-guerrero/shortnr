@@ -24,7 +24,7 @@
 }
 else
 {
-    <table>
+    <table class="stacked-table">
         <thead>
             <tr><th>Label</th><th>Key</th><th>Scopes</th><th>Created</th><th>Last used</th><th>Status</th><th>Actions</th></tr>
         </thead>
@@ -32,9 +32,9 @@ else
             @foreach (var key in Model.ApiKeys)
             {
                 <tr>
-                    <td>@key.Label</td>
-                    <td><code>@key.KeyPrefix…</code></td>
-                    <td>
+                    <td data-label="Label">@key.Label</td>
+                    <td data-label="Key"><code>@key.KeyPrefix…</code></td>
+                    <td data-label="Scopes">
                         <div class="badge-group">
                             @foreach (var scope in Shortnr.Web.Features.Authentication.ApiKeyScopes.Resolve(key.Scopes))
                             {
@@ -42,8 +42,8 @@ else
                             }
                         </div>
                     </td>
-                    <td><small>@key.CreatedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</small></td>
-                    <td>
+                    <td data-label="Created"><small>@key.CreatedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</small></td>
+                    <td data-label="Last used">
                         <small>
                             @if (key.LastUsedAt is not null)
                             {
@@ -55,7 +55,7 @@ else
                             }
                         </small>
                     </td>
-                    <td>
+                    <td data-label="Status">
                         @if (key.RevokedAt is not null)
                         {
                             <mark class="status-neutral">revoked</mark>
@@ -65,7 +65,7 @@ else
                             <mark class="status-success">active</mark>
                         }
                     </td>
-                    <td>
+                    <td data-label="Actions">
                         @if (key.RevokedAt is null)
                         {
                             <form hx-post="/settings/api-keys?handler=Revoke" hx-target="#api-keys-list" hx-swap="innerHTML" style="display:inline;">

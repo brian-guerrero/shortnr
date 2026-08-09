@@ -24,7 +24,7 @@
 }
 else
 {
-    <table>
+    <table class="stacked-table">
         <thead>
             <tr><th>URL</th><th>Events</th><th>Created</th><th>Status</th><th>Actions</th></tr>
         </thead>
@@ -32,8 +32,8 @@ else
             @foreach (var webhook in Model.Webhooks)
             {
                 <tr>
-                    <td><small style="word-break: break-all;">@webhook.Url</small></td>
-                    <td>
+                    <td data-label="URL"><small style="word-break: break-all;">@webhook.Url</small></td>
+                    <td data-label="Events">
                         <div class="badge-group">
                             @foreach (var eventType in Shortnr.Web.Features.Webhooks.WebhookEventTypes.Parse(webhook.EventTypes))
                             {
@@ -41,8 +41,8 @@ else
                             }
                         </div>
                     </td>
-                    <td><small>@webhook.CreatedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</small></td>
-                    <td>
+                    <td data-label="Created"><small>@webhook.CreatedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</small></td>
+                    <td data-label="Status">
                         @if (!webhook.IsActive)
                         {
                             <mark class="status-error">disabled</mark>
@@ -56,7 +56,7 @@ else
                             <mark class="status-success">active</mark>
                         }
                     </td>
-                    <td>
+                    <td data-label="Actions">
                         @if (webhook.IsActive)
                         {
                             <form hx-post="/settings/webhooks?handler=Revoke" hx-target="#webhooks-list" hx-swap="innerHTML" style="display:inline;">

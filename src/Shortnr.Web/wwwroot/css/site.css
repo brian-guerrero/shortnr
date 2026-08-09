@@ -502,6 +502,46 @@ th {
   font-weight: 700;
 }
 
+@media (max-width: 768px) {
+  /* Baseline for the data-dense tables (search results, recent clicks, geo
+     breakdown, AI activity, recent links) — they keep their grid shape and
+     rely on the .overflow-auto wrapper for anything that still doesn't
+     fit, but a tighter cell shrinks how much that ends up being. */
+  table { font-size: var(--sn-text-small); }
+  th, td { padding: var(--sn-space-1) var(--sn-space-2); }
+
+  /* Action-heavy tables (domains, API keys, webhooks, workspace members,
+     bio links) opt into .stacked-table instead: a row's cells read as
+     labeled lines in a bordered card, rather than a cramped grid whose
+     columns are mostly buttons. */
+  .stacked-table thead { display: none; }
+  .stacked-table, .stacked-table tbody, .stacked-table tr, .stacked-table td {
+    display: block;
+    width: 100%;
+  }
+  .stacked-table tr {
+    margin-bottom: var(--sn-space-3);
+    border: var(--sn-border-width-heavy) solid var(--sn-line);
+    box-shadow: var(--sn-shadow-offset-sm);
+  }
+  .stacked-table td {
+    border: none;
+    border-bottom: var(--sn-border-width) solid var(--sn-line);
+    padding: var(--sn-space-2) var(--sn-space-3);
+  }
+  .stacked-table td:last-child { border-bottom: none; }
+  .stacked-table td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: var(--sn-text-small);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--sn-mid-gray);
+    margin-bottom: var(--sn-space-1);
+  }
+}
+
 /* ============================================================
    Status marks — DSG-002 §1's semantic fills as §5's stamped labels.
    A <mark> is a shipping-label stamp: ink border, flat saturated fill,
