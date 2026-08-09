@@ -151,6 +151,17 @@ public class AiActivityDashboardTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task HtmxPartial_WrapsTableInTheAiActivityStripedCard()
+    {
+        var client = AuthenticatedClient();
+
+        var response = await client.SendAsync(HtmxGet("/dashboard/activity", "ai-activity"));
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.Contains("<article class=\"ai-activity\">", html);
+    }
+
+    [Fact]
     public async Task EmptyState_WhenNoActivity_ShowsPlaceholder()
     {
         var authState = _authEnabled.Services.GetRequiredService<TestAuthState>();

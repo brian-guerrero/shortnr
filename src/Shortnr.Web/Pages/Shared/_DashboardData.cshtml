@@ -1,14 +1,14 @@
 @model DashboardDataViewModel
 <div class="grid">
-    <article>
+    <article class="metric">
         <header>Total Links</header>
         <h2>@Model.TotalLinks</h2>
     </article>
-    <article>
+    <article class="metric">
         <header>Total Clicks</header>
         <h2>@Model.TotalClicks</h2>
     </article>
-    <article>
+    <article class="metric">
         <header>Countries Reached</header>
         <h2>@Model.TotalCountries</h2>
     </article>
@@ -20,34 +20,36 @@
 }
 else
 {
-    <table>
-        <thead>
-            <tr>
-                <th>Country</th>
-                <th>Clicks</th>
-                <th>Top Cities</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var item in Model.GeoBreakdown)
-            {
+    <div class="overflow-auto">
+        <table>
+            <thead>
                 <tr>
-                    <td>@item.CountryCode - @item.CountryName</td>
-                    <td>@item.TotalClicks</td>
-                    <td>
-                        @if (item.CityCounts.Count == 0)
-                        {
-                            <span style="color: var(--pico-muted-color);">—</span>
-                        }
-                        else
-                        {
-                            @string.Join(", ", item.CityCounts.Select(c => $"{c.City} ({c.Count})"))
-                        }
-                    </td>
+                    <th>Country</th>
+                    <th>Clicks</th>
+                    <th>Top Cities</th>
                 </tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.GeoBreakdown)
+                {
+                    <tr>
+                        <td>@item.CountryCode - @item.CountryName</td>
+                        <td>@item.TotalClicks</td>
+                        <td>
+                            @if (item.CityCounts.Count == 0)
+                            {
+                                <span class="muted">—</span>
+                            }
+                            else
+                            {
+                                @string.Join(", ", item.CityCounts.Select(c => $"{c.City} ({c.Count})"))
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 }
 
 <script id="chart-data" type="application/json">@Html.Raw(Model.ChartJson)</script>

@@ -16,6 +16,7 @@
   --sn-ink: #111111;
   --sn-paper: #faf9f5;
   --sn-surface: #ffffff;
+  --sn-surface-muted: #e8e4d9;
   --sn-mid-gray: #8a8578;
   --sn-line: #111111;
   --sn-accent: #ffd23f;
@@ -25,6 +26,8 @@
   --sn-status-success: #3ddc84;
   --sn-status-info: #6ec1ff;
   --sn-status-neutral: #e8e4d9;
+  --sn-code-block-bg: var(--sn-ink);
+  --sn-code-block-fg: var(--sn-paper);
   --sn-font-display: "Archivo Black", "Arial Black", sans-serif;
   --sn-font-body: "Space Grotesk", "Inter", system-ui, sans-serif;
   --sn-font-mono: "IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace;
@@ -40,6 +43,7 @@
   --sn-shadow-offset: 4px 4px 0 var(--sn-ink);
   --sn-shadow-offset-sm: 2px 2px 0 var(--sn-ink);
   --sn-shadow-offset-lg: 8px 8px 0 var(--sn-ink);
+  --sn-shadow-active: 1px 1px 0 var(--sn-ink);
   --sn-space-1: 4px;
   --sn-space-2: 8px;
   --sn-space-3: 12px;
@@ -47,10 +51,59 @@
   --sn-space-6: 24px;
   --sn-space-8: 32px;
   --sn-space-12: 48px;
+}
 
-  /* Back-compat aliases for a few inline styles that still reference Pico vars. */
-  --pico-muted-color: var(--sn-mid-gray);
-  --pico-card-sectioning-background-color: var(--sn-status-neutral);
+/* ============================================================
+   Dark scheme.
+
+   Every dark difference is expressed as a token override, so no component
+   rule below this block needs to know which scheme is active. "Ink" and
+   "paper" swap roles — in dark, borders and the hard offset shadows are
+   the light element against a dark field, which is what keeps the
+   neo-brutalist signature legible instead of hiding it.
+
+   The accent stays #ffd23f in both schemes: it is the identity colour,
+   and --sn-accent-ink stays dark because text on yellow always is.
+
+   The two selectors carry the same declarations on purpose. The attribute
+   is what the toggle writes (and what the no-flash script in <head> sets
+   before first paint); the media query is the no-JS fallback, guarded so
+   an explicit "light" choice still wins over a dark OS setting.
+   ============================================================ */
+:root[data-color-scheme="dark"] {
+  color-scheme: dark;
+  --sn-ink: #f5f2e9;
+  --sn-paper: #14130f;
+  --sn-surface: #1f1d17;
+  --sn-surface-muted: #26231b;
+  --sn-mid-gray: #a39d8f;
+  --sn-line: #f5f2e9;
+  --sn-accent-secondary: #a48bff;
+  --sn-status-error: #ff6b6b;
+  --sn-status-success: #4ae08f;
+  --sn-status-info: #7cc7ff;
+  --sn-status-neutral: #d8d3c4;
+  --sn-code-block-bg: var(--sn-surface-muted);
+  --sn-code-block-fg: var(--sn-ink);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-color-scheme="light"]) {
+    color-scheme: dark;
+    --sn-ink: #f5f2e9;
+    --sn-paper: #14130f;
+    --sn-surface: #1f1d17;
+    --sn-surface-muted: #26231b;
+    --sn-mid-gray: #a39d8f;
+    --sn-line: #f5f2e9;
+    --sn-accent-secondary: #a48bff;
+    --sn-status-error: #ff6b6b;
+    --sn-status-success: #4ae08f;
+    --sn-status-info: #7cc7ff;
+    --sn-status-neutral: #d8d3c4;
+    --sn-code-block-bg: var(--sn-surface-muted);
+    --sn-code-block-fg: var(--sn-ink);
+  }
 }
 
 /* ============================================================
@@ -115,7 +168,13 @@ hr {
 code, kbd, samp {
   font-family: var(--sn-font-mono);
   font-size: 0.9em;
-  background: var(--sn-status-neutral);
+  /* Pin the text colour rather than let it inherit — inside a <mark
+     class="banner"> (the API key / webhook secret reveal), the banner
+     forces a dark ink for contrast against its own light accent fill,
+     which would otherwise leave dark text sitting on this element's own
+     --sn-surface-muted once that surface flips dark in dark mode. */
+  color: var(--sn-ink);
+  background: var(--sn-surface-muted);
   padding: 0.1em 0.35em;
   border: 1px solid var(--sn-line);
 }
@@ -124,8 +183,8 @@ pre {
   font-family: var(--sn-font-mono);
   font-size: 0.875rem;
   line-height: 1.5;
-  background: var(--sn-ink);
-  color: var(--sn-paper);
+  background: var(--sn-code-block-bg);
+  color: var(--sn-code-block-fg);
   padding: var(--sn-space-4);
   border: var(--sn-border-width) solid var(--sn-line);
   overflow-x: auto;
@@ -205,6 +264,35 @@ article > footer {
   padding: var(--sn-space-6);
 }
 
+/* A settled card is lifted; a loading skeleton stays flat, so the shadow
+   only ever means "this content is real" (DSG-002 §6). */
+article[aria-busy="true"] { box-shadow: none; }
+
+/* Dashboard metric cards — the header stays small and muted so the number
+   is unambiguously the loudest element on the card (DSG-002 §5). */
+.metric > header {
+  font-size: var(--sn-text-small);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sn-mid-gray);
+}
+.metric > h2 {
+  margin: 0;
+  font-size: var(--sn-text-h2);
+}
+
+/* Tables are the last thing in most cards; drop their trailing margin so
+   the card's own padding sets the bottom gap. */
+article > table:last-child { margin-bottom: 0; }
+
+/* AI/MCP surfaces (PRD-007) are marked with a violet left edge, not a
+   violet fill — DSG-002 §7: the stripe says "this section is AI-related"
+   without a second saturated colour competing with the accent. */
+.ai-activity {
+  border-left: var(--sn-border-width-heavy) solid var(--sn-accent-secondary);
+}
+
 /* ============================================================
    Forms
    ============================================================ */
@@ -232,11 +320,25 @@ textarea {
 input::placeholder,
 textarea::placeholder { color: var(--sn-mid-gray); }
 
+/* Resting inputs stay flat; focus adds the small offset shadow plus the
+   2px accent ring DSG-002 §5 asks for (offset from the ink border rather
+   than a glow, so it stays in the flat-color family). */
 input:focus,
 select:focus,
 textarea:focus {
-  outline: none;
+  outline: var(--sn-border-width) solid var(--sn-accent);
+  outline-offset: var(--sn-space-1);
   box-shadow: var(--sn-shadow-offset-sm);
+}
+
+/* Inline controls that sit inside a table cell or a toolbar next to a
+   small button, rather than stacked in a form column. */
+.input-inline {
+  display: inline-block;
+  width: auto;
+  margin-bottom: 0;
+  font-size: var(--sn-text-small);
+  padding: var(--sn-space-1) var(--sn-space-2);
 }
 
 input[type="checkbox"],
@@ -250,7 +352,19 @@ input[type="radio"] {
 fieldset { border: none; margin-bottom: var(--sn-space-3); }
 
 /* ============================================================
-   Buttons
+   Buttons — the three tiers of DSG-002 §5.
+
+   Primary (bare <button>): accent fill, heavy border, full offset shadow.
+   Secondary (.secondary): surface fill, ink border, small offset shadow —
+     every administrative action (Make default, Disable, Re-enable, Resend,
+     Remove, Hide/Show, reorder) uses this one tier so no two actions of
+     equal weight look different by accident.
+   Danger (.danger): the Secondary shell plus a thin status-error top-edge
+     stripe, so destructive actions (Delete, Revoke) read as distinct
+     without a second saturated fill competing with the accent.
+
+   --sn-btn-lift / --sn-btn-press let hover and press compress each tier's
+   own shadow rather than hard-coding one offset for all of them.
    ============================================================ */
 button,
 [type="submit"],
@@ -258,6 +372,8 @@ button,
 [type="reset"],
 [role="button"],
 a[role="button"] {
+  --sn-btn-lift: var(--sn-shadow-offset);
+  --sn-btn-press: 3px;
   display: inline-block;
   font-family: var(--sn-font-body);
   font-weight: 700;
@@ -271,7 +387,7 @@ a[role="button"] {
   border-radius: var(--sn-border-radius);
   background: var(--sn-accent);
   color: var(--sn-accent-ink);
-  box-shadow: var(--sn-shadow-offset);
+  box-shadow: var(--sn-btn-lift);
   transition: transform 0.1s, box-shadow 0.1s;
 }
 button:hover,
@@ -281,7 +397,23 @@ button:hover,
 a[role="button"]:hover {
   color: var(--sn-accent-ink);
   transform: translate(1px, 1px);
-  box-shadow: 1px 1px 0 var(--sn-ink);
+  box-shadow: 3px 3px 0 var(--sn-ink);
+}
+button:active,
+[type="submit"]:active,
+[type="button"]:active,
+[role="button"]:active,
+a[role="button"]:active {
+  transform: translate(var(--sn-btn-press), var(--sn-btn-press));
+  box-shadow: var(--sn-shadow-active);
+}
+button:focus-visible,
+[type="submit"]:focus-visible,
+[type="button"]:focus-visible,
+[role="button"]:focus-visible,
+a[role="button"]:focus-visible {
+  outline: var(--sn-border-width) solid var(--sn-accent);
+  outline-offset: var(--sn-space-1);
 }
 button:disabled,
 button[aria-busy="true"] {
@@ -290,34 +422,70 @@ button[aria-busy="true"] {
   transform: none;
 }
 
-/* Secondary variant */
+/* Small size — replaces the ad hoc `font-size: 0.75rem; padding: 0.2rem
+   0.5rem` inline styles repeated across the settings tables. Declared
+   before the tiers so a tier's own shadow still wins. */
+.btn-sm {
+  --sn-btn-lift: var(--sn-shadow-offset-sm);
+  --sn-btn-press: 1px;
+  font-size: var(--sn-text-small);
+  padding: var(--sn-space-1) var(--sn-space-2);
+  border-width: var(--sn-border-width);
+}
+.btn-sm:hover { box-shadow: var(--sn-shadow-active); }
+
+/* Secondary tier */
 .secondary {
+  --sn-btn-lift: var(--sn-shadow-offset-sm);
+  --sn-btn-press: 1px;
   background: var(--sn-surface);
   color: var(--sn-ink);
-  box-shadow: var(--sn-shadow-offset-sm);
 }
-.secondary:hover { color: var(--sn-ink); }
+.secondary:hover {
+  color: var(--sn-ink);
+  box-shadow: var(--sn-shadow-active);
+}
 
-/* Contrast variant */
+/* Danger tier — Secondary shell, thin error stripe along the top edge.
+   The stripe is an inset shadow so it does not shift the button's box. */
+.danger {
+  --sn-btn-lift: var(--sn-shadow-offset-sm);
+  --sn-btn-press: 1px;
+  background: var(--sn-surface);
+  color: var(--sn-ink);
+  box-shadow: inset 0 3px 0 var(--sn-status-error), var(--sn-btn-lift);
+}
+.danger:hover {
+  color: var(--sn-ink);
+  box-shadow: inset 0 3px 0 var(--sn-status-error), var(--sn-shadow-active);
+}
+.danger:active {
+  box-shadow: inset 0 3px 0 var(--sn-status-error), var(--sn-shadow-active);
+}
+
+/* Colour-scheme toggle — an icon-sized control in the nav. Deliberately
+   not the Primary tier: it is a preference, not an action on the page. */
+.scheme-toggle {
+  --sn-btn-lift: var(--sn-shadow-offset-sm);
+  --sn-btn-press: 1px;
+  background: var(--sn-surface);
+  color: var(--sn-ink);
+  border-width: var(--sn-border-width);
+  padding: var(--sn-space-1) var(--sn-space-2);
+  line-height: 1.3;
+}
+.scheme-toggle:hover {
+  color: var(--sn-ink);
+  box-shadow: var(--sn-shadow-active);
+}
+
+/* Contrast variant — kept for full-width emphasis outside the three tiers
+   (marketing CTAs); no row action should use it, see DSG-002 §7. */
 .contrast {
   background: var(--sn-ink);
   color: var(--sn-paper);
 }
 .contrast:hover { color: var(--sn-paper); }
-
-/* Outline variant — flat until hover */
-.outline {
-  background: transparent;
-  color: var(--sn-ink);
-  box-shadow: none;
-}
-.outline:hover {
-  background: var(--sn-accent);
-  color: var(--sn-accent-ink);
-  transform: none;
-  box-shadow: none;
-}
-.secondary.outline { background: transparent; }
 
 /* ============================================================
    Tables
@@ -340,19 +508,130 @@ th {
   font-weight: 700;
 }
 
+@media (max-width: 768px) {
+  /* Baseline for the data-dense tables (search results, recent clicks, geo
+     breakdown, AI activity, recent links) — they keep their grid shape and
+     rely on the .overflow-auto wrapper for anything that still doesn't
+     fit, but a tighter cell shrinks how much that ends up being. */
+  table { font-size: var(--sn-text-small); }
+  th, td { padding: var(--sn-space-1) var(--sn-space-2); }
+
+  /* Action-heavy tables (domains, API keys, webhooks, workspace members,
+     bio links) opt into .stacked-table instead: a row's cells read as
+     labeled lines in a bordered card, rather than a cramped grid whose
+     columns are mostly buttons. */
+  .stacked-table thead { display: none; }
+  .stacked-table, .stacked-table tbody, .stacked-table tr, .stacked-table td {
+    display: block;
+    width: 100%;
+  }
+  .stacked-table tr {
+    margin-bottom: var(--sn-space-3);
+    border: var(--sn-border-width-heavy) solid var(--sn-line);
+    box-shadow: var(--sn-shadow-offset-sm);
+  }
+  .stacked-table td {
+    border: none;
+    border-bottom: var(--sn-border-width) solid var(--sn-line);
+    padding: var(--sn-space-2) var(--sn-space-3);
+  }
+  .stacked-table td:last-child { border-bottom: none; }
+  .stacked-table td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: var(--sn-text-small);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--sn-mid-gray);
+    margin-bottom: var(--sn-space-1);
+  }
+}
+
 /* ============================================================
-   Status highlights (replaces Pico's .pico-background-*-100 + <mark>)
+   Status marks — DSG-002 §1's semantic fills as §5's stamped labels.
+   A <mark> is a shipping-label stamp: ink border, flat saturated fill,
+   ink text, uppercase at --sn-text-small, small offset shadow.
    ============================================================ */
 mark {
   display: inline-block;
-  padding: 0.1em 0.5em;
+  font-size: var(--sn-text-small);
+  font-weight: 700;
+  line-height: 1.4;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.15em 0.5em;
   border: var(--sn-border-width) solid var(--sn-line);
+  box-shadow: var(--sn-shadow-offset-sm);
   background: var(--sn-accent);
-  color: var(--sn-ink);
+  /* Status fills stay saturated in both schemes, so their text stays dark
+     in both — the same reason --sn-accent-ink exists for the accent. */
+  color: var(--sn-accent-ink);
 }
-.pico-background-red-100 { background: var(--sn-status-error); color: var(--sn-ink); }
-.pico-background-green-100 { background: var(--sn-status-success); color: var(--sn-ink); }
-.pico-background-blue-100 { background: var(--sn-status-info); color: var(--sn-ink); }
+.status-error { background: var(--sn-status-error); color: var(--sn-accent-ink); }
+.status-success { background: var(--sn-status-success); color: var(--sn-accent-ink); }
+.status-info { background: var(--sn-status-info); color: var(--sn-accent-ink); }
+.status-neutral { background: var(--sn-status-neutral); color: var(--sn-accent-ink); }
+
+/* A stamp carrying user-entered text (a workspace name) keeps its casing. */
+.preserve-case { text-transform: none; letter-spacing: normal; }
+
+/* Multi-instance badges (API key scopes, webhook event types) get a fixed
+   gap instead of relying on inline whitespace. */
+.badge-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sn-space-2);
+}
+
+/* Banner form of a status mark — a full-width block carrying a sentence,
+   so it drops the stamp's uppercase/small treatment. */
+.banner {
+  display: block;
+  margin-bottom: var(--sn-space-4);
+  padding: var(--sn-space-3) var(--sn-space-4);
+  font-size: var(--sn-text-body);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  border: var(--sn-border-width) solid var(--sn-line);
+  box-shadow: var(--sn-shadow-offset-sm);
+  color: var(--sn-accent-ink);
+}
+
+/* Sortable tables (dashboard recent clicks) — DSG-002 §7. The active-sort
+   column inverts so it is scannable among five identical accent headers,
+   and the ▲/▼ glyph is set in the accent so it separates from the label. */
+.sortable th { cursor: pointer; user-select: none; white-space: nowrap; }
+.sortable tbody tr:not(.detail-row) { cursor: pointer; }
+.sortable th.sorted {
+  background: var(--sn-ink);
+  color: var(--sn-paper);
+}
+.sort-indicator {
+  margin-inline-start: var(--sn-space-1);
+  color: var(--sn-accent);
+}
+
+/* Recent-clicks detail row (revealed by the dashboard's row toggle). The
+   accent left edge plus the inset reads as "nested under the row above",
+   rather than as a seventh sibling row. */
+.detail-row > td {
+  background: var(--sn-surface-muted);
+  font-size: var(--sn-text-small);
+  border-left: var(--sn-border-width) solid var(--sn-accent);
+  padding-left: var(--sn-space-6);
+}
+
+/* A control strip hanging off the bottom of a table (per-page selector). */
+.table-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sn-space-2);
+  margin-top: var(--sn-space-2);
+  font-size: var(--sn-text-small);
+}
+.table-controls label { margin: 0; }
 
 /* ============================================================
    Badges (ported from the docs design system)
@@ -367,7 +646,7 @@ mark {
   letter-spacing: 0.02em;
 }
 .badge-accent { background: var(--sn-accent); color: var(--sn-accent-ink); }
-.badge-info { background: var(--sn-status-info); color: var(--sn-ink); }
+.badge-info { background: var(--sn-status-info); color: var(--sn-accent-ink); }
 
 /* ============================================================
    Top nav (mirrors docs/src/components/Nav.astro)
@@ -430,9 +709,80 @@ mark {
 }
 .site-nav .nav-links a.active {
   background: var(--sn-accent);
+  color: var(--sn-accent-ink);
   border: var(--sn-border-width) solid var(--sn-line);
   box-shadow: var(--sn-shadow-offset-sm);
   font-weight: 700;
+}
+
+/* Hamburger toggle — icon-sized like .scheme-toggle, and hidden outside
+   the mobile breakpoint below regardless of whether JS has revealed it. */
+.site-nav .nav-toggle {
+  --sn-btn-lift: var(--sn-shadow-offset-sm);
+  --sn-btn-press: 1px;
+  display: none;
+  background: var(--sn-surface);
+  color: var(--sn-ink);
+  border-width: var(--sn-border-width);
+  line-height: 1.3;
+}
+.site-nav .nav-toggle:hover {
+  color: var(--sn-ink);
+  box-shadow: var(--sn-shadow-active);
+}
+
+/* Below this width the link list collapses behind the hamburger. Gated on
+   html.js (set by the inline script in _Layout.cshtml's <head>) so a phone
+   without JavaScript keeps today's always-visible, wrapped link list
+   instead of losing the nav behind a button nothing can open. */
+@media (max-width: 768px) {
+  .site-nav .nav-toggle:not([hidden]) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    margin-left: auto;
+    font-size: 1.1rem;
+  }
+  .site-nav .nav-toggle[aria-expanded="true"] {
+    box-shadow: var(--sn-shadow-active);
+  }
+  html.js .site-nav nav { flex-basis: 100%; }
+  html.js .site-nav .nav-links {
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: 0;
+    margin-top: var(--sn-space-3);
+  }
+  html.js .site-nav .nav-links.is-open { display: flex; }
+  html.js .site-nav .nav-links > li { width: 100%; }
+  html.js .site-nav .nav-links a { display: block; }
+  html.js .site-nav .nav-links .user-menu { width: 100%; }
+  html.js .site-nav .nav-links .user-menu > summary { width: 100%; }
+  /* Dropdown contents (Dashboard/Settings submenus, the workspace switcher)
+     float as absolutely-positioned boxes on desktop; in the drawer they
+     should sit in normal flow and span the same width as their trigger. */
+  html.js .site-nav .nav-links details.dropdown > ul {
+    position: static;
+    direction: ltr;
+    width: 100%;
+    min-width: 0;
+    margin-top: 0;
+    border: none;
+    box-shadow: none;
+    padding: var(--sn-space-1) 0 var(--sn-space-1) var(--sn-space-4);
+  }
+  html.js .site-nav .nav-links .scheme-toggle {
+    display: block;
+    width: 100%;
+    margin-top: var(--sn-space-2);
+    padding-top: var(--sn-space-3);
+    border-top: var(--sn-border-width) solid var(--sn-line);
+  }
 }
 
 /* ============================================================
@@ -489,6 +839,19 @@ details.dropdown > ul button:hover {
   color: var(--sn-accent-ink);
   transform: none;
 }
+/* Menu rows stay text-only — bold weight alone marks the active workspace
+   (DSG-002 §6: a dropdown is exactly where "everything gets bordered"
+   should not apply). */
+details.dropdown > ul button.is-active { font-weight: 700; }
+
+details.dropdown > ul .menu-section-label {
+  padding: var(--sn-space-1) var(--sn-space-3);
+  font-size: var(--sn-text-small);
+  color: var(--sn-mid-gray);
+}
+details.dropdown > ul .menu-active-workspace {
+  padding: var(--sn-space-1) var(--sn-space-3);
+}
 
 /* Nav-link dropdowns (Dashboard / Settings groups) hang to the left,
    under the trigger, instead of the user menu's right alignment. */
@@ -531,6 +894,10 @@ details.dropdown.user-menu[open] > summary {
    Utilities
    ============================================================ */
 .nav-avatar { border-radius: 50%; vertical-align: middle; }
+.muted { color: var(--sn-mid-gray); }
+/* The reset above clears every default display, so [hidden] needs restating
+   — the scheme toggle ships hidden and is revealed by script. */
+[hidden] { display: none !important; }
 [x-cloak] { display: none !important; }
 [aria-busy="true"] { cursor: progress; }
 

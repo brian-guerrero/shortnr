@@ -1,7 +1,7 @@
 @model Shortnr.Web.Features.ShortLinks.Models.PostResultViewModel
 @if (Model.HasError)
 {
-    <mark class="pico-background-red-100" style="display:block; margin-top: 1rem;">
+    <mark class="banner status-error" style="margin-top: var(--sn-space-4);">
         <strong>@Model.ErrorMessage</strong>
     </mark>
 }
@@ -11,7 +11,7 @@ else
         <strong>Short URL:</strong>
         <a href="@Model.ShortUrl" target="_blank">@Model.ShortUrl</a>
         <span class="qr-wrap" style="display:inline-block; margin-left: 0.75rem; vertical-align: middle;">
-            <button hx-get="/qr/@Model.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML" style="font-size: 0.8rem;">Show QR</button>
+            <button class="btn-sm" hx-get="/qr/@Model.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML">Show QR</button>
         </span>
     </ins>
 }
@@ -30,7 +30,7 @@ else
                     <td>@link.ClickCount</td>
                     <td>
                         <span class="qr-wrap">
-                            <button hx-get="/qr/@link.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">QR</button>
+                            <button class="btn-sm" hx-get="/qr/@link.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML">QR</button>
                         </span>
                     </td>
                 </tr>

@@ -32,10 +32,78 @@ function isActive(href: string) {
             </a>
           </li>
         ))}
+        {/* Hidden until the script reveals it, so it is not a dead control
+            when JavaScript is unavailable. */}
+        <li>
+          <button
+            type="button"
+            class="scheme-toggle"
+            data-scheme-toggle
+            aria-pressed="false"
+            aria-label="Switch to dark theme"
+            hidden
+          >☾</button>
+        </li>
       </ul>
     </nav>
   </div>
 </header>
+
+<script is:inline>
+  // Mirrors src/Shortnr.Web/wwwroot/js/color-scheme.js — the two sites share
+  // tokens, not an asset pipeline. The <head> script in BaseLayout has
+  // already set the attribute; this only wires the control up.
+  (function () {
+    var STORAGE_KEY = "sn-color-scheme";
+    var root = document.documentElement;
+
+    function storedScheme() {
+      try {
+        return localStorage.getItem(STORAGE_KEY);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function systemScheme() {
+      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+
+    function syncToggles(scheme) {
+      var isDark = scheme === "dark";
+      document.querySelectorAll("[data-scheme-toggle]").forEach(function (toggle) {
+        toggle.hidden = false;
+        toggle.setAttribute("aria-pressed", isDark ? "true" : "false");
+        toggle.setAttribute("aria-label", isDark ? "Switch to light theme" : "Switch to dark theme");
+        toggle.textContent = isDark ? "☀" : "☾";
+      });
+    }
+
+    function apply(scheme) {
+      root.setAttribute("data-color-scheme", scheme);
+      syncToggles(scheme);
+    }
+
+    syncToggles(root.getAttribute("data-color-scheme") || systemScheme());
+
+    document.addEventListener("click", function (e) {
+      if (!(e.target instanceof Element) || !e.target.closest("[data-scheme-toggle]")) return;
+      var next = root.getAttribute("data-color-scheme") === "dark" ? "light" : "dark";
+      try {
+        localStorage.setItem(STORAGE_KEY, next);
+      } catch (err) {
+        /* not persisting is survivable */
+      }
+      apply(next);
+    });
+
+    var media = window.matchMedia("(prefers-color-scheme: dark)");
+    media.addEventListener("change", function () {
+      if (storedScheme()) return;
+      apply(systemScheme());
+    });
+  })();
+</script>
 
 <style>
   .site-nav {
@@ -87,8 +155,33 @@ function isActive(href: string) {
   }
   .nav-links a.active {
     background: var(--sn-accent);
+    color: var(--sn-accent-ink);
     border: var(--sn-border-width) solid var(--sn-line);
     box-shadow: var(--sn-shadow-offset-sm);
     font-weight: 700;
+  }
+  .scheme-toggle {
+    font-family: var(--sn-font-body);
+    font-size: var(--sn-text-body);
+    line-height: 1.3;
+    cursor: pointer;
+    padding: var(--sn-space-1) var(--sn-space-2);
+    border: var(--sn-border-width) solid var(--sn-line);
+    border-radius: var(--sn-border-radius);
+    background: var(--sn-surface);
+    color: var(--sn-ink);
+    box-shadow: var(--sn-shadow-offset-sm);
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .scheme-toggle:hover {
+    transform: translate(1px, 1px);
+    box-shadow: var(--sn-shadow-active);
+  }
+  .scheme-toggle:focus-visible {
+    outline: var(--sn-border-width) solid var(--sn-accent);
+    outline-offset: var(--sn-space-1);
+  }
+  .scheme-toggle[hidden] {
+    display: none;
   }
 </style>

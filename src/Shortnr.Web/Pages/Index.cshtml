@@ -11,7 +11,7 @@
         @Html.AntiForgeryToken()
         <label for="url">Enter a long URL</label>
         <input type="url" name="url" id="url" placeholder="https://example.com/very/long/path" required>
-        <button type="button" class="secondary outline" style="margin-bottom: 0.75rem;"
+        <button type="button" class="secondary" style="margin-bottom: 0.75rem;"
                 @@click="showAdvanced = !showAdvanced" aria-expanded="false" :aria-expanded="showAdvanced ? 'true' : 'false'">
             <span x-text="showAdvanced ? 'Hide advanced options' : 'Advanced options'"></span>
         </button>
@@ -93,8 +93,7 @@
                             <td>@link.ClickCount</td>
                             <td>
                                 <span class="qr-wrap">
-                                    <button hx-get="/qr/@link.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML"
-                                            style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">QR</button>
+                                    <button class="btn-sm" hx-get="/qr/@link.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML">QR</button>
                                 </span>
                             </td>
                         </tr>

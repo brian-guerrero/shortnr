@@ -5,8 +5,22 @@
     var clickLimit = Context.Request.Query["clickLimit"].FirstOrDefault() ?? "5";
 
     var sortUrl = (string col, string dir) => "/dashboard?clickSort=" + col + "&clickDir=" + dir + "&clickLimit=" + clickLimit;
-    var sortInd = (string col, string asc, string desc) =>
-        clickSort == col ? (clickDir == "asc" ? asc : desc) : "";
+
+    void SortableHeader(string col, string label)
+    {
+        var isActive = clickSort == col;
+        var isAsc = isActive && clickDir == "asc";
+        var nextDir = isAsc ? "desc" : "asc";
+        var ariaSort = !isActive ? "none" : isAsc ? "ascending" : "descending";
+        <th class="@(isActive ? "sorted" : null)" aria-sort="@ariaSort"
+            hx-get="@sortUrl(col, nextDir)" hx-target="#recent-clicks" hx-swap="innerHTML">
+            @label
+            @if (isActive)
+            {
+                <span class="sort-indicator" aria-hidden="true">@(isAsc ? "▲" : "▼")</span>
+            }
+        </th>
+    }
 }
 @if (Model.Count == 0)
 {
@@ -14,43 +28,47 @@
 }
 else
 {
-    <table class="sortable">
-        <thead>
-            <tr>
-                <th hx-get="@sortUrl("shortCode", clickSort == "shortCode" && clickDir == "asc" ? "desc" : "asc")" hx-target="#recent-clicks" hx-swap="innerHTML">Short URL @sortInd("shortCode", " ▲", " ▼")</th>
-                <th hx-get="@sortUrl("countryCode", clickSort == "countryCode" && clickDir == "asc" ? "desc" : "asc")" hx-target="#recent-clicks" hx-swap="innerHTML">Country @sortInd("countryCode", " ▲", " ▼")</th>
-                <th hx-get="@sortUrl("browser", clickSort == "browser" && clickDir == "asc" ? "desc" : "asc")" hx-target="#recent-clicks" hx-swap="innerHTML">Browser @sortInd("browser", " ▲", " ▼")</th>
-                <th hx-get="@sortUrl("operatingSystem", clickSort == "operatingSystem" && clickDir == "asc" ? "desc" : "asc")" hx-target="#recent-clicks" hx-swap="innerHTML">OS @sortInd("operatingSystem", " ▲", " ▼")</th>
-                <th hx-get="@sortUrl("referer", clickSort == "referer" && clickDir == "asc" ? "desc" : "asc")" hx-target="#recent-clicks" hx-swap="innerHTML">Referer @sortInd("referer", " ▲", " ▼")</th>
-                <th hx-get="@sortUrl("clickedAtUtc", clickSort == "clickedAtUtc" && clickDir == "asc" ? "desc" : "asc")" hx-target="#recent-clicks" hx-swap="innerHTML">Time @sortInd("clickedAtUtc", " ▲", " ▼")</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var click in Model)
-            {
+    <div class="overflow-auto">
+        <table class="sortable">
+            <thead>
                 <tr>
-                    <td><a href="@ShortUrlHelper.DisplayHref(Context.Request.Scheme, click.Hostname, click.ShortCode)" target="_blank">@ShortUrlHelper.DisplayText(click.Hostname, click.ShortCode)</a></td>
-                    <td>@click.CountryCode</td>
-                    <td>@click.Browser @click.BrowserVersion</td>
-                    <td>@click.OperatingSystem @click.OSVersion</td>
-                    <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
-                        title="@click.Referer">@click.Referer</td>
-                    <td>@click.ClickedAtUtc.ToLocalTime().ToString("g")</td>
+                    @{
+                        SortableHeader("shortCode", "Short URL");
+                        SortableHeader("countryCode", "Country");
+                        SortableHeader("browser", "Browser");
+                        SortableHeader("operatingSystem", "OS");
+                        SortableHeader("referer", "Referer");
+                        SortableHeader("clickedAtUtc", "Time");
+                    }
                 </tr>
-                <tr style="display: none;" class="detail-row" data-click-id="@click.Id">
-                    <td colspan="6" style="font-size: 0.85em; background: var(--pico-card-sectioning-background-color, #f0f0f0);">
-                        <strong>IP:</strong> @click.IpAddress |
-                        <strong>UA:</strong> @click.UserAgent |
-                        <strong>Device:</strong> @click.DeviceFamily |
-                        <strong>City:</strong> @click.CityName
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-    <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-        <label for="per-page" style="margin-bottom: 0; font-size: 0.85em;">Per page:</label>
-        <select id="per-page" style="width: auto; margin-bottom: 0;"
+            </thead>
+            <tbody>
+                @foreach (var click in Model)
+                {
+                    <tr>
+                        <td><a href="@ShortUrlHelper.DisplayHref(Context.Request.Scheme, click.Hostname, click.ShortCode)" target="_blank">@ShortUrlHelper.DisplayText(click.Hostname, click.ShortCode)</a></td>
+                        <td>@click.CountryCode</td>
+                        <td>@click.Browser @click.BrowserVersion</td>
+                        <td>@click.OperatingSystem @click.OSVersion</td>
+                        <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                            title="@click.Referer">@click.Referer</td>
+                        <td>@click.ClickedAtUtc.ToLocalTime().ToString("g")</td>
+                    </tr>
+                    <tr style="display: none;" class="detail-row" data-click-id="@click.Id">
+                        <td colspan="6">
+                            <strong>IP:</strong> @click.IpAddress |
+                            <strong>UA:</strong> @click.UserAgent |
+                            <strong>Device:</strong> @click.DeviceFamily |
+                            <strong>City:</strong> @click.CityName
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="table-controls">
+        <label for="per-page">Per page:</label>
+        <select id="per-page" class="input-inline"
                 hx-get="/dashboard?clickSort=@clickSort&clickDir=@clickDir"
                 hx-target="#recent-clicks"
                 hx-swap="innerHTML"
