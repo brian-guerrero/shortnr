@@ -2,6 +2,7 @@
   --sn-ink: #111111;
   --sn-paper: #faf9f5;
   --sn-surface: #ffffff;
+  --sn-surface-muted: #e8e4d9;
   --sn-mid-gray: #8a8578;
   --sn-line: #111111;
   --sn-accent: #ffd23f;
@@ -11,6 +12,8 @@
   --sn-status-success: #3ddc84;
   --sn-status-info: #6ec1ff;
   --sn-status-neutral: #e8e4d9;
+  --sn-code-block-bg: var(--sn-ink);
+  --sn-code-block-fg: var(--sn-paper);
   --sn-font-display: "Archivo Black", "Arial Black", sans-serif;
   --sn-font-body: "Space Grotesk", "Inter", system-ui, sans-serif;
   --sn-font-mono: "IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace;
@@ -34,6 +37,59 @@
   --sn-space-6: 24px;
   --sn-space-8: 32px;
   --sn-space-12: 48px;
+}
+
+/* ============================================================
+   Dark scheme.
+
+   Every dark difference is expressed as a token override, so no component
+   rule below this block needs to know which scheme is active. "Ink" and
+   "paper" swap roles — in dark, borders and the hard offset shadows are
+   the light element against a dark field, which is what keeps the
+   neo-brutalist signature legible instead of hiding it.
+
+   The accent stays #ffd23f in both schemes: it is the identity colour,
+   and --sn-accent-ink stays dark because text on yellow always is.
+
+   The two selectors carry the same declarations on purpose. The attribute
+   is what the toggle writes (and what the no-flash script in <head> sets
+   before first paint); the media query is the no-JS fallback, guarded so
+   an explicit "light" choice still wins over a dark OS setting.
+   ============================================================ */
+:root[data-color-scheme="dark"] {
+  color-scheme: dark;
+  --sn-ink: #f5f2e9;
+  --sn-paper: #14130f;
+  --sn-surface: #1f1d17;
+  --sn-surface-muted: #26231b;
+  --sn-mid-gray: #a39d8f;
+  --sn-line: #f5f2e9;
+  --sn-accent-secondary: #a48bff;
+  --sn-status-error: #ff6b6b;
+  --sn-status-success: #4ae08f;
+  --sn-status-info: #7cc7ff;
+  --sn-status-neutral: #d8d3c4;
+  --sn-code-block-bg: var(--sn-surface-muted);
+  --sn-code-block-fg: var(--sn-ink);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-color-scheme="light"]) {
+    color-scheme: dark;
+    --sn-ink: #f5f2e9;
+    --sn-paper: #14130f;
+    --sn-surface: #1f1d17;
+    --sn-surface-muted: #26231b;
+    --sn-mid-gray: #a39d8f;
+    --sn-line: #f5f2e9;
+    --sn-accent-secondary: #a48bff;
+    --sn-status-error: #ff6b6b;
+    --sn-status-success: #4ae08f;
+    --sn-status-info: #7cc7ff;
+    --sn-status-neutral: #d8d3c4;
+    --sn-code-block-bg: var(--sn-surface-muted);
+    --sn-code-block-fg: var(--sn-ink);
+  }
 }
 
 *,
@@ -100,7 +156,7 @@ p {
 code {
   font-family: var(--sn-font-mono);
   font-size: 0.9em;
-  background: var(--sn-status-neutral);
+  background: var(--sn-surface-muted);
   padding: 0.1em 0.35em;
   border: 1px solid var(--sn-line);
 }
@@ -109,8 +165,8 @@ pre {
   font-family: var(--sn-font-mono);
   font-size: 0.875rem;
   line-height: 1.5;
-  background: var(--sn-ink);
-  color: var(--sn-paper);
+  background: var(--sn-code-block-bg);
+  color: var(--sn-code-block-fg);
   padding: var(--sn-space-4);
   border: var(--sn-border-width) solid var(--sn-line);
   overflow-x: auto;
@@ -141,6 +197,7 @@ td {
 
 th {
   background: var(--sn-accent);
+  color: var(--sn-accent-ink);
   font-weight: 700;
 }
 
@@ -228,7 +285,7 @@ img {
 
 .badge-info {
   background: var(--sn-status-info);
-  color: var(--sn-ink);
+  color: var(--sn-accent-ink);
 }
 
 .card {

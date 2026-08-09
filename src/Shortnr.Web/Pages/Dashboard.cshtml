@@ -68,11 +68,6 @@
 const TOKEN = (name, fallback) =>
     getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 
-const INK = TOKEN('--sn-ink', '#111111');
-const PAPER = TOKEN('--sn-paper', '#faf9f5');
-const ACCENT = TOKEN('--sn-accent', '#ffd23f');
-const VIOLET = TOKEN('--sn-accent-secondary', '#7c5cff');
-
 // Mixes two #rrggbb tokens, so the two extra series the geo chart can need
 // (it shows up to ten countries) are still derived from the token set
 // rather than reintroducing off-palette colours.
@@ -83,27 +78,36 @@ const mix = (from, to, t) => {
     return '#' + step(r1, r2) + step(g1, g2) + step(b1, b2);
 };
 
-// Qualitative series: the accent leads, violet anchors second, then the
-// status tokens and the structural neutrals. Ink borders keep adjacent
-// slices legible the same way they separate table cells.
-const COLORS = [
-    ACCENT,
-    VIOLET,
-    TOKEN('--sn-status-info', '#6ec1ff'),
-    TOKEN('--sn-status-success', '#3ddc84'),
-    TOKEN('--sn-status-error', '#ff4d4d'),
-    INK,
-    TOKEN('--sn-mid-gray', '#8a8578'),
-    TOKEN('--sn-status-neutral', '#e8e4d9'),
-    mix(ACCENT, INK, 0.45),
-    mix(VIOLET, PAPER, 0.5)
-];
+// Resolved per render, not once at load: the tokens move when the colour
+// scheme changes, and Chart.js bakes colours in at construction time.
+function palette() {
+    const ink = TOKEN('--sn-ink', '#111111');
+    const paper = TOKEN('--sn-paper', '#faf9f5');
+    const accent = TOKEN('--sn-accent', '#ffd23f');
+    const violet = TOKEN('--sn-accent-secondary', '#7c5cff');
 
-const seriesColors = (count) =>
-    Array.from({ length: count }, (_, i) => COLORS[i % COLORS.length]);
+    // Qualitative series: the accent leads, violet anchors second, then the
+    // status tokens and the structural neutrals. Ink borders keep adjacent
+    // slices legible the same way they separate table cells.
+    const colors = [
+        accent,
+        violet,
+        TOKEN('--sn-status-info', '#6ec1ff'),
+        TOKEN('--sn-status-success', '#3ddc84'),
+        TOKEN('--sn-status-error', '#ff4d4d'),
+        ink,
+        TOKEN('--sn-mid-gray', '#8a8578'),
+        TOKEN('--sn-status-neutral', '#e8e4d9'),
+        mix(accent, ink, 0.45),
+        mix(violet, paper, 0.5)
+    ];
 
-Chart.defaults.font.family = TOKEN('--sn-font-body', 'system-ui, sans-serif');
-Chart.defaults.color = INK;
+    return {
+        ink,
+        accent,
+        series: (count) => Array.from({ length: count }, (_, i) => colors[i % colors.length])
+    };
+}
 
 (function() {
     var rc = document.getElementById('recent-clicks');
@@ -149,10 +153,19 @@ function chartComponent() {
             document.body.addEventListener('htmx:afterSwap', (e) => {
                 if (e.detail.target.id === 'dashboard-data') this.renderCharts();
             });
+            // Colours are baked into the chart instances, so a scheme change
+            // means tearing them down and rebuilding against the new tokens.
+            document.body.addEventListener('sn:color-scheme-change', () => {
+                if (topChart) { topChart.destroy(); topChart = null; }
+                if (countryChart) { countryChart.destroy(); countryChart = null; }
+                this.renderCharts();
+            });
         },
         renderCharts() {
             var el = document.getElementById('chart-data');
             if (!el) return;
+            Chart.defaults.font.family = TOKEN('--sn-font-body', 'system-ui, sans-serif');
+            Chart.defaults.color = palette().ink;
             try {
                 var data = JSON.parse(el.textContent);
                 this.renderTopChart(data);
@@ -172,6 +185,7 @@ function chartComponent() {
                 topChart.data.datasets[0].data = values;
                 topChart.update();
             } else if (labels.length > 0) {
+                const p = palette();
                 topChart = new Chart(canvas, {
                     type: 'bar',
                     data: {
@@ -179,8 +193,8 @@ function chartComponent() {
                         datasets: [{
                             label: 'Clicks',
                             data: values,
-                            backgroundColor: ACCENT,
-                            borderColor: INK,
+                            backgroundColor: p.accent,
+                            borderColor: p.ink,
                             borderWidth: 2
                         }]
                     },
@@ -206,14 +220,15 @@ function chartComponent() {
                 countryChart.data.datasets[0].data = values;
                 countryChart.update();
             } else if (labels.length > 0) {
+                const p = palette();
                 countryChart = new Chart(canvas, {
                     type: 'doughnut',
                     data: {
                         labels,
                         datasets: [{
                             data: values,
-                            backgroundColor: seriesColors(labels.length),
-                            borderColor: INK,
+                            backgroundColor: p.series(labels.length),
+                            borderColor: p.ink,
                             borderWidth: 2
                         }]
                     },

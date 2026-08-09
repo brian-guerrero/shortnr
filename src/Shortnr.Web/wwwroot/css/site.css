@@ -16,6 +16,7 @@
   --sn-ink: #111111;
   --sn-paper: #faf9f5;
   --sn-surface: #ffffff;
+  --sn-surface-muted: #e8e4d9;
   --sn-mid-gray: #8a8578;
   --sn-line: #111111;
   --sn-accent: #ffd23f;
@@ -25,6 +26,8 @@
   --sn-status-success: #3ddc84;
   --sn-status-info: #6ec1ff;
   --sn-status-neutral: #e8e4d9;
+  --sn-code-block-bg: var(--sn-ink);
+  --sn-code-block-fg: var(--sn-paper);
   --sn-font-display: "Archivo Black", "Arial Black", sans-serif;
   --sn-font-body: "Space Grotesk", "Inter", system-ui, sans-serif;
   --sn-font-mono: "IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace;
@@ -48,6 +51,59 @@
   --sn-space-6: 24px;
   --sn-space-8: 32px;
   --sn-space-12: 48px;
+}
+
+/* ============================================================
+   Dark scheme.
+
+   Every dark difference is expressed as a token override, so no component
+   rule below this block needs to know which scheme is active. "Ink" and
+   "paper" swap roles — in dark, borders and the hard offset shadows are
+   the light element against a dark field, which is what keeps the
+   neo-brutalist signature legible instead of hiding it.
+
+   The accent stays #ffd23f in both schemes: it is the identity colour,
+   and --sn-accent-ink stays dark because text on yellow always is.
+
+   The two selectors carry the same declarations on purpose. The attribute
+   is what the toggle writes (and what the no-flash script in <head> sets
+   before first paint); the media query is the no-JS fallback, guarded so
+   an explicit "light" choice still wins over a dark OS setting.
+   ============================================================ */
+:root[data-color-scheme="dark"] {
+  color-scheme: dark;
+  --sn-ink: #f5f2e9;
+  --sn-paper: #14130f;
+  --sn-surface: #1f1d17;
+  --sn-surface-muted: #26231b;
+  --sn-mid-gray: #a39d8f;
+  --sn-line: #f5f2e9;
+  --sn-accent-secondary: #a48bff;
+  --sn-status-error: #ff6b6b;
+  --sn-status-success: #4ae08f;
+  --sn-status-info: #7cc7ff;
+  --sn-status-neutral: #d8d3c4;
+  --sn-code-block-bg: var(--sn-surface-muted);
+  --sn-code-block-fg: var(--sn-ink);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-color-scheme="light"]) {
+    color-scheme: dark;
+    --sn-ink: #f5f2e9;
+    --sn-paper: #14130f;
+    --sn-surface: #1f1d17;
+    --sn-surface-muted: #26231b;
+    --sn-mid-gray: #a39d8f;
+    --sn-line: #f5f2e9;
+    --sn-accent-secondary: #a48bff;
+    --sn-status-error: #ff6b6b;
+    --sn-status-success: #4ae08f;
+    --sn-status-info: #7cc7ff;
+    --sn-status-neutral: #d8d3c4;
+    --sn-code-block-bg: var(--sn-surface-muted);
+    --sn-code-block-fg: var(--sn-ink);
+  }
 }
 
 /* ============================================================
@@ -112,7 +168,7 @@ hr {
 code, kbd, samp {
   font-family: var(--sn-font-mono);
   font-size: 0.9em;
-  background: var(--sn-status-neutral);
+  background: var(--sn-surface-muted);
   padding: 0.1em 0.35em;
   border: 1px solid var(--sn-line);
 }
@@ -121,8 +177,8 @@ pre {
   font-family: var(--sn-font-mono);
   font-size: 0.875rem;
   line-height: 1.5;
-  background: var(--sn-ink);
-  color: var(--sn-paper);
+  background: var(--sn-code-block-bg);
+  color: var(--sn-code-block-fg);
   padding: var(--sn-space-4);
   border: var(--sn-border-width) solid var(--sn-line);
   overflow-x: auto;
@@ -401,6 +457,22 @@ button[aria-busy="true"] {
   box-shadow: inset 0 3px 0 var(--sn-status-error), var(--sn-shadow-active);
 }
 
+/* Colour-scheme toggle — an icon-sized control in the nav. Deliberately
+   not the Primary tier: it is a preference, not an action on the page. */
+.scheme-toggle {
+  --sn-btn-lift: var(--sn-shadow-offset-sm);
+  --sn-btn-press: 1px;
+  background: var(--sn-surface);
+  color: var(--sn-ink);
+  border-width: var(--sn-border-width);
+  padding: var(--sn-space-1) var(--sn-space-2);
+  line-height: 1.3;
+}
+.scheme-toggle:hover {
+  color: var(--sn-ink);
+  box-shadow: var(--sn-shadow-active);
+}
+
 /* Contrast variant — kept for full-width emphasis outside the three tiers
    (marketing CTAs); no row action should use it, see DSG-002 §7. */
 .contrast {
@@ -446,12 +518,14 @@ mark {
   border: var(--sn-border-width) solid var(--sn-line);
   box-shadow: var(--sn-shadow-offset-sm);
   background: var(--sn-accent);
-  color: var(--sn-ink);
+  /* Status fills stay saturated in both schemes, so their text stays dark
+     in both — the same reason --sn-accent-ink exists for the accent. */
+  color: var(--sn-accent-ink);
 }
-.status-error { background: var(--sn-status-error); color: var(--sn-ink); }
-.status-success { background: var(--sn-status-success); color: var(--sn-ink); }
-.status-info { background: var(--sn-status-info); color: var(--sn-ink); }
-.status-neutral { background: var(--sn-status-neutral); color: var(--sn-ink); }
+.status-error { background: var(--sn-status-error); color: var(--sn-accent-ink); }
+.status-success { background: var(--sn-status-success); color: var(--sn-accent-ink); }
+.status-info { background: var(--sn-status-info); color: var(--sn-accent-ink); }
+.status-neutral { background: var(--sn-status-neutral); color: var(--sn-accent-ink); }
 
 /* A stamp carrying user-entered text (a workspace name) keeps its casing. */
 .preserve-case { text-transform: none; letter-spacing: normal; }
@@ -476,7 +550,7 @@ mark {
   letter-spacing: normal;
   border: var(--sn-border-width) solid var(--sn-line);
   box-shadow: var(--sn-shadow-offset-sm);
-  color: var(--sn-ink);
+  color: var(--sn-accent-ink);
 }
 
 /* Sortable tables (dashboard recent clicks) — DSG-002 §7. The active-sort
@@ -497,7 +571,7 @@ mark {
    accent left edge plus the inset reads as "nested under the row above",
    rather than as a seventh sibling row. */
 .detail-row > td {
-  background: var(--sn-status-neutral);
+  background: var(--sn-surface-muted);
   font-size: var(--sn-text-small);
   border-left: var(--sn-border-width) solid var(--sn-accent);
   padding-left: var(--sn-space-6);
@@ -526,7 +600,7 @@ mark {
   letter-spacing: 0.02em;
 }
 .badge-accent { background: var(--sn-accent); color: var(--sn-accent-ink); }
-.badge-info { background: var(--sn-status-info); color: var(--sn-ink); }
+.badge-info { background: var(--sn-status-info); color: var(--sn-accent-ink); }
 
 /* ============================================================
    Top nav (mirrors docs/src/components/Nav.astro)
@@ -589,6 +663,7 @@ mark {
 }
 .site-nav .nav-links a.active {
   background: var(--sn-accent);
+  color: var(--sn-accent-ink);
   border: var(--sn-border-width) solid var(--sn-line);
   box-shadow: var(--sn-shadow-offset-sm);
   font-weight: 700;
@@ -704,6 +779,9 @@ details.dropdown.user-menu[open] > summary {
    ============================================================ */
 .nav-avatar { border-radius: 50%; vertical-align: middle; }
 .muted { color: var(--sn-mid-gray); }
+/* The reset above clears every default display, so [hidden] needs restating
+   — the scheme toggle ships hidden and is revealed by script. */
+[hidden] { display: none !important; }
 [x-cloak] { display: none !important; }
 [aria-busy="true"] { cursor: progress; }
 

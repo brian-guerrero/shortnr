@@ -2,8 +2,12 @@
     var theme = (string?)ViewData["BioTheme"] ?? "default";
     var title = (string?)ViewData["BioTitle"] ?? "shortnr";
 }
+@* Bio pages opt out of the app's dark scheme: the theme here is the page
+   owner's choice, not the viewer's, and midnight is already the dark one.
+   Pinning light also keeps the brutal theme's ink borders and hard shadows
+   dark on a visitor whose OS is set to dark. *@
 <!DOCTYPE html>
-<html lang="en" data-bio-theme="@theme">
+<html lang="en" data-bio-theme="@theme" data-color-scheme="light">
 
 <head>
     <meta charset="utf-8" />

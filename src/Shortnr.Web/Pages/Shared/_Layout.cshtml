@@ -13,6 +13,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="/css/site.css">
+    @* Inline and before the body on purpose: resolving the scheme after first
+       paint is what causes a flash of the wrong theme. *@
+    <script>
+        (function () {
+            var scheme;
+            try { scheme = localStorage.getItem('sn-color-scheme'); } catch (e) { scheme = null; }
+            if (scheme !== 'light' && scheme !== 'dark') {
+                scheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+            document.documentElement.setAttribute('data-color-scheme', scheme);
+        })();
+    </script>
+    <script src="/js/color-scheme.js" defer></script>
     <script src="/lib/htmx/dist/htmx.min.js"></script>
     <script src="/lib/htmx-ext-sse/dist/sse.min.js"></script>
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
@@ -65,6 +78,12 @@
                             <li><a href="/account/login">Log in</a></li>
                         }
                     }
+                    @* Hidden until the script reveals it, so it is not a dead
+                       control when JavaScript is unavailable. *@
+                    <li>
+                        <button type="button" class="scheme-toggle" data-scheme-toggle
+                                aria-pressed="false" aria-label="Switch to dark theme" hidden>☾</button>
+                    </li>
                 </ul>
             </nav>
         </div>
