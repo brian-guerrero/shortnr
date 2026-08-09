@@ -12,6 +12,8 @@ public class ShortenedUrl
     public long? WorkspaceId { get; set; }
 
     public ICollection<ClickEvent> ClickEvents { get; set; } = [];
+    public ICollection<ShortenedUrlTag> Tags { get; set; } = [];
+    public ICollection<TagSuggestion> TagSuggestions { get; set; } = [];
     public User? Owner { get; set; }
     public Domain? Domain { get; set; }
     public Workspace? Workspace { get; set; }
