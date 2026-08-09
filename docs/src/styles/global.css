@@ -156,6 +156,12 @@ p {
 code {
   font-family: var(--sn-font-mono);
   font-size: 0.9em;
+  /* Pin the text colour rather than let it inherit — inside a <mark>-style
+     status fill, an ancestor can force a dark ink for contrast against its
+     own light background, which would otherwise leave dark text sitting on
+     this element's own --sn-surface-muted once that surface flips dark in
+     dark mode. Mirrors src/Shortnr.Web/wwwroot/css/site.css. */
+  color: var(--sn-ink);
   background: var(--sn-surface-muted);
   padding: 0.1em 0.35em;
   border: 1px solid var(--sn-line);

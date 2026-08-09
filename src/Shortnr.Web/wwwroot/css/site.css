@@ -168,6 +168,12 @@ hr {
 code, kbd, samp {
   font-family: var(--sn-font-mono);
   font-size: 0.9em;
+  /* Pin the text colour rather than let it inherit — inside a <mark
+     class="banner"> (the API key / webhook secret reveal), the banner
+     forces a dark ink for contrast against its own light accent fill,
+     which would otherwise leave dark text sitting on this element's own
+     --sn-surface-muted once that surface flips dark in dark mode. */
+  color: var(--sn-ink);
   background: var(--sn-surface-muted);
   padding: 0.1em 0.35em;
   border: 1px solid var(--sn-line);
