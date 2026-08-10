@@ -29,6 +29,22 @@ const { title, description = "Documentation for shortnr — the self-hosted URL 
       {ogType}
       {pubDate}
     />
+    {/* Inline and before the body on purpose: resolving the scheme after
+        first paint is what causes a flash of the wrong theme. */}
+    <script is:inline>
+      (function () {
+        var scheme;
+        try {
+          scheme = localStorage.getItem("sn-color-scheme");
+        } catch (e) {
+          scheme = null;
+        }
+        if (scheme !== "light" && scheme !== "dark") {
+          scheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        document.documentElement.setAttribute("data-color-scheme", scheme);
+      })();
+    </script>
   </head>
   <body>
     <Nav />

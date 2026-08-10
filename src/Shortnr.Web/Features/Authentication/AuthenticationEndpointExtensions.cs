@@ -56,6 +56,10 @@ public static class AuthenticationEndpointExtensions
                 MaxAge = TimeSpan.FromDays(30)
             });
             return Results.Redirect("/");
+        // No antiforgery token: cross-origin CSRF is blocked by the SameSite=Lax
+        // session cookie (browsers never attach it to a cross-site POST, so the
+        // forged request hits the 401 above), and this is an idempotent cookie
+        // switch validated against active membership. See WorkspaceSwitchEndpointTests.
         }).DisableAntiforgery();
 
         return app;

@@ -90,6 +90,20 @@ public class BioPublicTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task PublicPage_AppliesBrutalTheme()
+    {
+        var ownerId = await SeedUserAsync("alice");
+        var pageId = await SeedBioPageAsync(ownerId, "alicebio", "Alice", "brutal");
+        var linkId = await SeedLinkAsync(ownerId, "abc123", "https://example.com/one");
+        await SeedBioPageLinkAsync(pageId, linkId, "Link", 0, true);
+
+        var body = await _factory.CreateClient().GetStringAsync("/bio/alicebio");
+
+        Assert.Contains("data-bio-theme=\"brutal\"", body);
+        Assert.Contains("[data-bio-theme=\"brutal\"] .bio-card", body);
+    }
+
+    [Fact]
     public async Task PublicPage_LinkRoutesThroughRedirect()
     {
         var ownerId = await SeedUserAsync("alice");
