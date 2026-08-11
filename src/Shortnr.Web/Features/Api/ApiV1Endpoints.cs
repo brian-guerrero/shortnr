@@ -50,6 +50,42 @@ public static class ApiV1Endpoints
             .Produces(StatusCodes.Status404NotFound)
             .Produces(StatusCodes.Status409Conflict);
 
+        group.MapPatch("/links/{shortCode}", UpdateLinkAsync)
+            .WithName("PatchLink")
+            .WithSummary("Partially update a short link")
+            .WithDescription("PATCH alias of PUT — updates destination URL, slug, tags, title and description. Omitted fields keep their current value.")
+            .RequireAuthorization(ApiKeyScopes.LinksWrite)
+            .Produces<LinkResponse>()
+            .ProducesValidationProblem()
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status409Conflict);
+
+        group.MapPost("/links/{shortCode}/archive", ArchiveLinkAsync)
+            .WithName("ArchiveLink")
+            .WithSummary("Archive a short link")
+            .WithDescription("Archived links stop redirecting (HTTP 410) but are not deleted. Archiving an already-archived link is a no-op.")
+            .RequireAuthorization(ApiKeyScopes.LinksWrite)
+            .Produces<LinkResponse>()
+            .Produces(StatusCodes.Status404NotFound);
+
+        group.MapPost("/links/{shortCode}/unarchive", UnarchiveLinkAsync)
+            .WithName("UnarchiveLink")
+            .WithSummary("Restore an archived short link")
+            .WithDescription("Restores a link's redirect so it resolves again. Unarchiving an active link is a no-op.")
+            .RequireAuthorization(ApiKeyScopes.LinksWrite)
+            .Produces<LinkResponse>()
+            .Produces(StatusCodes.Status404NotFound);
+
+        group.MapPost("/links/{shortCode}/transfer", TransferLinkAsync)
+            .WithName("TransferLink")
+            .WithSummary("Transfer a short link to another workspace")
+            .WithDescription("Moves the link into the target workspace. The caller must be a member of both the source and the target workspace, otherwise a 403 is returned.")
+            .RequireAuthorization(ApiKeyScopes.LinksWrite)
+            .Produces<LinkResponse>()
+            .ProducesValidationProblem()
+            .Produces(StatusCodes.Status403Forbidden)
+            .Produces(StatusCodes.Status404NotFound);
+
         group.MapDelete("/links/{shortCode}", DeleteLinkAsync)
             .WithName("DeleteLink")
             .WithSummary("Delete a short link")
@@ -197,6 +233,7 @@ public static class ApiV1Endpoints
             .OrderByDescending(l => l.CreatedAtUtc)
             .Include(l => l.Domain)
             .Include(l => l.Workspace)
+            .Include(l => l.Tags)
             .Skip((p - 1) * ps)
             .Take(ps)
             .ToListAsync(ct);
@@ -294,6 +331,12 @@ public static class ApiV1Endpoints
                 link.LongUrl = newUrl;
         }
 
+        if (body.Title is not null)
+            link.Title = string.IsNullOrWhiteSpace(body.Title) ? null : body.Title.Trim();
+
+        if (body.Description is not null)
+            link.Description = string.IsNullOrWhiteSpace(body.Description) ? null : body.Description.Trim();
+
         if (slug != link.ShortCode || domainId != link.DomainId)
         {
             var collides = await db.ShortenedUrls.AnyAsync(
@@ -307,9 +350,112 @@ public static class ApiV1Endpoints
 
         link.ShortCode = slug;
         link.DomainId = domainId;
+        link.UpdatedAtUtc = DateTime.UtcNow;
+
+        if (body.Tags is not null)
+            await ReplaceTagsAsync(db, link, body.Tags, ct);
+
         await db.SaveChangesAsync(ct);
 
         return TypedResults.Ok(ToResponse(link, resolvedDomain, request.Scheme, request.Host.Host, link.Workspace?.Slug));
+    }
+
+    private static async Task<IResult> ArchiveLinkAsync(
+        string shortCode,
+        string? domain,
+        string? workspace,
+        HttpRequest request,
+        AppDbContext db,
+        UserIdentityService identity,
+        WorkspaceService workspaceService,
+        ClaimsPrincipal user,
+        CancellationToken ct)
+    {
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(user);
+        if (ownerUserId is null)
+            return TypedResults.Unauthorized();
+
+        var link = await ResolveOwnedLinkAsync(db, ownerUserId.Value, shortCode, domain, workspace, workspaceService, ct);
+        if (link is null)
+            return TypedResults.NotFound();
+
+        if (link.ArchivedAtUtc is null)
+        {
+            link.ArchivedAtUtc = DateTime.UtcNow;
+            link.UpdatedAtUtc = link.ArchivedAtUtc;
+            await db.SaveChangesAsync(ct);
+        }
+
+        return TypedResults.Ok(ToResponse(link, link.Domain, request.Scheme, request.Host.Host, link.Workspace?.Slug));
+    }
+
+    private static async Task<IResult> UnarchiveLinkAsync(
+        string shortCode,
+        string? domain,
+        string? workspace,
+        HttpRequest request,
+        AppDbContext db,
+        UserIdentityService identity,
+        WorkspaceService workspaceService,
+        ClaimsPrincipal user,
+        CancellationToken ct)
+    {
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(user);
+        if (ownerUserId is null)
+            return TypedResults.Unauthorized();
+
+        var link = await ResolveOwnedLinkAsync(db, ownerUserId.Value, shortCode, domain, workspace, workspaceService, ct);
+        if (link is null)
+            return TypedResults.NotFound();
+
+        if (link.ArchivedAtUtc is not null)
+        {
+            link.ArchivedAtUtc = null;
+            link.UpdatedAtUtc = DateTime.UtcNow;
+            await db.SaveChangesAsync(ct);
+        }
+
+        return TypedResults.Ok(ToResponse(link, link.Domain, request.Scheme, request.Host.Host, link.Workspace?.Slug));
+    }
+
+    private static async Task<IResult> TransferLinkAsync(
+        string shortCode,
+        TransferLinkRequest body,
+        string? domain,
+        string? workspace,
+        HttpRequest request,
+        AppDbContext db,
+        UserIdentityService identity,
+        WorkspaceService workspaceService,
+        ClaimsPrincipal user,
+        CancellationToken ct)
+    {
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(user);
+        if (ownerUserId is null)
+            return TypedResults.Unauthorized();
+
+        var link = await ResolveOwnedLinkAsync(db, ownerUserId.Value, shortCode, domain, workspace, workspaceService, ct);
+        if (link is null)
+            return TypedResults.NotFound();
+
+        var targetSlug = body.Workspace.Trim();
+        if (targetSlug.Length == 0 || !WorkspaceService.IsValidSlug(targetSlug))
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["workspace"] = ["Enter a valid workspace slug."] });
+
+        var target = await workspaceService.GetWorkspaceBySlugAsync(targetSlug);
+        if (target is null || !await workspaceService.IsMemberAsync(target.Id, ownerUserId.Value))
+            return TypedResults.StatusCode(StatusCodes.Status403Forbidden);
+
+        var sourceWorkspaceId = link.WorkspaceId;
+        if (sourceWorkspaceId is not null && !await workspaceService.IsMemberAsync(sourceWorkspaceId.Value, ownerUserId.Value))
+            return TypedResults.StatusCode(StatusCodes.Status403Forbidden);
+
+        link.WorkspaceId = target.Id;
+        link.OwnerUserId = null;
+        link.UpdatedAtUtc = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+
+        return TypedResults.Ok(ToResponse(link, link.Domain, request.Scheme, request.Host.Host, target.Slug));
     }
 
     private static async Task<IResult> DeleteLinkAsync(
@@ -383,6 +529,7 @@ public static class ApiV1Endpoints
         var query = db.ShortenedUrls
             .Include(l => l.Domain)
             .Include(l => l.Workspace)
+            .Include(l => l.Tags)
             .AsQueryable();
 
         if (workspace is { Length: > 0 } ws)
@@ -422,6 +569,33 @@ public static class ApiV1Endpoints
             domain?.Hostname,
             link.ClickCount,
             link.CreatedAtUtc,
-            workspaceSlug);
+            workspaceSlug,
+            link.Tags?.Select(t => t.Name).OrderBy(n => n).ToList(),
+            link.Title,
+            link.Description,
+            link.ArchivedAtUtc,
+            link.UpdatedAtUtc);
+    }
+
+    private static async Task ReplaceTagsAsync(AppDbContext db, ShortenedUrl link, IReadOnlyList<string> tags, CancellationToken ct)
+    {
+        var existing = await db.ShortenedUrlTags
+            .Where(t => t.ShortenedUrlId == link.Id)
+            .ToListAsync(ct);
+        db.ShortenedUrlTags.RemoveRange(existing);
+
+        foreach (var raw in tags)
+        {
+            var name = raw.Trim();
+            if (name.Length > 0)
+            {
+                db.ShortenedUrlTags.Add(new ShortenedUrlTag
+                {
+                    ShortenedUrlId = link.Id,
+                    Name = name.Length > 128 ? name[..128] : name,
+                    CreatedAtUtc = DateTime.UtcNow
+                });
+            }
+        }
     }
 }

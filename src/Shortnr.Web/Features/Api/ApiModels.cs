@@ -16,6 +16,15 @@ public record UpdateLinkRequest
     public string? Slug { get; init; }
     public string? Domain { get; init; }
     public string? Workspace { get; init; }
+    public IReadOnlyList<string>? Tags { get; init; }
+    public string? Title { get; init; }
+    public string? Description { get; init; }
+}
+
+/// <summary>POST /api/v1/links/{shortCode}/transfer request body.</summary>
+public record TransferLinkRequest
+{
+    public required string Workspace { get; init; }
 }
 
 public record LinkResponse(
@@ -25,7 +34,12 @@ public record LinkResponse(
     string? Domain,
     long ClickCount,
     DateTime CreatedAtUtc,
-    string? Workspace = null);
+    string? Workspace = null,
+    IReadOnlyList<string>? Tags = null,
+    string? Title = null,
+    string? Description = null,
+    DateTime? ArchivedAtUtc = null,
+    DateTime? UpdatedAtUtc = null);
 
 public record LinkListResponse(
     IReadOnlyList<LinkResponse> Links,
