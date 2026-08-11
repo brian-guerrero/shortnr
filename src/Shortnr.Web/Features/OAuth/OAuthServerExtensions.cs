@@ -225,8 +225,11 @@ public static class OAuthServerExtensions
             if (name is not null)
                 identity.SetClaim(Claims.Name, name);
 
+            // SetClaim replaces any existing claim of the same type, so looping
+            // it here would leave only the last granted scope on the identity —
+            // AddClaim is required to keep one snr_scope claim per scope.
             foreach (var scope in request.GetScopes())
-                identity.SetClaim(ApiKeyScopes.ScopeClaim, scope);
+                identity.AddClaim(new Claim(ApiKeyScopes.ScopeClaim, scope));
 
             identity.SetScopes(request.GetScopes());
             identity.SetResources(await scopeManager.ListResourcesAsync(identity.GetScopes()).ToListAsync());
