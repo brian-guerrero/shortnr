@@ -4,6 +4,7 @@ using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
 using Shortnr.Data.Entities;
+using Shortnr.Web.Features.Workspaces;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
@@ -60,6 +61,45 @@ public static class McpToolGuard
             return matches.FirstOrDefault();
 
         return matches.FirstOrDefault(l => l.DomainId == null) ?? matches[0];
+    }
+
+    /// <summary>
+    /// Resolves a link the caller can act on: an owned (personal) link, or a link in a
+    /// workspace the caller is a member of. Personal links win on ambiguous codes; a
+    /// default-domain link wins among remaining matches (mirrors the API's
+    /// workspace-aware resolution). Used by lifecycle tools (archive, transfer, ...).
+    /// </summary>
+    public static async Task<ShortenedUrl?> ResolveAccessibleLinkAsync(
+        AppDbContext db, long ownerUserId, string shortCode, WorkspaceService workspaceService, CancellationToken ct)
+    {
+        var personal = await db.ShortenedUrls
+            .Include(l => l.Domain)
+            .Include(l => l.Workspace)
+            .Where(l => l.OwnerUserId == ownerUserId && l.ShortCode == shortCode)
+            .ToListAsync(ct);
+
+        if (personal.Count > 0)
+            return personal.Count == 1
+                ? personal[0]
+                : personal.FirstOrDefault(l => l.DomainId == null) ?? personal[0];
+
+        var memberWorkspaceIds = await db.WorkspaceMembers
+            .Where(m => m.UserId == ownerUserId && m.JoinedAtUtc != null)
+            .Select(m => m.WorkspaceId)
+            .ToListAsync(ct);
+
+        var workspaceMatches = await db.ShortenedUrls
+            .Include(l => l.Domain)
+            .Include(l => l.Workspace)
+            .Where(l => l.ShortCode == shortCode &&
+                        l.WorkspaceId != null &&
+                        memberWorkspaceIds.Contains(l.WorkspaceId!.Value))
+            .ToListAsync(ct);
+
+        if (workspaceMatches.Count <= 1)
+            return workspaceMatches.FirstOrDefault();
+
+        return workspaceMatches.FirstOrDefault(l => l.DomainId == null) ?? workspaceMatches[0];
     }
 
     /// <summary>Enqueues an audit entry for an AI/MCP-initiated change (never blocks the call).</summary>

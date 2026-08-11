@@ -119,6 +119,37 @@ public abstract class McpTestBase : IAsyncLifetime
         return page.Id;
     }
 
+    protected async Task<long> SeedWorkspaceAsync(long ownerUserId, string slug, string name)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var workspace = new Workspace
+        {
+            OwnerUserId = ownerUserId,
+            Slug = slug,
+            Name = name,
+            CreatedAtUtc = DateTime.UtcNow
+        };
+        db.Workspaces.Add(workspace);
+        await db.SaveChangesAsync();
+        return workspace.Id;
+    }
+
+    protected async Task AddWorkspaceMemberAsync(long workspaceId, long userId, WorkspaceRole role = WorkspaceRole.Owner)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.WorkspaceMembers.Add(new WorkspaceMember
+        {
+            WorkspaceId = workspaceId,
+            UserId = userId,
+            Role = role,
+            InvitedAtUtc = DateTime.UtcNow,
+            JoinedAtUtc = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync();
+    }
+
     /// <summary>Polls until an AiActivityLog row matching the owner+action appears (the
     /// processor drains its channel asynchronously) or fails after the timeout.</summary>
     protected async Task WaitForActivityAsync(long ownerUserId, string action, int timeoutMs = 5000)

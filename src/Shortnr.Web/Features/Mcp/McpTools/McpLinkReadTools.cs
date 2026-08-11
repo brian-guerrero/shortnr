@@ -22,6 +22,7 @@ public static class McpLinkReadTools
         [Description("Optional case-insensitive filter on short code or destination URL")] string? filter = null,
         [Description("Sort order: 'created' (newest first, default), 'clicks_desc', 'clicks_asc'")] string? sort = null,
         [Description("Only links on this verified domain hostname, or 'default' for the instance host")] string? domain = null,
+        [Description("Lifecycle status: 'all' (default), 'active', 'archived'")] string? status = null,
         [Description("Maximum number of links to return (1-100)")] int limit = 50,
         CancellationToken ct = default)
     {
@@ -43,6 +44,16 @@ public static class McpLinkReadTools
             var f = filter.Trim();
             query = query.Where(l => l.ShortCode.Contains(f) || l.LongUrl.Contains(f));
         }
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            query = status.Trim().ToLowerInvariant() switch
+            {
+                "active" => query.Where(l => l.ArchivedAtUtc == null),
+                "archived" => query.Where(l => l.ArchivedAtUtc != null),
+                "all" => query,
+                _ => query
+            };
+        }
 
         var ordered = sort switch
         {
@@ -56,13 +67,18 @@ public static class McpLinkReadTools
 
         var links = await ordered
             .Include(l => l.Domain)
+            .Include(l => l.Tags)
             .Take(limit)
             .Select(l => new LinkListItem(
                 l.ShortCode,
                 l.Domain != null ? l.Domain.Hostname : null,
                 l.LongUrl,
                 l.ClickCount,
-                l.CreatedAtUtc))
+                l.CreatedAtUtc,
+                l.Title,
+                l.Description,
+                l.Tags.OrderBy(t => t.Name).Select(t => t.Name).ToList(),
+                l.ArchivedAtUtc))
             .ToListAsync(ct);
 
         return links.Count == 0
@@ -107,6 +123,14 @@ public static class McpLinkReadTools
             link.Domain?.Hostname,
             link.LongUrl,
             total,
+            link.Title,
+            link.Description,
+            (await db.ShortenedUrlTags
+                .Where(t => t.ShortenedUrlId == link.Id)
+                .OrderBy(t => t.Name)
+                .Select(t => t.Name)
+                .ToListAsync(ct)),
+            link.ArchivedAtUtc,
             topReferrers,
             topCountries,
             topDevices,
@@ -188,7 +212,9 @@ public static class McpLinkReadTools
         return McpToolGuard.Json(result);
     }
 
-    private sealed record LinkListItem(string ShortCode, string? Domain, string LongUrl, long ClickCount, DateTime CreatedAtUtc);
+    private sealed record LinkListItem(
+        string ShortCode, string? Domain, string LongUrl, long ClickCount, DateTime CreatedAtUtc,
+        string? Title = null, string? Description = null, IReadOnlyList<string>? Tags = null, DateTime? ArchivedAtUtc = null);
     private sealed record NameCount(string Name, int Count);
     private sealed record TopLink(long ShortenedUrlId, int Clicks);
     private sealed record LinkStats(
@@ -196,6 +222,10 @@ public static class McpLinkReadTools
         string? Domain,
         string LongUrl,
         long ClickCount,
+        string? Title,
+        string? Description,
+        IReadOnlyList<string> Tags,
+        DateTime? ArchivedAtUtc,
         IReadOnlyList<NameCount> TopReferrers,
         IReadOnlyList<NameCount> TopCountries,
         IReadOnlyList<NameCount> TopDevices,

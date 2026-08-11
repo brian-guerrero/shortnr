@@ -9,10 +9,10 @@ using ModelContextProtocol.Server;
 namespace Shortnr.Web.Features.Mcp.McpTools;
 
 /// <summary>
-/// Write tools for short links: create, update, and delete. Every tool requires
-/// the <c>mcp:write</c> scope. Destructive actions go through MRTR confirmation
-/// when the client supports it, otherwise they demand an explicit
-/// <c>confirmed=true</c> argument. Each mutation is audited via
+/// Write tools for short links: create, update, archive, unarchive, transfer, and
+/// delete. Every tool requires the <c>mcp:write</c> scope. Destructive actions go
+/// through MRTR confirmation when the client supports it, otherwise they demand an
+/// explicit <c>confirmed=true</c> argument. Each mutation is audited via
 /// <see cref="AiActivityProcessor"/>.
 /// </summary>
 [McpServerToolType]
@@ -89,7 +89,7 @@ public static class McpLinkWriteTools
             "create_short_link", nameof(ShortenedUrl), link.Id,
             $"Created short link '{shortCode}' pointing to {target}");
 
-        return McpToolGuard.Json(new LinkResult(shortCode, link.Domain?.Hostname, target, 0));
+        return McpToolGuard.Json(new LinkResult(shortCode, link.Domain?.Hostname, target, 0, null, null, [], null, null));
     }
 
     [McpServerTool(Name = "update_link", Title = "Update a short link")]
@@ -98,11 +98,15 @@ public static class McpLinkWriteTools
         RequestContext<CallToolRequestParams> context,
         AppDbContext db,
         UserIdentityService identity,
+        WorkspaceService workspaceService,
         Channel<AiActivityRecord> activity,
         [Description("The short code of the link to update")] string short_code,
         [Description("New destination URL")] string? url = null,
         [Description("New vanity slug")] string? slug = null,
         [Description("New domain hostname, or 'default' to move to the instance host; omit to keep the current domain")] string? domain = null,
+        [Description("New title (metadata)")] string? title = null,
+        [Description("New description (metadata)")] string? description = null,
+        [Description("Comma-separated tags replacing the current tags")] string? tags = null,
         [Description("Explicit confirmation: required when changing the destination of a link that already has clicks or a bio-page placement")] bool? confirmed = null,
         CancellationToken ct = default)
     {
@@ -111,7 +115,7 @@ public static class McpLinkWriteTools
         if (!McpToolGuard.HasScope(context, ApiKeyScopes.McpWrite)) return McpToolGuard.WriteScopeError;
 
         var code = short_code.Trim();
-        var link = await McpToolGuard.ResolveOwnedLinkAsync(db, ownerUserId.Value, code, ct);
+        var link = await McpToolGuard.ResolveAccessibleLinkAsync(db, ownerUserId.Value, code, workspaceService, ct);
         if (link is null)
             return $"Error: no link with short code '{code}' found.";
 
@@ -188,16 +192,168 @@ public static class McpLinkWriteTools
             }
         }
 
+        if (title is not null)
+        {
+            var trimmed = title.Trim();
+            var newTitle = trimmed.Length > 0 ? trimmed : null;
+            if (newTitle != link.Title)
+            {
+                link.Title = newTitle;
+                changes.Add(newTitle is null ? "title cleared" : $"title to '{newTitle}'");
+            }
+        }
+
+        if (description is not null)
+        {
+            var trimmed = description.Trim();
+            var newDescription = trimmed.Length > 0 ? trimmed : null;
+            if (newDescription != link.Description)
+            {
+                link.Description = newDescription;
+                changes.Add(newDescription is null ? "description cleared" : "description updated");
+            }
+        }
+
+        if (tags is not null)
+        {
+            var tagNames = tags
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(t => t.Length > 128 ? t[..128] : t)
+                .Distinct()
+                .ToList();
+            await ReplaceTagsAsync(db, link.Id, tagNames, ct);
+            changes.Add("tags");
+        }
+
         if (changes.Count == 0)
             return "No changes were requested or needed.";
 
+        link.UpdatedAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
+
+        var tagsNow = await db.ShortenedUrlTags
+            .Where(t => t.ShortenedUrlId == link.Id)
+            .OrderBy(t => t.Name)
+            .Select(t => t.Name)
+            .ToListAsync(ct);
 
         McpToolGuard.LogActivity(activity, ownerUserId.Value, McpToolGuard.ResolveApiKeyId(context),
             "update_link", nameof(ShortenedUrl), link.Id,
             $"Updated short link '{code}': {string.Join(", ", changes)}");
 
-        return McpToolGuard.Json(new LinkResult(link.ShortCode, resultDomain, link.LongUrl, link.ClickCount));
+        return McpToolGuard.Json(new LinkResult(link.ShortCode, resultDomain, link.LongUrl, link.ClickCount,
+            link.Title, link.Description, tagsNow, link.ArchivedAtUtc, link.Workspace?.Slug));
+    }
+
+    [McpServerTool(Name = "archive_link", Title = "Archive a short link")]
+    public static async Task<string> ArchiveLink(
+        RequestContext<CallToolRequestParams> context,
+        AppDbContext db,
+        UserIdentityService identity,
+        WorkspaceService workspaceService,
+        Channel<AiActivityRecord> activity,
+        [Description("The short code of the link to archive")] string short_code,
+        CancellationToken ct = default)
+    {
+        var ownerUserId = await McpToolGuard.ResolveOwnerAsync(context, identity);
+        if (ownerUserId is null) return McpToolGuard.OwnerError;
+        if (!McpToolGuard.HasScope(context, ApiKeyScopes.McpWrite)) return McpToolGuard.WriteScopeError;
+
+        var code = short_code.Trim();
+        var link = await McpToolGuard.ResolveAccessibleLinkAsync(db, ownerUserId.Value, code, workspaceService, ct);
+        if (link is null)
+            return $"Error: no link with short code '{code}' found.";
+
+        if (link.ArchivedAtUtc is null)
+        {
+            link.ArchivedAtUtc = DateTime.UtcNow;
+            link.UpdatedAtUtc = link.ArchivedAtUtc;
+            await db.SaveChangesAsync(ct);
+
+            McpToolGuard.LogActivity(activity, ownerUserId.Value, McpToolGuard.ResolveApiKeyId(context),
+                "archive_link", nameof(ShortenedUrl), link.Id,
+                $"Archived short link '{code}'");
+        }
+
+        return $"Archived short link '{code}'. It no longer redirects.";
+    }
+
+    [McpServerTool(Name = "unarchive_link", Title = "Unarchive a short link")]
+    public static async Task<string> UnarchiveLink(
+        RequestContext<CallToolRequestParams> context,
+        AppDbContext db,
+        UserIdentityService identity,
+        WorkspaceService workspaceService,
+        Channel<AiActivityRecord> activity,
+        [Description("The short code of the link to unarchive")] string short_code,
+        CancellationToken ct = default)
+    {
+        var ownerUserId = await McpToolGuard.ResolveOwnerAsync(context, identity);
+        if (ownerUserId is null) return McpToolGuard.OwnerError;
+        if (!McpToolGuard.HasScope(context, ApiKeyScopes.McpWrite)) return McpToolGuard.WriteScopeError;
+
+        var code = short_code.Trim();
+        var link = await McpToolGuard.ResolveAccessibleLinkAsync(db, ownerUserId.Value, code, workspaceService, ct);
+        if (link is null)
+            return $"Error: no link with short code '{code}' found.";
+
+        if (link.ArchivedAtUtc is not null)
+        {
+            link.ArchivedAtUtc = null;
+            link.UpdatedAtUtc = DateTime.UtcNow;
+            await db.SaveChangesAsync(ct);
+
+            McpToolGuard.LogActivity(activity, ownerUserId.Value, McpToolGuard.ResolveApiKeyId(context),
+                "unarchive_link", nameof(ShortenedUrl), link.Id,
+                $"Unarchived short link '{code}'");
+        }
+
+        return $"Unarchived short link '{code}'. It redirects again.";
+    }
+
+    [McpServerTool(Name = "transfer_link", Title = "Transfer a short link to another workspace")]
+    public static async Task<string> TransferLink(
+        RequestContext<CallToolRequestParams> context,
+        AppDbContext db,
+        UserIdentityService identity,
+        Channel<AiActivityRecord> activity,
+        WorkspaceService workspaceService,
+        [Description("The short code of the link to transfer")] string short_code,
+        [Description("The slug of the target workspace")] string workspace,
+        CancellationToken ct = default)
+    {
+        var ownerUserId = await McpToolGuard.ResolveOwnerAsync(context, identity);
+        if (ownerUserId is null) return McpToolGuard.OwnerError;
+        if (!McpToolGuard.HasScope(context, ApiKeyScopes.McpWrite)) return McpToolGuard.WriteScopeError;
+
+        var code = short_code.Trim();
+        var link = await McpToolGuard.ResolveAccessibleLinkAsync(db, ownerUserId.Value, code, workspaceService, ct);
+        if (link is null)
+            return $"Error: no link with short code '{code}' found.";
+
+        var targetSlug = workspace.Trim();
+        if (targetSlug.Length == 0 || !WorkspaceService.IsValidSlug(targetSlug))
+            return "Error: workspace must be a valid workspace slug.";
+
+        var target = await workspaceService.GetWorkspaceBySlugAsync(targetSlug);
+        if (target is null || !await workspaceService.IsMemberAsync(target.Id, ownerUserId.Value))
+            return $"Error: you are not a member of workspace '{targetSlug}'.";
+
+        var sourceWorkspaceId = link.WorkspaceId;
+        if (sourceWorkspaceId is not null && !await workspaceService.IsMemberAsync(sourceWorkspaceId.Value, ownerUserId.Value))
+            return $"Error: you must be a member of the link's current workspace to transfer it.";
+
+        link.WorkspaceId = target.Id;
+        link.OwnerUserId = null;
+        link.UpdatedAtUtc = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+
+        McpToolGuard.LogActivity(activity, ownerUserId.Value, McpToolGuard.ResolveApiKeyId(context),
+            "transfer_link", nameof(ShortenedUrl), link.Id,
+            $"Transferred short link '{code}' to workspace '{target.Slug}'");
+
+        return McpToolGuard.Json(new LinkResult(link.ShortCode, link.Domain?.Hostname, link.LongUrl, link.ClickCount,
+            link.Title, link.Description, [], link.ArchivedAtUtc, target.Slug));
     }
 
     [McpServerTool(Name = "delete_link", Title = "Delete a short link")]
@@ -241,5 +397,22 @@ public static class McpLinkWriteTools
         return $"Deleted short link '{deletedCode}'.";
     }
 
-    private sealed record LinkResult(string ShortCode, string? Domain, string LongUrl, long ClickCount);
+    private sealed record LinkResult(
+        string ShortCode, string? Domain, string LongUrl, long ClickCount,
+        string? Title, string? Description, IReadOnlyList<string> Tags,
+        DateTime? ArchivedAtUtc, string? Workspace);
+
+    private static async Task ReplaceTagsAsync(AppDbContext db, long linkId, IEnumerable<string> names, CancellationToken ct)
+    {
+        var existing = await db.ShortenedUrlTags
+            .Where(t => t.ShortenedUrlId == linkId)
+            .ToListAsync(ct);
+        db.ShortenedUrlTags.RemoveRange(existing);
+        db.ShortenedUrlTags.AddRange(names.Select(name => new ShortenedUrlTag
+        {
+            ShortenedUrlId = linkId,
+            Name = name,
+            CreatedAtUtc = DateTime.UtcNow
+        }));
+    }
 }
