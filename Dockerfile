@@ -26,6 +26,7 @@ VOLUME /data
 COPY --from=build /app/publish .
 
 ENV ASPNETCORE_URLS=http://+:8080
+ENV Database__Provider="Sqlite"
 ENV ConnectionStrings__DefaultConnection="Data Source=/data/shortnr.db"
 ENV DataProtection__KeyPath="/data/dataprotection-keys"
 

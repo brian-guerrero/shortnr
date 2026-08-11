@@ -41,8 +41,13 @@ if (!string.IsNullOrEmpty(dataProtectionKeyPath))
 }
 
 builder.Services.AddRazorPages();
+var dbProvider = Shortnr.Data.DatabaseProviderHelper.ResolveProvider(builder.Configuration);
+var dbConnectionString = Shortnr.Data.DatabaseProviderHelper.ResolveConnectionString(builder.Configuration, dbProvider)
+    ?? throw new InvalidOperationException(
+        $"No connection string configured for database provider '{dbProvider}'. " +
+        $"Set 'Database:ConnectionString' or 'ConnectionStrings:DefaultConnection'.");
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")).UseOpenIddict());
+    options.UseProvider(dbProvider, dbConnectionString));
 
 // ── Feature module registrations ──────────────────────────────────────────────
 // Each feature owns its own DI composition boundary (article: "treat DI

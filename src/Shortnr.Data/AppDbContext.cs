@@ -21,24 +21,87 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<WorkspaceMember> WorkspaceMembers => Set<WorkspaceMember>();
     public DbSet<Webhook> Webhooks => Set<Webhook>();
 
+    public override int SaveChanges()
+    {
+        StampTimestamps();
+        return base.SaveChanges();
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        StampTimestamps();
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
+    private void StampTimestamps()
+    {
+        var now = DateTime.UtcNow;
+        foreach (var entry in ChangeTracker.Entries())
+        {
+            if (entry.State != EntityState.Added) continue;
+
+            switch (entry.Entity)
+            {
+                case ShortenedUrl e when e.CreatedAtUtc == default:
+                    e.CreatedAtUtc = now;
+                    break;
+                case ShortenedUrlTag e when e.CreatedAtUtc == default:
+                    e.CreatedAtUtc = now;
+                    break;
+                case TagSuggestion e when e.CreatedAtUtc == default:
+                    e.CreatedAtUtc = now;
+                    break;
+                case Domain e when e.CreatedAtUtc == default:
+                    e.CreatedAtUtc = now;
+                    break;
+                case User e when e.CreatedAtUtc == default:
+                    e.CreatedAtUtc = now;
+                    break;
+                case ApiKey e when e.CreatedAtUtc == default:
+                    e.CreatedAtUtc = now;
+                    break;
+                case ClickEvent e when e.ClickedAtUtc == default:
+                    e.ClickedAtUtc = now;
+                    break;
+                case BioPage e when e.CreatedAtUtc == default:
+                    e.CreatedAtUtc = now;
+                    break;
+                case AiActivityLog e when e.CreatedAtUtc == default:
+                    e.CreatedAtUtc = now;
+                    break;
+                case Workspace e when e.CreatedAtUtc == default:
+                    e.CreatedAtUtc = now;
+                    break;
+                case Webhook e when e.CreatedAtUtc == default:
+                    e.CreatedAtUtc = now;
+                    break;
+            }
+        }
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        var isMySql = Database.ProviderName == "Pomelo.EntityFrameworkCore.MySql";
+
         modelBuilder.Entity<ShortenedUrl>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.LongUrl).IsRequired();
             entity.Property(e => e.ShortCode).IsRequired().HasMaxLength(64);
-            // Uniqueness is scoped per-domain so different domains can reuse the
-            // same slug independently. SQLite treats NULLs as distinct inside
-            // unique indexes, so default-domain (DomainId IS NULL) uniqueness is
-            // enforced with a filtered index rather than a plain composite one.
-            entity.HasIndex(e => new { e.DomainId, e.ShortCode })
-                .IsUnique()
-                .HasFilter("[DomainId] IS NOT NULL");
-            entity.HasIndex(e => e.ShortCode)
-                .IsUnique()
-                .HasFilter("[DomainId] IS NULL");
-            entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
+            if (isMySql)
+            {
+                entity.HasIndex(e => new { e.DomainId, e.ShortCode })
+                    .IsUnique();
+            }
+            else
+            {
+                entity.HasIndex(e => new { e.DomainId, e.ShortCode })
+                    .IsUnique()
+                    .HasFilter("[DomainId] IS NOT NULL");
+                entity.HasIndex(e => e.ShortCode)
+                    .IsUnique()
+                    .HasFilter("[DomainId] IS NULL");
+            }
 
             entity.HasOne(e => e.Owner)
                 .WithMany(u => u.ShortenedUrls)
@@ -95,7 +158,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired().HasMaxLength(128);
             entity.HasIndex(e => new { e.ShortenedUrlId, e.Name }).IsUnique();
-            entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
 
             entity.HasOne(e => e.ShortenedUrl)
                 .WithMany(s => s.Tags)
@@ -111,7 +173,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.Status).HasConversion<int>();
             entity.HasIndex(e => new { e.ShortenedUrlId, e.Status });
             entity.HasIndex(e => new { e.ShortenedUrlId, e.SuggestedTag }).IsUnique();
-            entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
 
             entity.HasOne(e => e.ShortenedUrl)
                 .WithMany(s => s.TagSuggestions)
@@ -138,7 +199,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.Hostname).IsRequired().HasMaxLength(255);
             entity.HasIndex(e => e.Hostname).IsUnique();
             entity.Property(e => e.VerificationToken).IsRequired().HasMaxLength(128);
-            entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
 
             entity.HasOne(e => e.Owner)
                 .WithMany()
@@ -159,7 +219,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.Email).HasMaxLength(320);
             entity.Property(e => e.Name).HasMaxLength(256);
             entity.HasIndex(e => new { e.Issuer, e.Subject }).IsUnique();
-            entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
         });
 
         modelBuilder.Entity<ApiKey>(entity =>
@@ -169,7 +228,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.KeyPrefix).IsRequired().HasMaxLength(16);
             entity.Property(e => e.Label).IsRequired().HasMaxLength(128);
             entity.HasIndex(e => e.KeyHash).IsUnique();
-            entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
 
             entity.HasOne(e => e.Owner)
                 .WithMany()
@@ -183,7 +241,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.IpAddress).HasMaxLength(64);
             entity.Property(e => e.UserAgent).HasMaxLength(512);
             entity.Property(e => e.Referer).HasMaxLength(2048);
-            entity.Property(e => e.ClickedAtUtc).HasDefaultValueSql("datetime('now')");
 
             entity.Property(e => e.CountryCode).HasMaxLength(2);
             entity.Property(e => e.CountryName).HasMaxLength(100);
@@ -210,7 +267,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.AvatarUrl).HasMaxLength(512);
             entity.Property(e => e.BioText).HasMaxLength(2000);
             entity.Property(e => e.Theme).IsRequired().HasMaxLength(32);
-            entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
 
             entity.HasOne(e => e.Owner)
                 .WithMany()
@@ -243,7 +299,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.Summary).IsRequired().HasMaxLength(512);
             entity.Property(e => e.TargetEntityType).HasMaxLength(64);
             entity.HasIndex(e => new { e.OwnerUserId, e.CreatedAtUtc });
-            entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
 
             entity.HasOne(e => e.Owner)
                 .WithMany()
@@ -262,7 +317,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.Name).IsRequired().HasMaxLength(128);
             entity.Property(e => e.Slug).IsRequired().HasMaxLength(32);
             entity.HasIndex(e => e.Slug).IsUnique();
-            entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
 
             entity.HasOne(e => e.Owner)
                 .WithMany()
@@ -294,7 +348,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.Url).IsRequired().HasMaxLength(2048);
             entity.Property(e => e.Secret).IsRequired().HasMaxLength(128);
             entity.Property(e => e.EventTypes).IsRequired().HasMaxLength(512);
-            entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
 
             entity.HasOne(e => e.Owner)
                 .WithMany()

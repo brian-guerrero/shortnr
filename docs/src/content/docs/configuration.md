@@ -12,8 +12,30 @@ shortnr is configured via `appsettings.json`, environment variables, or command-
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `ConnectionStrings__DefaultConnection` | `Data Source=shortnr.db` | SQLite connection string. Override via environment variable. |
+| `Database__Provider` | `Sqlite` | Database provider: `Sqlite`, `Postgres`, or `MySql`. |
+| `Database__ConnectionString` | *(empty)* | Connection string for the selected provider. Falls back to `ConnectionStrings__DefaultConnection` if not set. |
+| `ConnectionStrings__DefaultConnection` | `Data Source=shortnr.db` | Legacy connection string setting. Used as fallback for SQLite. |
 | `ASPNETCORE_URLS` | `http://+:5000` (dev) / `http://+:8080` (Docker) | Listening address. |
+
+### Database providers
+
+shortnr supports three database providers:
+
+- **SQLite** (default) &mdash; Zero-config, file-based. Ideal for single-user deployments and development.
+- **PostgreSQL** &mdash; Production-grade, MVCC concurrency. Recommended for multi-user deployments.
+- **MySQL/MariaDB** &mdash; Widely supported, InnoDB transactions. Alternative for existing MySQL infrastructure.
+
+Switch providers via environment variables:
+
+```bash
+# PostgreSQL
+DATABASE__PROVIDER=Postgres DATABASE__CONNECTIONSTRING="Host=localhost;Database=shortnr;Username=shortnr;Password=secret" dotnet run
+
+# MySQL
+DATABASE__PROVIDER=MySql DATABASE__CONNECTIONSTRING="Server=localhost;Database=shortnr;User=shortnr;Password=secret" dotnet run
+```
+
+See the [database migration guide](/shortnr/docs/database-migration/) for details on moving from SQLite to Postgres or MySQL.
 
 ## Authentication
 
@@ -89,7 +111,7 @@ The `/api/v1` endpoints use a separate chained rate limiter per API key: 60 requ
 
 ## Connection string examples
 
-Override the database location:
+### SQLite (default)
 
 ```bash
 dotnet run --project src/Shortnr.Web -- \
@@ -100,4 +122,34 @@ Docker:
 
 ```bash
 docker run -e ConnectionStrings__DefaultConnection="Data Source=/data/shortnr.db" ghcr.io/brian-guerrero/shortnr:latest
+```
+
+### PostgreSQL
+
+```bash
+docker run \
+  -e Database__Provider=Postgres \
+  -e Database__ConnectionString="Host=postgres;Database=shortnr;Username=shortnr;Password=secret" \
+  ghcr.io/brian-guerrero/shortnr:latest
+```
+
+Or use the provided Compose file:
+
+```bash
+docker compose -f docker-compose.postgres.yml up -d
+```
+
+### MySQL
+
+```bash
+docker run \
+  -e Database__Provider=MySql \
+  -e Database__ConnectionString="Server=mysql;Database=shortnr;User=shortnr;Password=secret" \
+  ghcr.io/brian-guerrero/shortnr:latest
+```
+
+Or use the provided Compose file:
+
+```bash
+docker compose -f docker-compose.mysql.yml up -d
 ```
