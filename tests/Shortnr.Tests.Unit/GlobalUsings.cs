@@ -14,4 +14,5 @@ global using Shortnr.Web.Features.Mcp.McpTools;
 global using Shortnr.Web.Features.OAuth;
 global using Shortnr.Web.Features.Email;
 global using Shortnr.Web.Features.AiActivity;
+global using Shortnr.Web.Features.Insights;
 global using Shortnr.Web.Features.Infrastructure;

@@ -63,6 +63,7 @@ builder.Services
     .AddOAuthFeature(builder.Configuration, builder.Environment)
     .AddEmailFeature(builder.Configuration)
     .AddAiActivityFeature()
+    .AddAiInsightsFeature(builder.Configuration)
     .AddInfrastructureFeature(builder.Configuration);
 
 // ── Cross-cutting: authentication schemes, policies, rate limiting ──────────

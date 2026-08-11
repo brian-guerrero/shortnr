@@ -1,0 +1,59 @@
+@model Shortnr.Web.Pages.InsightsModel
+@if (Model.ErrorMessage is not null)
+{
+    <mark class="banner status-error">
+        <strong>@Model.ErrorMessage</strong>
+    </mark>
+}
+@if (Model.StatusMessage is not null)
+{
+    <mark class="banner status-success">
+        <strong>@Model.StatusMessage</strong>
+    </mark>
+}
+@if (Model.Suggestions.Count == 0)
+{
+    <article class="ai-activity">
+        <p>No tag suggestions yet. Links with @Model.MinClicksForAnalysis+ clicks are analyzed every
+        @Model.AnalysisIntervalHours hours; suggestions will appear here for you to accept or dismiss.</p>
+    </article>
+}
+else
+{
+    <div class="overflow-auto">
+        <table class="stacked-table">
+            <thead>
+                <tr>
+                    <th>Link</th>
+                    <th>Suggested tag</th>
+                    <th>Why</th>
+                    <th>Clicks</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var s in Model.Suggestions)
+                {
+                    <tr>
+                        <td data-label="Link"><code>@s.ShortCode</code></td>
+                        <td data-label="Suggested tag"><mark class="status-info preserve-case">@s.SuggestedTag</mark></td>
+                        <td data-label="Why">@s.SourceLabel</td>
+                        <td data-label="Clicks">@s.ClickCount</td>
+                        <td data-label="Actions">
+                            <form hx-post="/insights?handler=accept" hx-target="#insights-list" hx-swap="innerHTML" style="display:inline;">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@s.Id">
+                                <button type="submit" class="btn-sm">Accept</button>
+                            </form>
+                            <form hx-post="/insights?handler=dismiss" hx-target="#insights-list" hx-swap="innerHTML" style="display:inline;">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@s.Id">
+                                <button type="submit" class="secondary btn-sm">Dismiss</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

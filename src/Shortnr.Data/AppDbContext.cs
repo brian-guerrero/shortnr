@@ -7,6 +7,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 {
     public DbSet<ShortenedUrl> ShortenedUrls => Set<ShortenedUrl>();
     public DbSet<ShortenedUrlMetadata> ShortenedUrlMetadatas => Set<ShortenedUrlMetadata>();
+    public DbSet<ShortenedUrlTag> ShortenedUrlTags => Set<ShortenedUrlTag>();
+    public DbSet<TagSuggestion> TagSuggestions => Set<TagSuggestion>();
     public DbSet<PixelSnippet> PixelSnippets => Set<PixelSnippet>();
     public DbSet<ClickEvent> ClickEvents => Set<ClickEvent>();
     public DbSet<User> Users => Set<User>();
@@ -57,6 +59,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .WithOne(m => m.ShortenedUrl)
                 .HasForeignKey<ShortenedUrlMetadata>(m => m.ShortenedUrlId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(e => e.Tags)
+                .WithOne(t => t.ShortenedUrl)
+                .HasForeignKey(t => t.ShortenedUrlId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(e => e.TagSuggestions)
+                .WithOne(s => s.ShortenedUrl)
+                .HasForeignKey(s => s.ShortenedUrlId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<ShortenedUrlMetadata>(entity =>
@@ -76,6 +88,35 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .WithMany()
                 .HasForeignKey(e => e.PixelSnippetId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<ShortenedUrlTag>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(128);
+            entity.HasIndex(e => new { e.ShortenedUrlId, e.Name }).IsUnique();
+            entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
+
+            entity.HasOne(e => e.ShortenedUrl)
+                .WithMany(s => s.Tags)
+                .HasForeignKey(e => e.ShortenedUrlId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TagSuggestion>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SuggestedTag).IsRequired().HasMaxLength(128);
+            entity.Property(e => e.Source).HasConversion<int>();
+            entity.Property(e => e.Status).HasConversion<int>();
+            entity.HasIndex(e => new { e.ShortenedUrlId, e.Status });
+            entity.HasIndex(e => new { e.ShortenedUrlId, e.SuggestedTag }).IsUnique();
+            entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("datetime('now')");
+
+            entity.HasOne(e => e.ShortenedUrl)
+                .WithMany(s => s.TagSuggestions)
+                .HasForeignKey(e => e.ShortenedUrlId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<PixelSnippet>(entity =>
