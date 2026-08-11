@@ -8,6 +8,12 @@
     <p>Suggested tags based on your links' click patterns. Accept to apply a tag, or dismiss it.</p>
 </hgroup>
 
+<form hx-post="/insights?handler=RunNow" hx-target="#insights-list" hx-swap="innerHTML"
+      style="margin-bottom: var(--sn-space-4);">
+    @Html.AntiForgeryToken()
+    <button type="submit" class="secondary">Run analysis now</button>
+</form>
+
 <div id="insights-list">
     @await Html.PartialAsync("Shared/_InsightsList", Model)
 </div>

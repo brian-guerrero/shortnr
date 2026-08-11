@@ -51,6 +51,29 @@ public class InsightsModel : PageModel
         return Page();
     }
 
+    /// <summary>
+    /// Runs the analysis pass immediately instead of waiting for the next
+    /// <see cref="AiInsightsHostedService"/> tick. Builds <see cref="AiInsightsService"/>
+    /// directly from the request-scoped <see cref="AppDbContext"/> and options this page
+    /// already holds, rather than resolving it from DI — that registration only exists
+    /// when <c>AiInsights:Enabled</c> was true at host build time, which can lag a
+    /// runtime config read (e.g. under a test factory that overrides config after
+    /// startup); constructing it here works regardless.
+    /// </summary>
+    public async Task<IActionResult> OnPostRunNow()
+    {
+        var gate = EnforceAccess();
+        if (gate is not null)
+            return gate;
+
+        var insightsService = new AiInsightsService(_db, Options.Create(_options));
+        var created = await insightsService.RunAnalysisAsync();
+
+        return await ListPartialAsync(status: created == 0
+            ? "Analysis complete — no new suggestions."
+            : $"Analysis complete — {created} new suggestion{(created == 1 ? "" : "s")} found.");
+    }
+
     public async Task<IActionResult> OnPostAccept(long id)
     {
         var gate = EnforceAccess();

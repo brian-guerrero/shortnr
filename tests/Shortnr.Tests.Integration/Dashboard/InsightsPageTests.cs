@@ -257,4 +257,24 @@ public class InsightsPageTests : IAsyncLifetime
         Assert.Equal(TagSuggestionStatus.Dismissed, suggestion.Status);
         Assert.Empty(await db.ShortenedUrlTags.ToListAsync());
     }
+
+    // -------------------------------------------------------------------------
+    // Manual "Run analysis now" trigger
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task RunNow_TriggersAnalysisAndReturnsUpdatedList()
+    {
+        var client = AuthenticatedClient();
+        var token = await GetAntiforgeryTokenAsync(client);
+
+        var response = await PostFormAsync(client, "/insights?handler=RunNow", token);
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("Analysis complete", html);
+        // The list is re-rendered from the DB in the same response, so alice's
+        // still-pending suggestion should still be there alongside the status banner.
+        Assert.Contains("aaa111", html);
+    }
 }
