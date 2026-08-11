@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Shortnr.Data;
 
@@ -10,9 +11,11 @@ using Shortnr.Data;
 namespace Shortnr.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260811152028_AddLinkEditLifecycle")]
+    partial class AddLinkEditLifecycle
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
@@ -240,7 +243,9 @@ namespace Shortnr.Data.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("TEXT");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValueSql("datetime('now')");
 
                     b.Property<long>("OwnerUserId")
                         .HasColumnType("INTEGER");
@@ -273,7 +278,9 @@ namespace Shortnr.Data.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("TEXT");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValueSql("datetime('now')");
 
                     b.Property<string>("KeyHash")
                         .IsRequired()
@@ -328,7 +335,9 @@ namespace Shortnr.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("TEXT");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValueSql("datetime('now')");
 
                     b.Property<string>("DisplayName")
                         .IsRequired()
@@ -414,7 +423,9 @@ namespace Shortnr.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("ClickedAtUtc")
-                        .HasColumnType("TEXT");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValueSql("datetime('now')");
 
                     b.Property<string>("CountryCode")
                         .HasMaxLength(2)
@@ -478,7 +489,9 @@ namespace Shortnr.Data.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("TEXT");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValueSql("datetime('now')");
 
                     b.Property<string>("Hostname")
                         .IsRequired()
@@ -574,7 +587,9 @@ namespace Shortnr.Data.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("TEXT");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValueSql("datetime('now')");
 
                     b.Property<string>("Description")
                         .HasMaxLength(2000)
@@ -611,13 +626,13 @@ namespace Shortnr.Data.Migrations
 
                     b.HasIndex("ShortCode")
                         .IsUnique()
-                        .HasFilter("\"DomainId\" IS NULL");
+                        .HasFilter("[DomainId] IS NULL");
 
                     b.HasIndex("WorkspaceId");
 
                     b.HasIndex("DomainId", "ShortCode")
                         .IsUnique()
-                        .HasFilter("\"DomainId\" IS NOT NULL");
+                        .HasFilter("[DomainId] IS NOT NULL");
 
                     b.ToTable("ShortenedUrls");
                 });
@@ -683,7 +698,9 @@ namespace Shortnr.Data.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("TEXT");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValueSql("datetime('now')");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -711,7 +728,9 @@ namespace Shortnr.Data.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("TEXT");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValueSql("datetime('now')");
 
                     b.Property<DateTime>("FirstObservedUtc")
                         .HasColumnType("TEXT");
@@ -747,7 +766,9 @@ namespace Shortnr.Data.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("TEXT");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValueSql("datetime('now')");
 
                     b.Property<string>("Email")
                         .HasMaxLength(320)
@@ -785,7 +806,9 @@ namespace Shortnr.Data.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("TEXT");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValueSql("datetime('now')");
 
                     b.Property<string>("EventTypes")
                         .IsRequired()
@@ -828,7 +851,9 @@ namespace Shortnr.Data.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("TEXT");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValueSql("datetime('now')");
 
                     b.Property<string>("Name")
                         .IsRequired()
