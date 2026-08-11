@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
 using Shortnr.Data.Entities;
+using Shortnr.Web.Features.Workspaces;
 
 namespace Shortnr.Web.Pages;
 
@@ -11,25 +12,25 @@ public class DashboardModel : PageModel
 {
     private readonly AppDbContext _db;
     private readonly UserIdentityService _identity;
+    private readonly WorkspaceService _workspaces;
 
-    public DashboardModel(AppDbContext db, UserIdentityService identity)
+    public DashboardModel(AppDbContext db, UserIdentityService identity, WorkspaceService workspaces)
     {
         _db = db;
         _identity = identity;
+        _workspaces = workspaces;
     }
 
     public List<string> DomainOptions { get; set; } = [];
     public ActiveWorkspaceContext? Workspace { get; set; }
+    public string? StatusMessage { get; set; }
+    public string? ErrorMessage { get; set; }
 
-    public async Task<IActionResult> OnGet(string? search, string? linkSort, string? linkDir, string? clickSort, string? clickDir, int? clickLimit, string? domain)
+    public async Task<IActionResult> OnGet(string? search, string? linkSort, string? linkDir, string? clickSort, string? clickDir, int? clickLimit, string? domain, string? status)
     {
-        if (_identity.IsAuthEnabled && User.Identity?.IsAuthenticated != true)
-        {
-            if (Request.Headers["HX-Request"].Count > 0)
-                return Unauthorized();
-
-            return RedirectToPage("/Index");
-        }
+        var gate = EnforceAccess();
+        if (gate is not null)
+            return gate;
 
         var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
         Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
@@ -65,44 +66,7 @@ public class DashboardModel : PageModel
             }
 
             if (target == "search-results")
-            {
-                var linkQ = ApplyScoping(_db.ShortenedUrls.AsQueryable(), ownerUserId, workspaceId);
-
-                if (!string.IsNullOrWhiteSpace(search))
-                {
-                    var lower = search.ToLowerInvariant();
-                    linkQ = linkQ.Where(l => l.LongUrl.ToLower().Contains(lower)
-                        || l.ShortCode.ToLower().Contains(lower)
-                        || (l.Domain != null && l.Domain.Hostname.ToLower().Contains(lower)));
-                }
-                if (!string.IsNullOrEmpty(domain))
-                {
-                    linkQ = domain == "default"
-                        ? linkQ.Where(l => l.DomainId == null)
-                        : linkQ.Where(l => l.Domain != null && l.Domain.Hostname == domain);
-                }
-                linkQ = (linkSort, linkDir == "desc") switch
-                {
-                    ("shortCode", false) => linkQ.OrderBy(l => l.ShortCode),
-                    ("shortCode", true) => linkQ.OrderByDescending(l => l.ShortCode),
-                    ("domain", false) => linkQ.OrderBy(l => l.Domain == null ? "" : l.Domain.Hostname).ThenBy(l => l.ShortCode),
-                    ("domain", true) => linkQ.OrderByDescending(l => l.Domain == null ? "" : l.Domain.Hostname).ThenBy(l => l.ShortCode),
-                    ("longUrl", false) => linkQ.OrderBy(l => l.LongUrl),
-                    ("longUrl", true) => linkQ.OrderByDescending(l => l.LongUrl),
-                    ("clickCount", false) => linkQ.OrderBy(l => l.ClickCount),
-                    ("clickCount", true) => linkQ.OrderByDescending(l => l.ClickCount),
-                    ("createdAtUtc", false) => linkQ.OrderBy(l => l.CreatedAtUtc),
-                    ("createdAtUtc", true) => linkQ.OrderByDescending(l => l.CreatedAtUtc),
-                    _ => linkQ.OrderByDescending(l => l.CreatedAtUtc)
-                };
-
-                return Partial("Shared/_SearchResults", await linkQ
-                    .AsNoTracking()
-                    .Include(l => l.Domain)
-                    .Include(l => l.Workspace)
-                    .Take(50)
-                    .ToListAsync());
-            }
+                return Partial("Shared/_SearchResults", await LoadLinksAsync(search, linkSort, linkDir, domain, status));
 
             var linkQuery = ApplyScoping(_db.ShortenedUrls.AsQueryable(), ownerUserId, workspaceId);
 
@@ -176,6 +140,271 @@ public class DashboardModel : PageModel
 
         DomainOptions = await LoadDomainOptionsAsync();
         return Page();
+    }
+
+    public async Task<IActionResult> OnGetEdit(long? code)
+    {
+        var gate = EnforceAccess();
+        if (gate is not null)
+            return gate;
+
+        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+
+        if (code is null)
+            return Partial("Shared/_LinkEditForm", new LinkEditViewModel { ErrorMessage = "Link not found." });
+
+        var link = await FindLinkAsync(code.Value);
+        if (link is null)
+            return Partial("Shared/_LinkEditForm", new LinkEditViewModel { ErrorMessage = "Link not found." });
+
+        return Partial("Shared/_LinkEditForm", LinkEditViewModel.From(link));
+    }
+
+    public async Task<IActionResult> OnGetTransfer(long? code)
+    {
+        var gate = EnforceAccess();
+        if (gate is not null)
+            return gate;
+
+        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+
+        if (code is null)
+            return Partial("Shared/_LinkTransferForm", new LinkTransferViewModel { ErrorMessage = "Link not found." });
+
+        var link = await FindLinkAsync(code.Value);
+        if (link is null)
+            return Partial("Shared/_LinkTransferForm", new LinkTransferViewModel { ErrorMessage = "Link not found." });
+
+        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        var workspaces = ownerUserId is not null
+            ? await _workspaces.GetWorkspacesForUserAsync(ownerUserId.Value)
+            : [];
+
+        return Partial("Shared/_LinkTransferForm", new LinkTransferViewModel
+        {
+            Code = link.Id,
+            CurrentWorkspace = link.Workspace?.Slug ?? "personal",
+            Workspaces = workspaces
+        });
+    }
+
+    public async Task<IActionResult> OnPostEdit(long code, string url, string slug, string title, string description, string tags)
+    {
+        var gate = EnforceAccess();
+        if (gate is not null)
+            return gate;
+
+        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+
+        var link = await FindLinkAsync(code);
+        if (link is null)
+            return Partial("Shared/_LinkEditForm", new LinkEditViewModel { Code = code, ErrorMessage = "Link not found." });
+
+        var trimmedUrl = url.Trim();
+        if (!Uri.TryCreate(trimmedUrl, UriKind.Absolute, out var uri) || (uri.Scheme != "http" && uri.Scheme != "https"))
+            return Partial("Shared/_LinkEditForm", LinkEditViewModel.From(link, "Enter a valid absolute http(s) URL."));
+
+        var trimmedSlug = slug.Trim();
+        if (trimmedSlug.Length == 0 || !ShortLinkCodes.IsValidSlug(trimmedSlug))
+            return Partial("Shared/_LinkEditForm", LinkEditViewModel.From(link, "Slug must be 1–64 chars: letters, digits, '-' or '_', starting with a letter or digit."));
+
+        var collides = await _db.ShortenedUrls.AnyAsync(l => l.Id != link.Id && l.DomainId == link.DomainId && l.ShortCode == trimmedSlug);
+        if (collides)
+            return Partial("Shared/_LinkEditForm", LinkEditViewModel.From(link, $"A link with slug '{trimmedSlug}' already exists on this domain."));
+
+        link.LongUrl = trimmedUrl;
+        link.ShortCode = trimmedSlug;
+        link.Title = string.IsNullOrWhiteSpace(title) ? null : title.Trim();
+        link.Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+        link.UpdatedAtUtc = DateTime.UtcNow;
+
+        var tagNames = (tags ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(t => t.Length > 128 ? t[..128] : t)
+            .Distinct()
+            .ToList();
+        var existingTags = await _db.ShortenedUrlTags.Where(t => t.ShortenedUrlId == link.Id).ToListAsync();
+        _db.ShortenedUrlTags.RemoveRange(existingTags);
+        _db.ShortenedUrlTags.AddRange(tagNames.Select(name => new ShortenedUrlTag
+        {
+            ShortenedUrlId = link.Id,
+            Name = name,
+            CreatedAtUtc = DateTime.UtcNow
+        }));
+
+        await _db.SaveChangesAsync();
+
+        var links = await LoadLinksAsync(null, null, null, null, null);
+        return Partial("Shared/_LinkEditSuccess", new LinkEditSuccessViewModel
+        {
+            Links = links,
+            Message = $"Link updated. Click count preserved at {link.ClickCount}."
+        });
+    }
+
+    public async Task<IActionResult> OnPostArchive(long code)
+    {
+        var gate = EnforceAccess();
+        if (gate is not null)
+            return gate;
+
+        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+
+        var link = await FindLinkAsync(code);
+        if (link is not null && link.ArchivedAtUtc is null)
+        {
+            link.ArchivedAtUtc = DateTime.UtcNow;
+            link.UpdatedAtUtc = link.ArchivedAtUtc;
+            await _db.SaveChangesAsync();
+        }
+
+        return Partial("Shared/_SearchResults", await LoadLinksAsync(null, null, null, null, null));
+    }
+
+    public async Task<IActionResult> OnPostUnarchive(long code)
+    {
+        var gate = EnforceAccess();
+        if (gate is not null)
+            return gate;
+
+        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+
+        var link = await FindLinkAsync(code);
+        if (link is not null && link.ArchivedAtUtc is not null)
+        {
+            link.ArchivedAtUtc = null;
+            link.UpdatedAtUtc = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+        }
+
+        return Partial("Shared/_SearchResults", await LoadLinksAsync(null, null, null, null, null));
+    }
+
+    public async Task<IActionResult> OnPostTransfer(long code, string workspace)
+    {
+        var gate = EnforceAccess();
+        if (gate is not null)
+            return gate;
+
+        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+
+        var link = await FindLinkAsync(code);
+        if (link is null)
+            return Partial("Shared/_LinkTransferForm", new LinkTransferViewModel { Code = code, ErrorMessage = "Link not found." });
+
+        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        if (ownerUserId is null)
+            return Partial("Shared/_LinkTransferForm", new LinkTransferViewModel { Code = code, ErrorMessage = "You must be signed in to transfer links." });
+
+        var target = await _workspaces.GetWorkspaceBySlugAsync(workspace);
+        if (target is null || !await _workspaces.IsMemberAsync(target.Id, ownerUserId.Value))
+            return Partial("Shared/_LinkTransferForm", new LinkTransferViewModel
+            {
+                Code = code,
+                CurrentWorkspace = link.Workspace?.Slug ?? "personal",
+                Workspaces = await _workspaces.GetWorkspacesForUserAsync(ownerUserId.Value),
+                ErrorMessage = "You can only transfer to a workspace you are a member of."
+            });
+
+        var sourceWorkspaceId = link.WorkspaceId;
+        if (sourceWorkspaceId is not null && !await _workspaces.IsMemberAsync(sourceWorkspaceId.Value, ownerUserId.Value))
+            return Partial("Shared/_LinkTransferForm", new LinkTransferViewModel
+            {
+                Code = code,
+                CurrentWorkspace = link.Workspace?.Slug ?? "personal",
+                Workspaces = await _workspaces.GetWorkspacesForUserAsync(ownerUserId.Value),
+                ErrorMessage = "You must be a member of the link's current workspace to transfer it."
+            });
+
+        link.WorkspaceId = target.Id;
+        link.OwnerUserId = null;
+        link.UpdatedAtUtc = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        var links = await LoadLinksAsync(null, null, null, null, null);
+        return Partial("Shared/_LinkTransferSuccess", new LinkTransferSuccessViewModel
+        {
+            Links = links,
+            Message = $"Link moved to workspace '{target.Name}'. Click count preserved at {link.ClickCount}."
+        });
+    }
+
+    private IActionResult? EnforceAccess()
+    {
+        if (_identity.IsAuthEnabled && User.Identity?.IsAuthenticated != true)
+            return Request.Headers["HX-Request"].Count > 0
+                ? Unauthorized()
+                : RedirectToPage("/Index");
+
+        return null;
+    }
+
+    private async Task<List<ShortenedUrl>> LoadLinksAsync(string? search, string? linkSort, string? linkDir, string? domain, string? status)
+    {
+        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        var workspaceId = Workspace?.WorkspaceId;
+
+        var linkQ = ApplyScoping(_db.ShortenedUrls.AsQueryable(), ownerUserId, workspaceId);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var lower = search.ToLowerInvariant();
+            linkQ = linkQ.Where(l => l.LongUrl.ToLower().Contains(lower)
+                || l.ShortCode.ToLower().Contains(lower)
+                || (l.Domain != null && l.Domain.Hostname.ToLower().Contains(lower)));
+        }
+        if (!string.IsNullOrEmpty(domain))
+        {
+            linkQ = domain == "default"
+                ? linkQ.Where(l => l.DomainId == null)
+                : linkQ.Where(l => l.Domain != null && l.Domain.Hostname == domain);
+        }
+
+        linkQ = status switch
+        {
+            "archived" => linkQ.Where(l => l.ArchivedAtUtc != null),
+            "all" => linkQ,
+            _ => linkQ.Where(l => l.ArchivedAtUtc == null)
+        };
+
+        linkQ = (linkSort, linkDir == "desc") switch
+        {
+            ("shortCode", false) => linkQ.OrderBy(l => l.ShortCode),
+            ("shortCode", true) => linkQ.OrderByDescending(l => l.ShortCode),
+            ("domain", false) => linkQ.OrderBy(l => l.Domain == null ? "" : l.Domain.Hostname).ThenBy(l => l.ShortCode),
+            ("domain", true) => linkQ.OrderByDescending(l => l.Domain == null ? "" : l.Domain.Hostname).ThenBy(l => l.ShortCode),
+            ("longUrl", false) => linkQ.OrderBy(l => l.LongUrl),
+            ("longUrl", true) => linkQ.OrderByDescending(l => l.LongUrl),
+            ("clickCount", false) => linkQ.OrderBy(l => l.ClickCount),
+            ("clickCount", true) => linkQ.OrderByDescending(l => l.ClickCount),
+            ("createdAtUtc", false) => linkQ.OrderBy(l => l.CreatedAtUtc),
+            ("createdAtUtc", true) => linkQ.OrderByDescending(l => l.CreatedAtUtc),
+            _ => linkQ.OrderByDescending(l => l.CreatedAtUtc)
+        };
+
+        return await linkQ
+            .AsNoTracking()
+            .Include(l => l.Domain)
+            .Include(l => l.Workspace)
+            .Take(50)
+            .ToListAsync();
+    }
+
+    private async Task<ShortenedUrl?> FindLinkAsync(long code)
+    {
+        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        var workspaceId = Workspace?.WorkspaceId;
+
+        var query = _db.ShortenedUrls
+            .Include(l => l.Domain)
+            .Include(l => l.Workspace)
+            .AsQueryable();
+        if (workspaceId is not null)
+            query = query.Where(l => l.WorkspaceId == workspaceId);
+        else if (ownerUserId is not null)
+            query = query.Where(l => l.OwnerUserId == ownerUserId);
+
+        return await query.FirstOrDefaultAsync(l => l.Id == code);
     }
 
     private static IQueryable<ShortenedUrl> ApplyScoping(IQueryable<ShortenedUrl> query, long? ownerUserId, long? workspaceId)

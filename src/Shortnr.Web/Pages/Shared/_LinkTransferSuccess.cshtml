@@ -1,0 +1,7 @@
+@model LinkTransferSuccessViewModel
+<div id="search-results" hx-swap-oob="true">
+    @await Html.PartialAsync("Shared/_SearchResults", Model.Links)
+</div>
+<mark class="banner status-success">
+    <strong>@Model.Message</strong>
+</mark>

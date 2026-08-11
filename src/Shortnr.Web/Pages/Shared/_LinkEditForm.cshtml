@@ -1,0 +1,40 @@
+@model LinkEditViewModel
+<article class="edit-panel">
+    @if (Model.ErrorMessage is not null)
+    {
+        <mark class="banner status-error">
+            <strong>@Model.ErrorMessage</strong>
+        </mark>
+    }
+    <form method="post" hx-post="/dashboard?handler=Edit"
+          hx-target="#link-edit-region" hx-swap="innerHTML">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="code" value="@Model.Code">
+        <fieldset>
+            <label>
+                Destination URL
+                <input type="url" name="url" value="@Model.LongUrl" required>
+            </label>
+            <label>
+                Slug
+                <input type="text" name="slug" value="@Model.Slug" required maxlength="64">
+            </label>
+            <label>
+                Title
+                <input type="text" name="title" value="@Model.Title" maxlength="256">
+            </label>
+            <label>
+                Description
+                <textarea name="description" maxlength="2000" rows="3">@Model.Description</textarea>
+            </label>
+            <label>
+                Tags (comma-separated)
+                <input type="text" name="tags" value="@Model.Tags" maxlength="512">
+            </label>
+        </fieldset>
+        <div class="grid">
+            <button type="submit" class="btn-sm">Save changes</button>
+            <button type="button" class="secondary btn-sm" onclick="document.getElementById('link-edit-region').innerHTML = ''">Cancel</button>
+        </div>
+    </form>
+</article>
