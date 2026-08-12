@@ -20,7 +20,6 @@ public static class DatabaseProviderHelper
         {
             "sqlite" => DatabaseProvider.Sqlite,
             "postgres" or "postgresql" or "npgsql" => DatabaseProvider.Postgres,
-            "mysql" or "mariadb" or "pomelo" => DatabaseProvider.MySql,
             _ => throw new InvalidOperationException(
                 $"Unsupported '{ConfigSection}:{ProviderKey}' value '{value}'. " +
                 $"Supported values: Sqlite, Postgres, MySql.")
@@ -50,7 +49,6 @@ public static class DatabaseProviderHelper
         {
             DatabaseProvider.Sqlite => builder.UseSqlite(connectionString).UseOpenIddict(),
             DatabaseProvider.Postgres => builder.UseNpgsql(connectionString).UseOpenIddict(),
-            DatabaseProvider.MySql => builder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)).UseOpenIddict(),
             _ => throw new ArgumentOutOfRangeException(nameof(provider))
         };
     }
@@ -59,7 +57,6 @@ public static class DatabaseProviderHelper
     {
         DatabaseProvider.Sqlite => "Microsoft.EntityFrameworkCore.Sqlite",
         DatabaseProvider.Postgres => "Npgsql.EntityFrameworkCore.PostgreSQL",
-        DatabaseProvider.MySql => "Pomelo.EntityFrameworkCore.MySql",
         _ => throw new ArgumentOutOfRangeException(nameof(provider))
     };
 }

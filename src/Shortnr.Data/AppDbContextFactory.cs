@@ -28,7 +28,6 @@ public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
         {
             "sqlite" => DatabaseProvider.Sqlite,
             "postgres" or "postgresql" or "npgsql" => DatabaseProvider.Postgres,
-            "mysql" or "mariadb" or "pomelo" => DatabaseProvider.MySql,
             _ => throw new InvalidOperationException(
                 $"Unsupported 'Database__Provider' value '{value}'. " +
                 $"Supported values: Sqlite, Postgres, MySql.")
