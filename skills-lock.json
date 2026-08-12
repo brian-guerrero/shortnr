@@ -7,11 +7,107 @@
       "skillPath": "plugins/dotnet-diag/skills/analyzing-dotnet-performance/SKILL.md",
       "computedHash": "455c653913449f6fc71807fd9824dbb610d4f2e716ec0b0e4ae5c5c442ddb09b"
     },
+    "aspire": {
+      "source": "microsoft/aspire-skills",
+      "sourceType": "github",
+      "skillPath": "skills/aspire/SKILL.md",
+      "computedHash": "821f3eb3410b45b0fa5c672ce5dc28c782302665be49a0f2ac50a80cc8bdc495"
+    },
+    "aspire-deployment": {
+      "source": "microsoft/aspire-skills",
+      "sourceType": "github",
+      "skillPath": "skills/aspire-deployment/SKILL.md",
+      "computedHash": "736ec177de981df5062e1d95a9d3bdb1f036796125823b6534546250f2569786"
+    },
+    "aspire-init": {
+      "source": "microsoft/aspire-skills",
+      "sourceType": "github",
+      "skillPath": "skills/aspire-init/SKILL.md",
+      "computedHash": "5c27469c2123225c1439f49550348ac322b4a2623698813bd2261be3de21290a"
+    },
+    "aspire-monitoring": {
+      "source": "microsoft/aspire-skills",
+      "sourceType": "github",
+      "skillPath": "skills/aspire-monitoring/SKILL.md",
+      "computedHash": "e49438213a087fd6ddfb7d0b091a554e6c9b868e03265557575fae7691396529"
+    },
+    "aspire-orchestration": {
+      "source": "microsoft/aspire-skills",
+      "sourceType": "github",
+      "skillPath": "skills/aspire-orchestration/SKILL.md",
+      "computedHash": "ca38e15d521735cf4bba30e8d73a07ed8f1bfb97ae9a81edc2215789bd160dc9"
+    },
+    "aspireify": {
+      "source": "microsoft/aspire-skills",
+      "sourceType": "github",
+      "skillPath": "skills/aspireify/SKILL.md",
+      "computedHash": "2f7e6ec2d846b4a1176dcd0c503db968c19e1a1beae309ee0e78fe93c9e044e1"
+    },
+    "code-testing-agent": {
+      "source": "dotnet/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/dotnet-test/skills/code-testing-agent/SKILL.md",
+      "computedHash": "049f702656058431604f512ae87efe5be796dcfdc9b2d1a15efd87241e12cc42"
+    },
+    "code-testing-extensions": {
+      "source": "dotnet/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/dotnet-test/skills/code-testing-extensions/SKILL.md",
+      "computedHash": "b8e0fe17808dcc7f37021810ac27a49edf7d5d0d39c758689ec9af98cdc082ab"
+    },
+    "configuring-opentelemetry-dotnet": {
+      "source": "dotnet/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/dotnet-aspnetcore/skills/configuring-opentelemetry-dotnet/SKILL.md",
+      "computedHash": "736b7476710267bd46154714f38e16f5bac5498ce6a9aa980eb1d0a214960890"
+    },
+    "convert-to-cpm": {
+      "source": "dotnet/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/dotnet-nuget/skills/convert-to-cpm/SKILL.md",
+      "computedHash": "9f00cc8db766033a6feee4f3960de941e6ae992648b0d39c75f6930a6d93314e"
+    },
+    "create-skill": {
+      "source": "dotnet/skills",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/create-skill/SKILL.md",
+      "computedHash": "f85e80bfaecc7e3f77826515e233a06e6492deb7f5355e3267371ed8719a31a7"
+    },
+    "dotnet-webapi": {
+      "source": "dotnet/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/dotnet-aspnetcore/skills/dotnet-webapi/SKILL.md",
+      "computedHash": "9f9ca386ddefb34ebeaf269c6a7dac0bd0a8e9ea901ad5c489cd4d5e7c61fb22"
+    },
+    "gh-stack": {
+      "source": "github/gh-stack",
+      "sourceType": "github",
+      "skillPath": "skills/gh-stack/SKILL.md",
+      "computedHash": "ec57d99a1a8f3adc779b79d3c40c272753ca18ce2f812efad349a6f6135c01c2"
+    },
+    "grade-tests": {
+      "source": "dotnet/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/dotnet-test/skills/grade-tests/SKILL.md",
+      "computedHash": "a6361bff92d587d3e88ed356690f4a14ef2d62db0c64d924e3edeefe88e81a05"
+    },
+    "improve-skill-quality": {
+      "source": "dotnet/skills",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/improve-skill-quality/SKILL.md",
+      "computedHash": "6c43f857bfc40e96f3e3548c9faa807bb59961d6bc279d1881623214a90e5d17"
+    },
     "optimizing-ef-core-queries": {
       "source": "dotnet/skills",
       "sourceType": "github",
       "skillPath": "plugins/dotnet-data/skills/optimizing-ef-core-queries/SKILL.md",
-      "computedHash": "265a890a57f60bf55d79fb92483176aca3c6e5c88c23cd75d18911e8354d0e87"
+      "computedHash": "98eb6bb1ab357806cf068908b5b00c3992b898b9428b587a7f357adb3387c8aa"
+    },
+    "property-patterns": {
+      "source": "dotnet/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/dotnet-msbuild/skills/property-patterns/SKILL.md",
+      "computedHash": "2a14484c9fee40c1a77b53d7a5b3c98f3d5733874be31946b0d598d9c47ba1e2"
     }
   }
 }
