@@ -41,13 +41,24 @@ if (!string.IsNullOrEmpty(dataProtectionKeyPath))
 }
 
 builder.Services.AddRazorPages();
-var dbProvider = Shortnr.Data.DatabaseProviderHelper.ResolveProvider(builder.Configuration);
-var dbConnectionString = Shortnr.Data.DatabaseProviderHelper.ResolveConnectionString(builder.Configuration, dbProvider)
-    ?? throw new InvalidOperationException(
-        $"No connection string configured for database provider '{dbProvider}'. " +
-        $"Set 'Database:ConnectionString' or 'ConnectionStrings:DefaultConnection'.");
+// Resolve the provider/connection string lazily, inside the options callback,
+// rather than eagerly against builder.Configuration here. AddDbContext's
+// callback runs at DI-container build time, after all configuration sources
+// (including test hosts' ConfigureAppConfiguration overrides, which
+// WebApplicationFactory only merges in when builder.Build() runs) have been
+// merged. Resolving eagerly at this point in the top-level statements would
+// capture appsettings.json's default connection string instead of a test
+// factory's per-test override, silently pointing every test at the same
+// on-disk shortnr.db file.
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseProvider(dbProvider, dbConnectionString));
+{
+    var dbProvider = Shortnr.Data.DatabaseProviderHelper.ResolveProvider(builder.Configuration);
+    var dbConnectionString = Shortnr.Data.DatabaseProviderHelper.ResolveConnectionString(builder.Configuration, dbProvider)
+        ?? throw new InvalidOperationException(
+            $"No connection string configured for database provider '{dbProvider}'. " +
+            $"Set 'Database:ConnectionString' or 'ConnectionStrings:DefaultConnection'.");
+    options.UseProvider(dbProvider, dbConnectionString);
+});
 
 // ── Feature module registrations ──────────────────────────────────────────────
 // Each feature owns its own DI composition boundary (article: "treat DI
