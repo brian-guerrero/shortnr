@@ -1,4 +1,4 @@
-# AGENTS.md — shortnr
+# CLAUDE.md — shortnr
 
 URL shortener with a dashboard, CLI, MCP server, and AI insights. ASP.NET Core Razor Pages + HTMX, EF Core (multi-provider), feature-module architecture.
 
