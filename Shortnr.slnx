@@ -3,6 +3,7 @@
     <Project Path="src/Shortnr.AppHost/Shortnr.AppHost.csproj" />
     <Project Path="src/Shortnr.Cli/Shortnr.Cli.csproj" />
     <Project Path="src/Shortnr.Data/Shortnr.Data.csproj" />
+    <Project Path="src/Shortnr.Data.Postgres/Shortnr.Data.Postgres.csproj" />
     <Project Path="src/Shortnr.ServiceDefaults/Shortnr.ServiceDefaults.csproj" />
     <Project Path="src/Shortnr.Web/Shortnr.Web.csproj" />
   </Folder>

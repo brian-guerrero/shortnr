@@ -48,7 +48,11 @@ public static class DatabaseProviderHelper
         return provider switch
         {
             DatabaseProvider.Sqlite => builder.UseSqlite(connectionString).UseOpenIddict(),
-            DatabaseProvider.Postgres => builder.UseNpgsql(connectionString).UseOpenIddict(),
+            // Postgres migrations live in their own assembly (Shortnr.Data.Postgres), not
+            // Shortnr.Data's SQLite-flavored ones -- Migrate() replays a migration's frozen
+            // Up()/Down() operations verbatim, so the two providers can't share one history.
+            DatabaseProvider.Postgres => builder.UseNpgsql(connectionString,
+                npgsql => npgsql.MigrationsAssembly("Shortnr.Data.Postgres")).UseOpenIddict(),
             _ => throw new ArgumentOutOfRangeException(nameof(provider))
         };
     }

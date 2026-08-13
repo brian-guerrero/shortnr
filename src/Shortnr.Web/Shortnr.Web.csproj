@@ -2,10 +2,21 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Shortnr.Data\Shortnr.Data.csproj" />
+    <!-- Not referenced directly in code, but required so Shortnr.Data.Postgres.dll is deployed
+         to the app's output folder, since DatabaseProviderHelper resolves it by assembly name
+         (MigrationsAssembly("Shortnr.Data.Postgres")) at runtime. -->
+    <ProjectReference Include="..\Shortnr.Data.Postgres\Shortnr.Data.Postgres.csproj" />
     <ProjectReference Include="..\Shortnr.ServiceDefaults\Shortnr.ServiceDefaults.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Design-time only, needed so `dotnet ef` tooling can use this project as the
+         startup project when scaffolding Postgres migrations
+         (project src\Shortnr.Data.Postgres\Shortnr.Data.Postgres.csproj). -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
     <PackageReference Include="DnsClient" Version="1.8.0" />
     <PackageReference Include="MailKit" Version="4.17.0" />
     <PackageReference Include="MaxMind.GeoIP2" Version="6.1.0" />
