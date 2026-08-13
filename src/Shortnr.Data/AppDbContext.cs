@@ -97,10 +97,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             {
                 entity.HasIndex(e => new { e.DomainId, e.ShortCode })
                     .IsUnique()
-                    .HasFilter("[DomainId] IS NOT NULL");
+                    .HasFilter("\"DomainId\" IS NOT NULL");
                 entity.HasIndex(e => e.ShortCode)
                     .IsUnique()
-                    .HasFilter("[DomainId] IS NULL");
+                    .HasFilter("\"DomainId\" IS NULL");
             }
 
             entity.HasOne(e => e.Owner)
