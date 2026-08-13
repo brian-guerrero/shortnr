@@ -1,7 +1,7 @@
 ---
 title: API reference
 description: shortnr's REST API v1 — authentication, rate limits, versioning, and how to use the interactive Scalar docs.
-order: 5
+order: 7
 ---
 
 # API reference

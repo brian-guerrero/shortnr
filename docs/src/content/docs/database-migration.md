@@ -1,30 +1,26 @@
 ---
 title: Database migration
-description: Migrate shortnr data between SQLite, PostgreSQL, and MySQL.
-order: 4
+description: Move an existing shortnr instance from SQLite to PostgreSQL.
+order: 5
 ---
 
 # Database migration
 
-shortnr supports SQLite, PostgreSQL, and MySQL. This guide covers migrating data between providers.
+shortnr supports SQLite and PostgreSQL. This guide covers moving an existing instance's data from SQLite to Postgres.
+
+For choosing between the two in the first place, see the [database guide](/shortnr/docs/configuration/database/).
 
 ## When to migrate
 
 **Stay on SQLite if:**
-- Single-user or small team deployment
+- Single-instance deployment
 - Low write volume (under ~100 clicks/minute)
 - Simplicity is preferred over scalability
 
-**Consider PostgreSQL if:**
-- Multiple concurrent users
+**Move to PostgreSQL if:**
+- You need to run more than one instance behind a load balancer &mdash; the deciding factor, since replicas can't share a SQLite file
 - Higher write volume (100+ clicks/minute)
-- Need for advanced queries or analytics
-- Existing Postgres infrastructure
-
-**Consider MySQL if:**
-- Existing MySQL/MariaDB infrastructure
-- Team familiarity with MySQL
-- Migrating from YOURLS or similar MySQL-based tools
+- You already operate Postgres infrastructure
 
 ## Migration process
 
@@ -47,20 +43,10 @@ sqlite3 -header -csv shortnr.db "SELECT * FROM Domains;" > domains.csv
 
 ### Step 2: Set up target database
 
-**PostgreSQL:**
-
 ```bash
 createdb shortnr
 psql shortnr -c "CREATE USER shortnr WITH PASSWORD 'your-password';"
 psql shortnr -c "GRANT ALL PRIVILEGES ON DATABASE shortnr TO shortnr;"
-```
-
-**MySQL:**
-
-```bash
-mysql -e "CREATE DATABASE shortnr;"
-mysql -e "CREATE USER 'shortnr'@'%' IDENTIFIED BY 'your-password';"
-mysql -e "GRANT ALL PRIVILEGES ON shortnr.* TO 'shortnr'@'%';"
 ```
 
 ### Step 3: Start shortnr with target database
@@ -68,14 +54,8 @@ mysql -e "GRANT ALL PRIVILEGES ON shortnr.* TO 'shortnr'@'%';"
 Start a new shortnr instance pointing at the target database. EF Core migrations will create the schema automatically:
 
 ```bash
-# PostgreSQL
-DATABASE__PROVIDER=Postgres \
-DATABASE__CONNECTIONSTRING="Host=localhost;Database=shortnr;Username=shortnr;Password=your-password" \
-dotnet run --project src/Shortnr.Web
-
-# MySQL
-DATABASE__PROVIDER=MySql \
-DATABASE__CONNECTIONSTRING="Server=localhost;Database=shortnr;User=shortnr;Password=your-password" \
+Database__Provider=Postgres \
+Database__ConnectionString="Host=localhost;Database=shortnr;Username=shortnr;Password=your-password" \
 dotnet run --project src/Shortnr.Web
 ```
 
@@ -126,19 +106,18 @@ Once verified:
 - SQLite `INTEGER` primary keys become `bigint` in Postgres
 - SQLite's `datetime('now')` defaults are handled in C# (provider-agnostic)
 - Filtered indexes (`[DomainId] IS NULL`) work identically in Postgres
+- Postgres folds unquoted identifiers to lowercase, and shortnr's tables and columns are PascalCase &mdash; quote them (`"ShortenedUrls"`) in every hand-written query
+- The two providers keep separate migration histories (`Shortnr.Data` for SQLite, `Shortnr.Data.Postgres` for Postgres); both ship in the published output and the right one is picked from `Database__Provider`
 
-### SQLite → MySQL
+### Reset identity sequences after import
 
-- MySQL does not support filtered indexes. shortnr uses a composite unique index instead
-- MySQL `AUTO_INCREMENT` vs SQLite `AUTOINCREMENT` — handled by EF Core
-- MySQL requires explicit `CHARSET=utf8mb4` for full Unicode support (set by EF Core)
-- Case sensitivity: MySQL collation affects string comparisons. Use `utf8mb4_bin` for case-sensitive lookups
+Imported rows carry their original `Id` values, but the sequences backing those columns still start at 1 &mdash; so the first insert after cutover collides with an existing row. Reset each one:
 
-### PostgreSQL ↔ MySQL
+```bash
+psql shortnr -c "SELECT setval(pg_get_serial_sequence('\"ShortenedUrls\"', 'Id'), COALESCE(MAX(\"Id\"), 1)) FROM \"ShortenedUrls\";"
+```
 
-- Timestamps: Both use UTC. No conversion needed.
-- Boolean: Postgres has native `boolean`; MySQL uses `tinyint(1)`. EF Core handles the mapping.
-- JSON: If using JSON columns (future feature), Postgres has `jsonb`; MySQL has `json`.
+Repeat for every table you imported.
 
 ## Troubleshooting
 
