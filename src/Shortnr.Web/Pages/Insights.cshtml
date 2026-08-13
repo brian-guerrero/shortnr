@@ -8,6 +8,40 @@
     <p>Suggested tags based on your links' click patterns. Accept to apply a tag, or dismiss it.</p>
 </hgroup>
 
+@if (Model.LlmEnabled)
+{
+    <article class="ai-activity">
+        <hgroup>
+            <h2>Ask AI</h2>
+            <p>Explain what's driving a link's traffic, optimize a campaign, draft social copy, or suggest tags for a new URL.
+                <mark class="status-info">AI-generated — verify before publishing.</mark></p>
+        </hgroup>
+        <div class="grid">
+            <form hx-post="/insights?handler=Analyze" hx-target="#llm-insights" hx-swap="innerHTML">
+                @Html.AntiForgeryToken()
+                <input type="text" name="code" placeholder="Short code (e.g. a1b2c3)" aria-label="Short code to analyze">
+                <button type="submit" class="btn-sm">Analyze traffic</button>
+            </form>
+            <form hx-post="/insights?handler=OptimizeCampaign" hx-target="#llm-insights" hx-swap="innerHTML">
+                @Html.AntiForgeryToken()
+                <input type="text" name="tag" placeholder="Campaign tag (e.g. campaign-summer)" aria-label="Campaign tag">
+                <button type="submit" class="btn-sm">Optimize campaign</button>
+            </form>
+            <form hx-post="/insights?handler=DraftSocialCopy" hx-target="#llm-insights" hx-swap="innerHTML">
+                @Html.AntiForgeryToken()
+                <input type="text" name="code" placeholder="Short code" aria-label="Short code for social copy">
+                <button type="submit" class="btn-sm">Draft social copy</button>
+            </form>
+            <form hx-post="/insights?handler=SuggestTags" hx-target="#llm-insights" hx-swap="innerHTML">
+                @Html.AntiForgeryToken()
+                <input type="text" name="url" placeholder="https://example.com/new-page" aria-label="Destination URL">
+                <button type="submit" class="btn-sm">Suggest tags</button>
+            </form>
+        </div>
+        <div id="llm-insights"></div>
+    </article>
+}
+
 <form hx-post="/insights?handler=RunNow" hx-target="#insights-list" hx-swap="innerHTML"
       style="margin-bottom: var(--sn-space-4);">
     @Html.AntiForgeryToken()
