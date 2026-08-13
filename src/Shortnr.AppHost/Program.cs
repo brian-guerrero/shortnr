@@ -50,17 +50,6 @@ if (dbProviderValue.Equals("Postgres", StringComparison.OrdinalIgnoreCase))
         .WithEnvironment("Database__ConnectionString", shortnrDb)
         .WaitFor(postgres);
 }
-else if (dbProviderValue.Equals("MySql", StringComparison.OrdinalIgnoreCase))
-{
-    var mysql = builder.AddMySql("mysql")
-        .WithLifetime(ContainerLifetime.Persistent);
-
-    var shortnrDb = mysql.AddDatabase("shortnr-db");
-
-    shortnrWeb
-        .WithEnvironment("Database__ConnectionString", shortnrDb)
-        .WaitFor(mysql);
-}
 
 var docsDir = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", "docs"));
 if (Directory.Exists(docsDir))
