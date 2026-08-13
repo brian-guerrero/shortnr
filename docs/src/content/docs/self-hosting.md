@@ -49,8 +49,6 @@ docker run -d \
   ghcr.io/brian-guerrero/shortnr:latest
 ```
 
-> MySQL / MariaDB is not currently supported. `docker-compose.mysql.yml` is present in the repository but will not bring up a working instance &mdash; the app exits at startup on an unsupported provider.
-
 ### Environment variables
 
 ```bash

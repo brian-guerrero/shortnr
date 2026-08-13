@@ -168,10 +168,6 @@ curl -I http://localhost:8080/your-short-code
 
 Keep the SQLite file until you're satisfied &mdash; it's your rollback.
 
-## MySQL
-
-MySQL and MariaDB are **not currently supported**. Setting `Database__Provider=MySql` fails at startup with an unsupported-provider error. Some partial wiring exists in the codebase, but there is no working MySQL provider, and `docker-compose.mysql.yml` will not bring up a functioning instance.
-
 ## Troubleshooting
 
 **`Unsupported 'Database:Provider' value`** &mdash; the provider name isn't recognised. Valid values are `Sqlite` and `Postgres` (plus the `PostgreSQL` / `Npgsql` aliases).

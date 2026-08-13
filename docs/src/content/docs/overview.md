@@ -32,8 +32,6 @@ shortnr does not lock you into a single storage engine. It runs on:
 
 Both providers run the same schema and the same features; the choice is about deployment shape, not capability. Switching is two environment variables, and the schema is created automatically on first start either way.
 
-MySQL and MariaDB are not currently supported.
-
 See the [database guide](/shortnr/docs/configuration/database/) for the comparison, configuration, and SQLite &rarr; Postgres migration steps.
 
 ## Where to go next

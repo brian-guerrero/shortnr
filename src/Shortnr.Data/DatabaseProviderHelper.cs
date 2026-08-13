@@ -22,7 +22,7 @@ public static class DatabaseProviderHelper
             "postgres" or "postgresql" or "npgsql" => DatabaseProvider.Postgres,
             _ => throw new InvalidOperationException(
                 $"Unsupported '{ConfigSection}:{ProviderKey}' value '{value}'. " +
-                $"Supported values: Sqlite, Postgres, MySql.")
+                $"Supported values: Sqlite, Postgres.")
         };
     }
 

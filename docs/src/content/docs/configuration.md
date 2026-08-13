@@ -24,8 +24,6 @@ shortnr supports two database providers:
 - **SQLite** (default) &mdash; Zero-config, file-based. Ideal for single-instance deployments and development.
 - **PostgreSQL** &mdash; MVCC concurrency, shared across replicas. Required if you run more than one instance.
 
-MySQL/MariaDB is **not currently supported** &mdash; setting `Database__Provider=MySql` fails at startup.
-
 Switch providers via environment variables:
 
 ```bash
