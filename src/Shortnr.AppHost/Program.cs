@@ -4,7 +4,16 @@ using Microsoft.Extensions.Configuration;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-var dbProvider = builder.AddParameter("db-provider", "Sqlite");
+// Resolve the raw config value ourselves and feed it into AddParameter as the default,
+// rather than the other way around. AddParameter("db-provider", "Sqlite")'s own resolved
+// .Value does not reliably reflect a Parameters:db-provider override the same way a plain
+// builder.Configuration[...] read does -- that mismatch left the "db-provider" parameter
+// resource (and the Database__Provider env var wired from it) stuck on "Sqlite" even when
+// this same config read below correctly saw "Postgres" and provisioned the Postgres
+// resources, so shortnr-web got a Postgres connection string handed to the Sqlite driver.
+// Computing it once here keeps both consistent.
+var dbProviderValue = builder.Configuration["Parameters:db-provider"] ?? "Sqlite";
+var dbProvider = builder.AddParameter("db-provider", dbProviderValue);
 
 // Lets integration tests (DistributedApplicationTestingBuilder) provision just the database
 // resource without also pulling/starting dex and mailpit, which the Postgres parity suite
@@ -36,8 +45,6 @@ if (!skipAuxServices)
         .WaitFor(dex)
         .WaitFor(mailpit);
 }
-
-var dbProviderValue = builder.Configuration["Parameters:db-provider"] ?? "Sqlite";
 
 if (dbProviderValue.Equals("Postgres", StringComparison.OrdinalIgnoreCase))
 {
