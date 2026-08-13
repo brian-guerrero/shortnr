@@ -16,13 +16,15 @@ public sealed class ShortenRateLimiter : IDisposable
 {
     private readonly PartitionedRateLimiter<HttpContext> _limiter;
 
-    public ShortenRateLimiter(IOptions<RateLimitingOptions> options)
+    public ShortenRateLimiter(IOptions<RateLimitingOptions> options, RateLimitLimiterFactory factory)
     {
         var limits = options.Value;
         _limiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
-            RateLimitPartition.Get(
-                IpRateLimitPolicies.ResolveKey(context, limits.TrustForwardedFor),
-                _ => IpRateLimitPolicies.Build(limits.Shorten.PerMinute, limits.Shorten.PerDay)));
+        {
+            var partitionKey = IpRateLimitPolicies.ResolveKey(context, limits.TrustForwardedFor);
+            return RateLimitPartition.Get(partitionKey,
+                key => IpRateLimitPolicies.Build(factory, "shorten", key, limits.Shorten.PerMinute, limits.Shorten.PerDay));
+        });
     }
 
     public async ValueTask<bool> TryAcquireAsync(HttpContext context, CancellationToken ct = default)

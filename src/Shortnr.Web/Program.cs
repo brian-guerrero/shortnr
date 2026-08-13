@@ -144,50 +144,29 @@ builder.Services.AddAuthorizationBuilder()
     });
 
 // Per-key rate limiting: 60 requests/min burst + 1000/day cap. Partitioned by
-// the presented (hashed) key so it works independently of auth ordering.
+// the presented (hashed) key so it works independently of auth ordering. The
+// limiter chain is built by RateLimitLimiterFactory, which switches between the
+// in-process store (PRD-010 default) and the distributed Redis store (PRD-017,
+// opt-in via RateLimiting:Provider=Redis).
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.AddPolicy("api-key", context =>
-        RateLimitPartition.Get(RateLimitPartitionKey(context), _ => new ChainedRateLimiter(
-        [
-            new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 60,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0,
-                AutoReplenishment = true
-            }),
-            new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 1000,
-                Window = TimeSpan.FromDays(1),
-                QueueLimit = 0,
-                AutoReplenishment = true
-            })
-        ])));
+    {
+        var factory = context.RequestServices.GetRequiredService<RateLimitLimiterFactory>();
+        return RateLimitPartition.Get(RateLimitPartitionKey(context),
+            key => factory.BuildChain("api-key", key, 60, TimeSpan.FromMinutes(1), 1000, TimeSpan.FromDays(1)));
+    });
 
     // Per-key limiter for the MCP endpoint: slightly higher burst than the REST
     // API (an agent may enumerate tools + several reads in a minute) with the
     // same daily cap.
     options.AddPolicy("mcp-tools", context =>
-        RateLimitPartition.Get(RateLimitPartitionKey(context), _ => new ChainedRateLimiter(
-        [
-            new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 120,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0,
-                AutoReplenishment = true
-            }),
-            new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 5000,
-                Window = TimeSpan.FromDays(1),
-                QueueLimit = 0,
-                AutoReplenishment = true
-            })
-        ])));
+    {
+        var factory = context.RequestServices.GetRequiredService<RateLimitLimiterFactory>();
+        return RateLimitPartition.Get(RateLimitPartitionKey(context),
+            key => factory.BuildChain("mcp-tools", key, 120, TimeSpan.FromMinutes(1), 5000, TimeSpan.FromDays(1)));
+    });
 
     // IP-keyed limit on the public redirect endpoint. Deliberately far more generous
     // than the shorten one so legitimate traffic (including viral spikes) is never
@@ -196,9 +175,10 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("redirect-ip", context =>
     {
         var limits = context.RequestServices.GetRequiredService<IOptions<RateLimitingOptions>>().Value;
-        return RateLimitPartition.Get(
-            IpRateLimitPolicies.ResolveKey(context, limits.TrustForwardedFor),
-            _ => IpRateLimitPolicies.Build(limits.Redirect.PerMinute, limits.Redirect.PerDay));
+        var factory = context.RequestServices.GetRequiredService<RateLimitLimiterFactory>();
+        var partitionKey = IpRateLimitPolicies.ResolveKey(context, limits.TrustForwardedFor);
+        return RateLimitPartition.Get(partitionKey,
+            key => IpRateLimitPolicies.Build(factory, "redirect-ip", key, limits.Redirect.PerMinute, limits.Redirect.PerDay));
     });
 });
 
@@ -246,6 +226,20 @@ app.UseAuthorization();
 app.UseRateLimiter();
 
 app.MapDefaultEndpoints();
+
+// Dedicated Redis health endpoint for the distributed rate-limit store (PRD-017
+// Requirement 5), mapped in every environment (not just Development) so k8s liveness
+// probes can hit it in production. Only exists when the Redis provider is opted in.
+if (RateLimitProviderHelper.ResolveProvider(builder.Configuration) == RateLimitProvider.Redis)
+{
+    app.MapHealthChecks("/health/redis", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+    {
+        // Only the Redis check is part of this endpoint; "/health" (Development) still
+        // aggregates it alongside the platform checks.
+        Predicate = registration => registration.Tags.Contains("redis")
+    });
+}
+
 app.MapRazorPages();
 app.MapAuthenticationEndpoints(app.Configuration);
 
