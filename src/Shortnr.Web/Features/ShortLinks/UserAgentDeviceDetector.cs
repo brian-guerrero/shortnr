@@ -1,5 +1,3 @@
-using uaParserLibrary;
-
 namespace Shortnr.Web.Features.ShortLinks;
 
 public enum MobilePlatform
@@ -22,7 +20,7 @@ public static class UserAgentDeviceDetector
         if (string.IsNullOrWhiteSpace(userAgent))
             return MobilePlatform.None;
 
-        return UAParser.GetClientInfo(userAgent)?.OS?.Name switch
+        return SafeUserAgentParser.Parse(userAgent)?.OsName switch
         {
             "iOS" => MobilePlatform.Ios,
             "Android" => MobilePlatform.Android,

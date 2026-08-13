@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace Shortnr.Tests.Unit.Services;
 
 public class UserAgentDeviceDetectorTests
@@ -48,4 +50,36 @@ public class UserAgentDeviceDetectorTests
     public void ResolveDestination_IosUaWithWhitespaceIosLink_ReturnsFallback() =>
         Assert.Equal("https://example.com/fallback",
             UserAgentDeviceDetector.ResolveDestination("https://example.com/fallback", "   ", null, IosUa));
+
+    /// <summary>
+    /// The underlying ua-parser library keeps parse state in statics and reuses its
+    /// result instance, so concurrent redirects used to be classified from each
+    /// other's User-Agent — an Android click could be handed the desktop fallback.
+    /// Interleaves the three platforms across threads to keep that regression out.
+    /// </summary>
+    [Fact]
+    public void ResolveDestination_ConcurrentMixedUserAgents_StaysPerRequest()
+    {
+        const string Fallback = "https://example.com/fallback";
+        const string IosLink = "myapp://open/123";
+        const string AndroidLink = "https://play.google.com/store/apps/details?id=com.example.app";
+
+        (string Ua, string Expected)[] cases =
+        [
+            (IosUa, IosLink),
+            (AndroidUa, AndroidLink),
+            (DesktopUa, Fallback)
+        ];
+
+        var mismatches = new ConcurrentBag<string>();
+        Parallel.For(0, 6000, new ParallelOptions { MaxDegreeOfParallelism = 8 }, i =>
+        {
+            var (ua, expected) = cases[i % cases.Length];
+            var actual = UserAgentDeviceDetector.ResolveDestination(Fallback, IosLink, AndroidLink, ua);
+            if (actual != expected)
+                mismatches.Add($"expected '{expected}' got '{actual}'");
+        });
+
+        Assert.Empty(mismatches);
+    }
 }
