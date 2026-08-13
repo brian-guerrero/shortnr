@@ -41,7 +41,7 @@ jobs:
         run: dotnet test tests/Shortnr.Tests.Unit/Shortnr.Tests.Unit.csproj --no-build --configuration Release
 
       - name: Integration tests
-        run: dotnet test tests/Shortnr.Tests.Integration/Shortnr.Tests.Integration.csproj --no-build --configuration Release --filter "Category!=Postgres"
+        run: dotnet test tests/Shortnr.Tests.Integration/Shortnr.Tests.Integration.csproj --no-build --configuration Release --filter "Category!=Postgres&Category!=Redis"
 
   test-postgres-parity:
     name: Postgres parity tests
@@ -72,3 +72,32 @@ jobs:
       # automatically, which PostgresAppHostFixture uses for a longer resource-wait timeout.
       - name: Postgres parity tests
         run: dotnet test tests/Shortnr.Tests.Integration/Shortnr.Tests.Integration.csproj --configuration Release --filter "Category=Postgres"
+
+  test-redis:
+    name: Redis distributed rate-limit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+          cache: true
+          cache-dependency-path: '**/*.csproj'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      # Testcontainers provisions its own redis:7-alpine container via Docker, which
+      # ubuntu-latest runners have preinstalled. Redis tests skip themselves when Docker
+      # is unreachable, so this job is only meaningful on Docker-enabled runners.
+      - name: Redis rate-limit tests
+        run: dotnet test tests/Shortnr.Tests.Integration/Shortnr.Tests.Integration.csproj --configuration Release --filter "Category=Redis"

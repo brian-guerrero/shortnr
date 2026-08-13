@@ -136,6 +136,8 @@ Used by the Email feature module for workspace invite emails. Fire-and-forget vi
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `RateLimiting__TrustForwardedFor` | `false` | When `true`, resolve the client IP from the left-most `X-Forwarded-For` hop (for deployments behind a reverse proxy). |
+| `RateLimiting__Provider` | `InProcess` | Where rate-limit counters are stored: `InProcess` (default, zero config) or `Redis` (distributed — required when running multiple instances behind a load balancer so the combined limit is shared). |
+| `RateLimiting__Redis__ConnectionString` | *(empty)* | StackExchange.Redis connection string for the rate-limit store, e.g. `redis:6379`. Only read when `Provider=Redis`. |
 | `RateLimiting__Shorten__PerMinute` | `10` | Per-IP request cap per minute for the shorten form (`POST /`). |
 | `RateLimiting__Shorten__PerDay` | `200` | Per-IP daily cap for the shorten form. |
 | `RateLimiting__Redirect__PerMinute` | `300` | Per-IP request cap per minute for the redirect endpoint (`GET /{shortCode}`). |
@@ -146,6 +148,17 @@ The redirect limits are deliberately generous so legitimate traffic (including v
 ### API rate limiting
 
 The `/api/v1` endpoints use a separate chained rate limiter per API key: 60 requests/minute burst + 1000/day cap. Over-limit requests receive `429 Too Many Requests`.
+
+### Distributed rate limiting with Redis
+
+With `RateLimiting__Provider=Redis`, rate-limit counters live in Redis so all instances share one limit (per-minute burst + per-day cap are enforced across the whole fleet, not per instance).
+
+- Keys are namespaced `shortnr:ratelimit:{policy}:{identifier}:{window}` and expire with their window, so no cleanup is needed.
+- Connecting is lazy and non-fatal: if Redis is unreachable (or later goes down), requests **fall back to in-process limiting** and a warning is logged — shortnr never 500s because of Redis.
+- A `GET /health/redis` endpoint reports Redis connectivity (through the standard `/health` aggregator when `Provider=Redis`).
+- Redis is only ever used for rate-limit counters — it is **not** a general-purpose cache.
+
+A complete `docker-compose.redis.yml` example is included in the repo.
 
 ## Connection string examples
 
