@@ -26,6 +26,8 @@ public class ShortnrWebAppFactory : WebApplicationFactory<Program>
 
     private readonly bool _authEnabled;
     private readonly bool _aiInsightsEnabled;
+    private readonly DatabaseProvider? _provider;
+    private readonly string? _connectionString;
     private readonly string _dbPath = Path.Combine(
         Path.GetTempPath(), $"shortnr-test-{Guid.NewGuid():N}.db");
 
@@ -37,10 +39,26 @@ public class ShortnrWebAppFactory : WebApplicationFactory<Program>
     /// Value written to <c>AiInsights:Enabled</c> in the test configuration.
     /// Defaults to <c>false</c> (the feature is opt-in).
     /// </param>
-    public ShortnrWebAppFactory(bool authEnabled = true, bool aiInsightsEnabled = false)
+    /// <param name="provider">
+    /// Overrides <c>Database:Provider</c> for this factory instance. Defaults to
+    /// <c>null</c>, which leaves the isolated SQLite temp-file behavior below untouched.
+    /// Pass <see cref="DatabaseProvider.Postgres"/> with <paramref name="connectionString"/>
+    /// to point this factory at a real Postgres instance instead (see
+    /// <see cref="PostgresAppHostFixture"/>).
+    /// </param>
+    /// <param name="connectionString">
+    /// The connection string to use when <paramref name="provider"/> is set.
+    /// </param>
+    public ShortnrWebAppFactory(
+        bool authEnabled = true,
+        bool aiInsightsEnabled = false,
+        DatabaseProvider? provider = null,
+        string? connectionString = null)
     {
         _authEnabled = authEnabled;
         _aiInsightsEnabled = aiInsightsEnabled;
+        _provider = provider;
+        _connectionString = connectionString;
     }
 
     /// <summary>Creates an <see cref="HttpClient"/> with auto-redirect disabled.</summary>
@@ -69,6 +87,15 @@ public class ShortnrWebAppFactory : WebApplicationFactory<Program>
                 ["RateLimiting:Redirect:PerMinute"] = "100000",
                 ["RateLimiting:Redirect:PerDay"] = "1000000",
             });
+
+            if (_provider is not null)
+            {
+                config.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Database:Provider"] = _provider.Value.ToString(),
+                    ["Database:ConnectionString"] = _connectionString,
+                });
+            }
         });
 
         builder.ConfigureTestServices(services =>

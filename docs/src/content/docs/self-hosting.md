@@ -16,7 +16,7 @@ A prebuilt image is published to the GitHub Container Registry on every push to 
 docker pull ghcr.io/brian-guerrero/shortnr:vX.Y.Z
 ```
 
-### Basic
+### Basic (SQLite)
 
 ```bash
 docker run -d \
@@ -28,6 +28,44 @@ docker run -d \
 ```
 
 The SQLite database is stored at `/data/shortnr.db` inside the container. The named volume `shortnr-data` persists across restarts.
+
+### PostgreSQL
+
+For production deployments with higher concurrency needs, use PostgreSQL:
+
+```bash
+docker compose -f docker-compose.postgres.yml up -d
+```
+
+Or manually:
+
+```bash
+docker run -d \
+  --name shortnr \
+  -p 8080:8080 \
+  -e Database__Provider=Postgres \
+  -e Database__ConnectionString="Host=postgres;Database=shortnr;Username=shortnr;Password=secret" \
+  --restart unless-stopped \
+  ghcr.io/brian-guerrero/shortnr:latest
+```
+
+### MySQL / MariaDB
+
+```bash
+docker compose -f docker-compose.mysql.yml up -d
+```
+
+Or manually:
+
+```bash
+docker run -d \
+  --name shortnr \
+  -p 8080:8080 \
+  -e Database__Provider=MySql \
+  -e Database__ConnectionString="Server=mysql;Database=shortnr;User=shortnr;Password=secret" \
+  --restart unless-stopped \
+  ghcr.io/brian-guerrero/shortnr:latest
+```
 
 ### Environment variables
 
@@ -83,10 +121,21 @@ When behind a proxy, set `RateLimiting__TrustForwardedFor=true` so shortnr resol
 
 ## Production checklist
 
+### SQLite
+
 - [ ] **Persistent volume** &mdash; mount a named volume or bind mount for `/data` so the SQLite database survives container restarts.
+- [ ] **Backups** &mdash; back up the SQLite file (`/data/shortnr.db`). It's a single file &mdash; `cp` or `rsync` is sufficient.
+
+### PostgreSQL / MySQL
+
+- [ ] **Database server** &mdash; run Postgres or MySQL in a separate container or managed service.
+- [ ] **Backups** &mdash; configure database-level backups (pg_dump, mysqldump, or managed backups).
+- [ ] **Connection security** &mdash; use strong passwords and consider SSL/TLS for database connections.
+
+### All deployments
+
 - [ ] **TLS** &mdash; place shortnr behind a reverse proxy with HTTPS.
 - [ ] **Authentication** &mdash; enable OIDC if multiple users will access the instance.
-- [ ] **Backups** &mdash; back up the SQLite file (`/data/shortnr.db`). It's a single file &mdash; `cp` or `rsync` is sufficient.
 - [ ] **Rate limiting** &mdash; the built-in rate limits are sensible defaults. For very high redirect volume, add proxy/CDN-level limiting.
 - [ ] **GeoIP** (optional) &mdash; configure `GeoIp__MaxMindAccountId` and `GeoIp__MaxMindLicenseKey` to enrich clicks with country/city data.
 
@@ -104,7 +153,12 @@ Two test users are provisioned: `test@example.com` and `test2@example.com` (both
 
 ## Scaling considerations
 
-shortnr uses SQLite, which handles concurrent reads well but serializes writes. For most self-hosted deployments this is more than sufficient. If you outgrow SQLite:
+shortnr supports three database providers:
 
-- The `DbContext` is provider-agnostic. Switching to PostgreSQL requires changing the connection string and replacing `UseSqlite()` with `UseNpgsql()`.
-- Click tracking uses an in-memory `Channel<ClickRecord>` + `ClickBatchProcessor` background service, so writes are batched and non-blocking.
+- **SQLite** &mdash; Handles concurrent reads well but serializes writes. Ideal for single-user or low-traffic deployments.
+- **PostgreSQL** &mdash; MVCC concurrency, better for multi-user deployments with higher write volume.
+- **MySQL/MariaDB** &mdash; InnoDB transactions, widely supported in existing infrastructure.
+
+Switch providers via environment variables (`Database__Provider` and `Database__ConnectionString`). See the [database migration guide](/shortnr/docs/database-migration/) for details on moving data between providers.
+
+Click tracking uses an in-memory `Channel<ClickRecord>` + `ClickBatchProcessor` background service, so writes are batched and non-blocking regardless of database provider.

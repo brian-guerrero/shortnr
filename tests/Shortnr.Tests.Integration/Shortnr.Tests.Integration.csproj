@@ -19,10 +19,19 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.10" />
+    <PackageReference Include="Aspire.Hosting.Testing" Version="13.4.6" />
+    <PackageReference Include="Xunit.SkippableFact" Version="1.5.23" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Shortnr.Web\Shortnr.Web.csproj" />
+    <!-- Generates the Projects.Shortnr_AppHost type DistributedApplicationTestingBuilder
+         needs to boot the AppHost from tests (see Infrastructure/PostgresAppHostFixture.cs).
+         Aliased because top-level-statement Program.cs in both this and Shortnr.Web generate
+         an implicit `Program` type in the global namespace, which is otherwise ambiguous when
+         both projects are referenced from the same csproj. Only files that need AppHost types
+         opt in via `extern alias ShortnrAppHost;`. -->
+    <ProjectReference Include="..\..\src\Shortnr.AppHost\Shortnr.AppHost.csproj" Aliases="ShortnrAppHost" />
   </ItemGroup>
 
 </Project>
