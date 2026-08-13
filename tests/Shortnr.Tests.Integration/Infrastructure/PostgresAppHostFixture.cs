@@ -41,18 +41,20 @@ public class PostgresAppHostFixture : IAsyncLifetime
         {
             var appHost = await DistributedApplicationTestingBuilder
                 .CreateAsync<ShortnrAppHost::Projects.Shortnr_AppHost>(
-                    ["Parameters:db-provider=Postgres", "SkipAuxServices=true"]);
+                    ["Parameters:db-provider=Postgres", "IsTestRun=true"]);
             // ^ must be passed as args to CreateAsync, not set on appHost.Configuration
-            // afterwards -- Program.cs's db-provider/SkipAuxServices branches that shape the
-            // resource graph already ran by the time CreateAsync returns. SkipAuxServices=true
-            // means only "postgres" + "shortnr-web" start -- no dex/mailpit containers pulled
-            // just to get a connection string.
+            // afterwards -- Program.cs's db-provider/IsTestRun branches that shape the
+            // resource graph already ran by the time CreateAsync returns. IsTestRun=true
+            // means only "postgres-test" + "shortnr-web" start -- no dex/mailpit containers
+            // pulled just to get a connection string -- and "postgres-test" is a distinct
+            // container/volume from the "postgres" resource dotnet run/aspire run use, so
+            // this suite never shares data with (or resets) the local dev database.
 
             _app = await appHost.BuildAsync().WaitAsync(Timeout);
             await _app.StartAsync().WaitAsync(Timeout);
 
             using var cts = new CancellationTokenSource(Timeout);
-            await _app.ResourceNotifications.WaitForResourceHealthyAsync("postgres", cts.Token);
+            await _app.ResourceNotifications.WaitForResourceHealthyAsync("postgres-test", cts.Token);
 
             ConnectionString = await _app.GetConnectionStringAsync("shortnr-db", cts.Token)
                 ?? throw new InvalidOperationException("No connection string for 'shortnr-db'.");
@@ -62,10 +64,10 @@ public class PostgresAppHostFixture : IAsyncLifetime
             await using var db = new AppDbContext(optionsBuilder.Options);
             await db.Database.MigrateAsync(cts.Token);
 
-            // One-time clean slate: the "postgres" resource is ContainerLifetime.Persistent
-            // (see Shortnr.AppHost/Program.cs), so a local dev's container can carry rows
-            // across runs. Individual tests still use GUID-based codes/domains so they don't
-            // collide with each other within a run.
+            // One-time clean slate: "postgres-test" is ContainerLifetime.Persistent (see
+            // Shortnr.AppHost/Program.cs), so it can carry rows across separate test runs on
+            // the same machine. Individual tests still use GUID-based codes/domains so they
+            // don't collide with each other within a run.
             db.ClickEvents.RemoveRange(db.ClickEvents);
             db.ShortenedUrls.RemoveRange(db.ShortenedUrls);
             db.Domains.RemoveRange(db.Domains);

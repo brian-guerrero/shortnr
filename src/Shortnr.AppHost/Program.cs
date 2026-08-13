@@ -15,15 +15,17 @@ var builder = DistributedApplication.CreateBuilder(args);
 var dbProviderValue = builder.Configuration["Parameters:db-provider"] ?? "Sqlite";
 var dbProvider = builder.AddParameter("db-provider", dbProviderValue);
 
-// Lets integration tests (DistributedApplicationTestingBuilder) provision just the database
-// resource without also pulling/starting dex and mailpit, which the Postgres parity suite
-// never touches. Default is false so `dotnet run`/`aspire run` for real dev work is unchanged.
-var skipAuxServices = builder.Configuration.GetValue("SkipAuxServices", false);
+// Set by PostgresAppHostFixture (DistributedApplicationTestingBuilder) so the Postgres
+// parity suite provisions just the database resource without also pulling/starting dex and
+// mailpit, and gets its own isolated Postgres container/volume instead of sharing the
+// persistent local dev database -- see the "postgres-test" naming below. Default is false
+// so `dotnet run`/`aspire run` for real dev work is unchanged.
+var isTestRun = builder.Configuration.GetValue("IsTestRun", false);
 
 var shortnrWeb = builder.AddProject<Projects.Shortnr_Web>("shortnr-web")
     .WithEnvironment("Database__Provider", dbProvider);
 
-if (!skipAuxServices)
+if (!isTestRun)
 {
     var dex = builder.AddContainer("dex", "dexidp/dex", "v2.39.1")
         .WithBindMount("../../dex/config.yaml", "/etc/dex/config.yaml", isReadOnly: true)
@@ -48,7 +50,14 @@ if (!skipAuxServices)
 
 if (dbProviderValue.Equals("Postgres", StringComparison.OrdinalIgnoreCase))
 {
-    var postgres = builder.AddPostgres("postgres")
+    // A distinct resource name -- and therefore a distinct container + named data volume --
+    // for test runs, so the Postgres parity suite never shares data with (or gets reset by)
+    // the persistent local dev database used for interactive troubleshooting. Both are
+    // ContainerLifetime.Persistent and use an explicit named volume so data survives
+    // container recreation, not just container reuse.
+    var postgresName = isTestRun ? "postgres-test" : "postgres";
+    var postgres = builder.AddPostgres(postgresName)
+        .WithDataVolume($"shortnr-{postgresName}-data")
         .WithLifetime(ContainerLifetime.Persistent);
 
     var shortnrDb = postgres.AddDatabase("shortnr-db");
