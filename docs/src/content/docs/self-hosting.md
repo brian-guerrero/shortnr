@@ -49,24 +49,6 @@ docker run -d \
   ghcr.io/brian-guerrero/shortnr:latest
 ```
 
-### MySQL / MariaDB
-
-```bash
-docker compose -f docker-compose.mysql.yml up -d
-```
-
-Or manually:
-
-```bash
-docker run -d \
-  --name shortnr \
-  -p 8080:8080 \
-  -e Database__Provider=MySql \
-  -e Database__ConnectionString="Server=mysql;Database=shortnr;User=shortnr;Password=secret" \
-  --restart unless-stopped \
-  ghcr.io/brian-guerrero/shortnr:latest
-```
-
 ### Environment variables
 
 ```bash
@@ -126,10 +108,10 @@ When behind a proxy, set `RateLimiting__TrustForwardedFor=true` so shortnr resol
 - [ ] **Persistent volume** &mdash; mount a named volume or bind mount for `/data` so the SQLite database survives container restarts.
 - [ ] **Backups** &mdash; back up the SQLite file (`/data/shortnr.db`). It's a single file &mdash; `cp` or `rsync` is sufficient.
 
-### PostgreSQL / MySQL
+### PostgreSQL
 
-- [ ] **Database server** &mdash; run Postgres or MySQL in a separate container or managed service.
-- [ ] **Backups** &mdash; configure database-level backups (pg_dump, mysqldump, or managed backups).
+- [ ] **Database server** &mdash; run Postgres in a separate container or as a managed service.
+- [ ] **Backups** &mdash; configure database-level backups (`pg_dump` or managed snapshots).
 - [ ] **Connection security** &mdash; use strong passwords and consider SSL/TLS for database connections.
 
 ### All deployments
@@ -153,12 +135,11 @@ Two test users are provisioned: `test@example.com` and `test2@example.com` (both
 
 ## Scaling considerations
 
-shortnr supports three database providers:
+shortnr supports two database providers:
 
-- **SQLite** &mdash; Handles concurrent reads well but serializes writes. Ideal for single-user or low-traffic deployments.
-- **PostgreSQL** &mdash; MVCC concurrency, better for multi-user deployments with higher write volume.
-- **MySQL/MariaDB** &mdash; InnoDB transactions, widely supported in existing infrastructure.
+- **SQLite** &mdash; Handles concurrent reads well but serializes writes. Ideal for single-instance, low-to-moderate traffic deployments.
+- **PostgreSQL** &mdash; MVCC concurrency, and shareable across replicas. Required to run more than one instance behind a load balancer, since a SQLite file can't be shared.
 
-Switch providers via environment variables (`Database__Provider` and `Database__ConnectionString`). See the [database migration guide](/shortnr/docs/database-migration/) for details on moving data between providers.
+Switch providers via environment variables (`Database__Provider` and `Database__ConnectionString`). See the [database guide](/shortnr/docs/configuration/database/) for the full comparison, and the [migration guide](/shortnr/docs/database-migration/) for moving existing data.
 
 Click tracking uses an in-memory `Channel<ClickRecord>` + `ClickBatchProcessor` background service, so writes are batched and non-blocking regardless of database provider.

@@ -1,7 +1,7 @@
 ---
 title: MCP server
 description: Connect shortnr to Claude, ChatGPT, or any MCP client for AI-native link and bio page management.
-order: 6
+order: 8
 ---
 
 # MCP server

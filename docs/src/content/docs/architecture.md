@@ -1,7 +1,7 @@
 ---
 title: Architecture
 description: How shortnr works — request flow, authentication, async patterns, and the HTMX + Razor Pages architecture.
-order: 4
+order: 6
 ---
 
 # Architecture

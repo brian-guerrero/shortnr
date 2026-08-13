@@ -81,27 +81,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        var isMySql = Database.ProviderName == "Pomelo.EntityFrameworkCore.MySql";
-
         modelBuilder.Entity<ShortenedUrl>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.LongUrl).IsRequired();
             entity.Property(e => e.ShortCode).IsRequired().HasMaxLength(64);
-            if (isMySql)
-            {
-                entity.HasIndex(e => new { e.DomainId, e.ShortCode })
-                    .IsUnique();
-            }
-            else
-            {
-                entity.HasIndex(e => new { e.DomainId, e.ShortCode })
-                    .IsUnique()
-                    .HasFilter("\"DomainId\" IS NOT NULL");
-                entity.HasIndex(e => e.ShortCode)
-                    .IsUnique()
-                    .HasFilter("\"DomainId\" IS NULL");
-            }
+            entity.HasIndex(e => new { e.DomainId, e.ShortCode })
+                .IsUnique()
+                .HasFilter("\"DomainId\" IS NOT NULL");
+            entity.HasIndex(e => e.ShortCode)
+                .IsUnique()
+                .HasFilter("\"DomainId\" IS NULL");
 
             entity.HasOne(e => e.Owner)
                 .WithMany(u => u.ShortenedUrls)
