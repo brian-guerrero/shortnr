@@ -26,6 +26,7 @@ public class ShortnrWebAppFactory : WebApplicationFactory<Program>
 
     private readonly bool _authEnabled;
     private readonly bool _aiInsightsEnabled;
+    private readonly bool _llmEnabled;
     private readonly DatabaseProvider? _provider;
     private readonly string? _connectionString;
     private readonly string _dbPath = Path.Combine(
@@ -38,6 +39,10 @@ public class ShortnrWebAppFactory : WebApplicationFactory<Program>
     /// <param name="aiInsightsEnabled">
     /// Value written to <c>AiInsights:Enabled</c> in the test configuration.
     /// Defaults to <c>false</c> (the feature is opt-in).
+    /// </param>
+    /// <param name="llmEnabled">
+    /// Value written to <c>AiInsights:Llm:Enabled</c> in the test configuration.
+    /// Defaults to <c>false</c> (the LLM layer is opt-in on top of the heuristics).
     /// </param>
     /// <param name="provider">
     /// Overrides <c>Database:Provider</c> for this factory instance. Defaults to
@@ -52,11 +57,13 @@ public class ShortnrWebAppFactory : WebApplicationFactory<Program>
     public ShortnrWebAppFactory(
         bool authEnabled = true,
         bool aiInsightsEnabled = false,
+        bool llmEnabled = false,
         DatabaseProvider? provider = null,
         string? connectionString = null)
     {
         _authEnabled = authEnabled;
         _aiInsightsEnabled = aiInsightsEnabled;
+        _llmEnabled = llmEnabled;
         _provider = provider;
         _connectionString = connectionString;
     }
@@ -77,6 +84,10 @@ public class ShortnrWebAppFactory : WebApplicationFactory<Program>
                 ["ConnectionStrings:DefaultConnection"] = $"DataSource={_dbPath}",
                 ["Authentication:Enabled"] = _authEnabled ? "true" : "false",
                 ["AiInsights:Enabled"] = _aiInsightsEnabled ? "true" : "false",
+                ["AiInsights:Llm:Enabled"] = _llmEnabled ? "true" : "false",
+                ["AiInsights:Llm:Provider"] = "OpenAI",
+                ["AiInsights:Llm:Model"] = "gpt-4o-mini",
+                ["AiInsights:Llm:TimeoutSeconds"] = "30",
                 ["Authentication:Oidc:Authority"] = TestIssuer,
                 ["Authentication:Oidc:ClientId"] = "test-client",
                 ["Authentication:Oidc:ClientSecret"] = "test-secret",
