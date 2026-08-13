@@ -82,7 +82,7 @@ dotnet run --project src/Shortnr.AppHost
 This starts `Shortnr.Web` **and** a local [Dex](https://dexidp.io) container (a
 spec-compliant OpenID Connect test IdP) together, wired to the same app graph, and
 prints the Aspire dashboard URL to the console. Requires a running container runtime
-(Docker Desktop / Podman). See `.claude/skills/dotnet-aspire` and
+(Docker Desktop / Podman). See `.claude/skills/aspire` and
 `.claude/skills/dex-oidc` for how the orchestration and OIDC config fit together, and
 `dex/config.yaml` for the test login credentials.
 
@@ -126,7 +126,7 @@ shortnr runs on either SQLite or Postgres, selected with `Database__Provider`:
 | Provider | When to use it |
 |----------|----------------|
 | `Sqlite` *(default)* | Zero-config. No server to run — the database is a single file (`shortnr.db`), created and migrated on first start. Right for self-hosting, single-instance deployments, and local development. |
-| `Postgres` | For scale. Concurrent writers, multiple app instances behind a load balancer, and managed-backup/replication setups. Point it at any Postgres server with `Database__ConnectionString`. |
+| `Postgres` | For scale. Concurrent writers, multiple app instances behind a load balancer, and managed-backup/replication setups. Point it at any Postgres server with `ConnectionStrings__DefaultConnection`. |
 
 ```bash
 # SQLite (default — nothing to set)
@@ -134,7 +134,7 @@ dotnet run --project src/Shortnr.Web
 
 # Postgres
 Database__Provider=Postgres \
-Database__ConnectionString="Host=localhost;Port=5432;Database=shortnr;Username=postgres;Password=postgres" \
+ConnectionStrings__DefaultConnection="Host=localhost;Port=5432;Database=shortnr;Username=postgres;Password=postgres" \
 dotnet run --project src/Shortnr.Web
 ```
 
@@ -159,8 +159,7 @@ web app automatically.
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `Database__Provider` | `Sqlite` | Database engine: `Sqlite` or `Postgres`. See [Multi-database support](#multi-database-support). |
-| `Database__ConnectionString` | *(empty)* | Connection string for the selected provider. When empty, falls back to `ConnectionStrings__DefaultConnection`. Required for `Postgres`. |
-| `ConnectionStrings__DefaultConnection` | `Data Source=shortnr.db` | Legacy connection string, used only when `Database__ConnectionString` is empty. |
+| `ConnectionStrings__DefaultConnection` | `Data Source=shortnr.db` | Connection string for the selected provider — the same setting for both SQLite and Postgres. Required for `Postgres`. |
 | `ASPNETCORE_URLS` | `http://+:5000` (dev) / `http://+:8080` (Docker) | Listening address. |
 | `Authentication__Enabled` | `true` | Set to `false` to disable OIDC entirely — no login UI, no access control, dashboard shows all data. |
 | `Authentication__Oidc__Authority` | `http://localhost:5556/dex` | OpenID Connect issuer URL. Set automatically by `Shortnr.AppHost` when running under Aspire. |
@@ -213,7 +212,7 @@ Example connection string override:
 
 ```bash
 dotnet run --project src/Shortnr.Web -- \
-  --Database:ConnectionString="Data Source=/mnt/data/shortnr.db"
+  --ConnectionStrings:DefaultConnection="Data Source=/mnt/data/shortnr.db"
 ```
 
 ## Architecture
@@ -329,7 +328,7 @@ dotnet ef migrations add <Name> --project src/Shortnr.Data/Shortnr.Data.csproj
 dotnet ef migrations remove --project src/Shortnr.Data/Shortnr.Data.csproj
 
 # Postgres (src/Shortnr.Data.Postgres/Migrations) — scaffold against a real Postgres,
-# with Database__Provider=Postgres and Database__ConnectionString set in the environment
+# with Database__Provider=Postgres and ConnectionStrings__DefaultConnection set in the environment
 dotnet ef migrations add <Name> \
   --project src/Shortnr.Data.Postgres/Shortnr.Data.Postgres.csproj \
   --startup-project src/Shortnr.Web/Shortnr.Web.csproj \

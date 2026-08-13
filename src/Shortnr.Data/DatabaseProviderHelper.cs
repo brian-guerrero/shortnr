@@ -7,7 +7,6 @@ public static class DatabaseProviderHelper
 {
     public const string ConfigSection = "Database";
     public const string ProviderKey = "Provider";
-    public const string ConnectionStringKey = "ConnectionString";
 
     public static DatabaseProvider ResolveProvider(IConfiguration configuration)
     {
@@ -28,10 +27,6 @@ public static class DatabaseProviderHelper
 
     public static string? ResolveConnectionString(IConfiguration configuration, DatabaseProvider provider)
     {
-        var configured = configuration[$"{ConfigSection}:{ConnectionStringKey}"];
-        if (!string.IsNullOrWhiteSpace(configured))
-            return configured;
-
         return provider switch
         {
             DatabaseProvider.Sqlite => configuration.GetConnectionString("DefaultConnection")

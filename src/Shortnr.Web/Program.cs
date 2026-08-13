@@ -56,7 +56,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     var dbConnectionString = Shortnr.Data.DatabaseProviderHelper.ResolveConnectionString(builder.Configuration, dbProvider)
         ?? throw new InvalidOperationException(
             $"No connection string configured for database provider '{dbProvider}'. " +
-            $"Set 'Database:ConnectionString' or 'ConnectionStrings:DefaultConnection'.");
+            $"Set 'ConnectionStrings:DefaultConnection'.");
     options.UseProvider(dbProvider, dbConnectionString);
 });
 

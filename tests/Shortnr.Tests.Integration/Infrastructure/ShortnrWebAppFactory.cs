@@ -93,7 +93,7 @@ public class ShortnrWebAppFactory : WebApplicationFactory<Program>
                 config.AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["Database:Provider"] = _provider.Value.ToString(),
-                    ["Database:ConnectionString"] = _connectionString,
+                    ["ConnectionStrings:DefaultConnection"] = _connectionString,
                 });
             }
         });
