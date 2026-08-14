@@ -50,12 +50,13 @@ The full endpoint reference is available interactively at `/api/docs` on your ru
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/api/v1/links` | List all links (with pagination) |
+| `GET` | `/api/v1/links` | List all links (with pagination; filters include `campaign`) |
 | `POST` | `/api/v1/links` | Create a new short link |
 | `GET` | `/api/v1/links/{code}` | Get a specific link |
-| `PUT` | `/api/v1/links/{code}` | Update a link |
+| `PUT` / `PATCH` | `/api/v1/links/{code}` | Update a link |
 | `DELETE` | `/api/v1/links/{code}` | Delete a link |
 | `GET` | `/api/v1/links/{code}/clicks` | Get click events for a link |
+| `GET` | `/api/v1/pixel-snippets` | List retargeting pixel snippets available for `metadata.pixelSnippet` |
 
 ### Creating a link
 
@@ -63,11 +64,34 @@ The full endpoint reference is available interactively at `/api/docs` on your ru
 curl -X POST \
   -H "Authorization: Bearer snr_your_api_key" \
   -H "Content-Type: application/json" \
-  -d '{"url": "https://example.com", "customSlug": "launch"}' \
+  -d '{"url": "https://example.com", "slug": "launch"}' \
   https://your-shortnr.example.com/api/v1/links
 ```
 
 The `domain` field is optional &mdash; if omitted, the owner's default verified domain is used. If specified, it must be a domain owned and verified by the API key's owner.
+
+### Campaign metadata
+
+Every link can carry campaign metadata &mdash; UTM parameters, a retargeting pixel, and iOS/Android deep links &mdash; nested under `metadata` on create and update requests, and returned the same way in link responses:
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer snr_your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com/spring",
+    "metadata": {
+      "utmSource": "newsletter",
+      "utmMedium": "email",
+      "utmCampaign": "spring-sale-2026"
+    }
+  }' \
+  https://your-shortnr.example.com/api/v1/links
+```
+
+UTM params are baked directly into the link's destination URL (merged over any query params already there, not duplicated on a later update) and echoed back in `metadata` for reference. `metadata.pixelSnippet` selects a retargeting pixel by name from `GET /api/v1/pixel-snippets`; pair it with `metadata.pixelId` for a template snippet (e.g. Meta Pixel) or `metadata.pixelSnippetHtml` for the custom snippet.
+
+On `PUT`/`PATCH`, each field inside `metadata` follows the same convention as the top-level request fields &mdash; omit a field to leave it unchanged, send an empty string to clear it &mdash; so a request can update just `metadata.utmCampaign` without resending the other campaign fields. Clearing every metadata field removes the link's metadata entirely.
 
 ## Interactive documentation
 
