@@ -44,7 +44,7 @@ docker run -d \
   --name shortnr \
   -p 8080:8080 \
   -e Database__Provider=Postgres \
-  -e ConnectionStrings__DefaultConnection="Host=postgres;Database=shortnr;Username=shortnr;Password=secret" \
+  -e Database__ConnectionString="Host=postgres;Database=shortnr;Username=shortnr;Password=secret" \
   --restart unless-stopped \
   ghcr.io/brian-guerrero/shortnr:latest
 ```
@@ -62,7 +62,7 @@ docker run -d \
   --name shortnr \
   -p 8080:8080 \
   -e Database__Provider=MySql \
-  -e ConnectionStrings__DefaultConnection="Server=mysql;Database=shortnr;User=shortnr;Password=secret" \
+  -e Database__ConnectionString="Server=mysql;Database=shortnr;User=shortnr;Password=secret" \
   --restart unless-stopped \
   ghcr.io/brian-guerrero/shortnr:latest
 ```
@@ -74,7 +74,7 @@ docker run -d \
   --name shortnr \
   -p 8080:8080 \
   -v shortnr-data:/data \
-  -e ConnectionStrings__DefaultConnection="Data Source=/data/shortnr.db" \
+  -e Database__ConnectionString="Data Source=/data/shortnr.db" \
   -e Authentication__Enabled=true \
   -e Authentication__Oidc__Authority=https://your-idp.example.com \
   -e Authentication__Oidc__ClientId=shortnr-web \
@@ -159,6 +159,6 @@ shortnr supports three database providers:
 - **PostgreSQL** &mdash; MVCC concurrency, better for multi-user deployments with higher write volume.
 - **MySQL/MariaDB** &mdash; InnoDB transactions, widely supported in existing infrastructure.
 
-Switch providers via environment variables (`Database__Provider` and `ConnectionStrings__DefaultConnection`). See the [database migration guide](/shortnr/docs/database-migration/) for details on moving data between providers.
+Switch providers via environment variables (`Database__Provider` and `Database__ConnectionString`). See the [database migration guide](/shortnr/docs/database-migration/) for details on moving data between providers.
 
 Click tracking uses an in-memory `Channel<ClickRecord>` + `ClickBatchProcessor` background service, so writes are batched and non-blocking regardless of database provider.

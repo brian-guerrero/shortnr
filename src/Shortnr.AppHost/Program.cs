@@ -63,7 +63,7 @@ if (dbProviderValue.Equals("Postgres", StringComparison.OrdinalIgnoreCase))
     var shortnrDb = postgres.AddDatabase("shortnr-db");
 
     shortnrWeb
-        .WithEnvironment("ConnectionStrings__DefaultConnection", shortnrDb)
+        .WithEnvironment("Database__ConnectionString", shortnrDb)
         .WaitFor(postgres);
 }
 

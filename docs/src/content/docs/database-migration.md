@@ -70,12 +70,12 @@ Start a new shortnr instance pointing at the target database. EF Core migrations
 ```bash
 # PostgreSQL
 DATABASE__PROVIDER=Postgres \
-CONNECTIONSTRINGS__DEFAULTCONNECTION="Host=localhost;Database=shortnr;Username=shortnr;Password=your-password" \
+DATABASE__CONNECTIONSTRING="Host=localhost;Database=shortnr;Username=shortnr;Password=your-password" \
 dotnet run --project src/Shortnr.Web
 
 # MySQL
 DATABASE__PROVIDER=MySql \
-CONNECTIONSTRINGS__DEFAULTCONNECTION="Server=localhost;Database=shortnr;User=shortnr;Password=your-password" \
+DATABASE__CONNECTIONSTRING="Server=localhost;Database=shortnr;User=shortnr;Password=your-password" \
 dotnet run --project src/Shortnr.Web
 ```
 

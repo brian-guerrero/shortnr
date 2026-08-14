@@ -36,15 +36,15 @@ public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
 
     private static string ResolveConnectionStringFromEnv(DatabaseProvider provider)
     {
-        var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
-            ?? Environment.GetEnvironmentVariable("CONNECTIONSTRINGS__DEFAULTCONNECTION");
+        var connectionString = Environment.GetEnvironmentVariable("Database__ConnectionString")
+            ?? Environment.GetEnvironmentVariable("DATABASE__CONNECTIONSTRING");
 
         return provider switch
         {
             DatabaseProvider.Sqlite => connectionString ?? "Data Source=shortnr.db",
             _ => connectionString ?? throw new InvalidOperationException(
                 $"No connection string configured for database provider '{provider}'. " +
-                $"Set 'ConnectionStrings__DefaultConnection' environment variable.")
+                $"Set 'Database__ConnectionString' environment variable.")
         };
     }
 }

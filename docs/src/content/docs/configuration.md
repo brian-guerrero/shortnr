@@ -13,7 +13,7 @@ shortnr is configured via `appsettings.json`, environment variables, or command-
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `Database__Provider` | `Sqlite` | Database provider: `Sqlite`, `Postgres`, or `MySql`. |
-| `ConnectionStrings__DefaultConnection` | `Data Source=shortnr.db` | Connection string for the selected provider — the same setting for every provider. |
+| `Database__ConnectionString` | *(empty)* | Connection string for the selected provider. Defaults to `Data Source=shortnr.db` for `Sqlite`; required for `Postgres`/`MySql`. |
 | `ASPNETCORE_URLS` | `http://+:5000` (dev) / `http://+:8080` (Docker) | Listening address. |
 
 ### Database providers
@@ -28,10 +28,10 @@ Switch providers via environment variables:
 
 ```bash
 # PostgreSQL
-DATABASE__PROVIDER=Postgres CONNECTIONSTRINGS__DEFAULTCONNECTION="Host=localhost;Database=shortnr;Username=shortnr;Password=secret" dotnet run
+DATABASE__PROVIDER=Postgres DATABASE__CONNECTIONSTRING="Host=localhost;Database=shortnr;Username=shortnr;Password=secret" dotnet run
 
 # MySQL
-DATABASE__PROVIDER=MySql CONNECTIONSTRINGS__DEFAULTCONNECTION="Server=localhost;Database=shortnr;User=shortnr;Password=secret" dotnet run
+DATABASE__PROVIDER=MySql DATABASE__CONNECTIONSTRING="Server=localhost;Database=shortnr;User=shortnr;Password=secret" dotnet run
 ```
 
 See the [database migration guide](/shortnr/docs/database-migration/) for details on moving from SQLite to Postgres or MySQL.
@@ -114,13 +114,13 @@ The `/api/v1` endpoints use a separate chained rate limiter per API key: 60 requ
 
 ```bash
 dotnet run --project src/Shortnr.Web -- \
-  --ConnectionStrings:DefaultConnection="Data Source=/mnt/data/shortnr.db"
+  --Database:ConnectionString="Data Source=/mnt/data/shortnr.db"
 ```
 
 Docker:
 
 ```bash
-docker run -e ConnectionStrings__DefaultConnection="Data Source=/data/shortnr.db" ghcr.io/brian-guerrero/shortnr:latest
+docker run -e Database__ConnectionString="Data Source=/data/shortnr.db" ghcr.io/brian-guerrero/shortnr:latest
 ```
 
 ### PostgreSQL
@@ -128,7 +128,7 @@ docker run -e ConnectionStrings__DefaultConnection="Data Source=/data/shortnr.db
 ```bash
 docker run \
   -e Database__Provider=Postgres \
-  -e ConnectionStrings__DefaultConnection="Host=postgres;Database=shortnr;Username=shortnr;Password=secret" \
+  -e Database__ConnectionString="Host=postgres;Database=shortnr;Username=shortnr;Password=secret" \
   ghcr.io/brian-guerrero/shortnr:latest
 ```
 
@@ -143,7 +143,7 @@ docker compose -f docker-compose.postgres.yml up -d
 ```bash
 docker run \
   -e Database__Provider=MySql \
-  -e ConnectionStrings__DefaultConnection="Server=mysql;Database=shortnr;User=shortnr;Password=secret" \
+  -e Database__ConnectionString="Server=mysql;Database=shortnr;User=shortnr;Password=secret" \
   ghcr.io/brian-guerrero/shortnr:latest
 ```
 
