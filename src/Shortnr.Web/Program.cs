@@ -224,7 +224,7 @@ if (builder.Configuration.GetValue<bool>("Hosting:TrustForwardedHeaders", defaul
     };
     // The proxy hop isn't a fixed/known address on Fly's network, so clear the
     // default network/proxy allowlist rather than reject its headers.
-    forwardedHeadersOptions.KnownNetworks.Clear();
+    forwardedHeadersOptions.KnownIPNetworks.Clear();
     forwardedHeadersOptions.KnownProxies.Clear();
     app.UseForwardedHeaders(forwardedHeadersOptions);
 }
