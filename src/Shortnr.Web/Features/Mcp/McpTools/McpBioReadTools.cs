@@ -63,6 +63,7 @@ public static class McpBioReadTools
     public static async Task<BioPageState?> LoadBioPageStateAsync(AppDbContext db, long ownerUserId, CancellationToken ct)
     {
         var bioPage = await db.BioPages
+            .AsNoTracking()
             .Include(b => b.Links)
                 .ThenInclude(l => l.ShortenedUrl)
                     .ThenInclude(s => s!.Domain)

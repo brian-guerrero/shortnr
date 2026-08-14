@@ -25,6 +25,7 @@ public class IndexModel : PageModel
     public async Task<IActionResult> OnGet(string slug)
     {
         var page = await _db.BioPages
+            .AsNoTracking()
             .Include(b => b.Links)
             .ThenInclude(l => l.ShortenedUrl)
             .ThenInclude(s => s!.Domain)

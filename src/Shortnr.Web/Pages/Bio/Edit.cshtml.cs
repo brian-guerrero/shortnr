@@ -263,6 +263,7 @@ public class EditModel : PageModel
         BioPage = ownerUserId is null
             ? null
             : await _db.BioPages
+                .AsNoTracking()
                 .Include(b => b.Links)
                 .ThenInclude(l => l.ShortenedUrl)
                 .ThenInclude(s => s!.Domain)
@@ -282,7 +283,7 @@ public class EditModel : PageModel
         }
         else
         {
-            var linkQuery = _db.ShortenedUrls.Include(l => l.Domain).AsQueryable();
+            var linkQuery = _db.ShortenedUrls.AsNoTracking().Include(l => l.Domain).AsQueryable();
             if (workspaceId is not null)
                 linkQuery = linkQuery.Where(l => l.OwnerUserId == ownerUserId || l.WorkspaceId == workspaceId);
             else
