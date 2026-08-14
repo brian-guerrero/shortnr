@@ -384,30 +384,21 @@ public class RedisRateLimitTests(RedisContainerFixture RedisFixture) : IAsyncLif
     }
 
     [SkippableFact]
-    public async Task HealthRedis_ReportsUnhealthy_WhenRedisStopped()
+    public async Task HealthRedis_ReportsUnhealthy_WhenRedisUnreachable()
     {
-        Skip.If(!RedisFixture.IsAvailable, RedisFixture.UnavailableReason);
-        await HelloRedisAsync();
+        // Deterministic: nothing ever listens on this port, so every connect/ping fails.
+        // Stopping the live container instead would race the container/docker-proxy
+        // teardown against the single health probe (observed flaky: redis still answered
+        // for a moment after StopAsync). A dead endpoint exercises the same contract —
+        // "/health/redis reports Unhealthy when Redis is unreachable" — without losing
+        // the live container. (See KillingRedis_DegradesToInProcess_No500AndRecovers for
+        // the stop/restart lifecycle coverage.)
+        await using var factory = new RedisRateLimitFactory("127.0.0.1:1,abortConnect=false,syncTimeout=1000", authEnabled: false);
 
-        var database = RedisFixture.NextDatabase();
-        await using var factory = CreateFactory(database);
-        var client = factory.CreateClient();
+        var response = await factory.CreateClient().GetAsync("/health/redis");
 
-        try
-        {
-            // Point the app at a dead endpoint by killing the shared container mid-flight.
-            await RedisFixture.StopAsync();
-            await Task.Delay(500);
-
-            var response = await client.GetAsync("/health/redis");
-
-            Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
-            Assert.Contains("Unhealthy", await response.Content.ReadAsStringAsync());
-        }
-        finally
-        {
-            await RedisFixture.StartAsync();
-        }
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Contains("Unhealthy", await response.Content.ReadAsStringAsync());
     }
 
     [Fact]
