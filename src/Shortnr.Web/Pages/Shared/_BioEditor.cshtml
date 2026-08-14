@@ -64,27 +64,38 @@ else
         </div>
     </details>
 
-    <details open>
+    var addedLinkIds = Model.BioPage.Links.Select(l => l.ShortenedUrlId).ToHashSet();
+    var availableLinks = Model.OwnerLinks.Where(l => !addedLinkIds.Contains(l.Id)).ToList();
+
+    <details>
         <summary role="button" class="secondary">Add a link</summary>
         <div>
             <form hx-post="/bio/edit?handler=AddLink" hx-target="#bio-editor" hx-swap="innerHTML">
                 @Html.AntiForgeryToken()
-                <label for="bio-title">Title <small>(optional)</small></label>
-                <input type="text" name="title" id="bio-title" placeholder="My latest remix" maxlength="256">
-                <label for="bio-link-pick">Existing link</label>
-                <select name="linkId" id="bio-link-pick">
-                    <option value="">— choose an existing link —</option>
-                    @foreach (var link in Model.OwnerLinks)
-                    {
-                        <option value="@link.Id">
-                            @link.ShortCode — @(link.Domain?.Hostname ?? "default") — @link.LongUrl
-                        </option>
-                    }
-                </select>
+                <div class="grid">
+                    <label for="bio-title">
+                        Title <small>(optional)</small>
+                        <input type="text" name="title" id="bio-title" placeholder="My latest remix" maxlength="256">
+                    </label>
+                    <label for="bio-link-pick">
+                        Existing link
+                        <select name="linkId" id="bio-link-pick">
+                            <option value="">— choose an existing link —</option>
+                            @foreach (var link in availableLinks)
+                            {
+                                <option value="@link.Id">
+                                    @link.ShortCode — @(link.Domain?.Hostname ?? "default") — @link.LongUrl
+                                </option>
+                            }
+                        </select>
+                    </label>
+                </div>
                 <p><small>or create a new short link:</small></p>
-                <input type="url" name="newUrl" placeholder="https://example.com/very/long/path">
-                <input type="text" name="newSlug" placeholder="Custom code (optional)" maxlength="64"
-                       pattern="[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}">
+                <div class="grid">
+                    <input type="url" name="newUrl" placeholder="https://example.com/very/long/path">
+                    <input type="text" name="newSlug" placeholder="Custom code (optional)" maxlength="64"
+                           pattern="[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}">
+                </div>
                 <button type="submit">Add link</button>
             </form>
         </div>
@@ -120,7 +131,12 @@ else
                                 {
                                     <mark>hidden</mark>
                                 }
-                                @entry.Title
+                                <form hx-post="/bio/edit?handler=UpdateLinkTitle" hx-target="#bio-editor" hx-swap="innerHTML" class="title-edit-form">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@entry.Id">
+                                    <input type="text" name="title" value="@entry.Title" maxlength="256" required>
+                                    <button type="submit" class="secondary btn-sm">Save</button>
+                                </form>
                             </td>
                             <td data-label="Short URL">
                                 <a href="@Shortnr.Web.Features.ShortLinks.ShortUrlHelper.DisplayHref(Context.Request.Scheme, link?.Domain?.Hostname, link?.ShortCode ?? "")"

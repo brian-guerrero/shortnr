@@ -623,6 +623,21 @@ mark {
   opacity: 0.7;
 }
 
+/* Inline title-edit form inside the bio-page links table — a text input
+   and Save button on one line instead of Pico's full-width, stacked
+   default for form controls. */
+.title-edit-form {
+  display: flex;
+  align-items: center;
+  gap: var(--sn-space-2);
+  margin: 0;
+}
+.title-edit-form input {
+  width: auto;
+  min-width: 8rem;
+  margin: 0;
+}
+
 /* Sortable tables (dashboard recent clicks) — DSG-002 §7. The active-sort
    column inverts so it is scannable among five identical accent headers,
    and the ▲/▼ glyph is set in the accent so it separates from the label. */

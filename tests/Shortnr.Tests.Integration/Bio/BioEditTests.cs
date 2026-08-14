@@ -333,6 +333,67 @@ public class BioEditTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpdateLinkTitle_ChangesTitle()
+    {
+        var ownerId = await SetAuthenticatedUserAndSeedUserAsync("alice");
+        var pageId = await SeedBioPageAsync(ownerId, "alicebio");
+        var linkId = await SeedLinkAsync(ownerId, "abc123", "https://example.com/one");
+        var entryId = await SeedBioPageLinkAsync(pageId, linkId, "Old title", 0);
+        var client = _factory.CreateClient();
+        var token = await GetAntiforgeryTokenAsync(client);
+
+        var response = await PostFormAsync(client, "/bio/edit?handler=UpdateLinkTitle", token,
+            ("id", entryId.ToString()), ("title", "New title"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("New title", body);
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Assert.Equal("New title", (await db.BioPageLinks.SingleAsync(b => b.Id == entryId)).Title);
+    }
+
+    [Fact]
+    public async Task UpdateLinkTitle_Empty_ShowsErrorAndKeepsTitle()
+    {
+        var ownerId = await SetAuthenticatedUserAndSeedUserAsync("alice");
+        var pageId = await SeedBioPageAsync(ownerId, "alicebio");
+        var linkId = await SeedLinkAsync(ownerId, "abc123", "https://example.com/one");
+        var entryId = await SeedBioPageLinkAsync(pageId, linkId, "Old title", 0);
+        var client = _factory.CreateClient();
+        var token = await GetAntiforgeryTokenAsync(client);
+
+        var response = await PostFormAsync(client, "/bio/edit?handler=UpdateLinkTitle", token,
+            ("id", entryId.ToString()), ("title", "   "));
+
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Title can&#x27;t be empty", body);
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Assert.Equal("Old title", (await db.BioPageLinks.SingleAsync(b => b.Id == entryId)).Title);
+    }
+
+    [Fact]
+    public async Task AddLinkForm_ExcludesLinksAlreadyOnBioPage()
+    {
+        var ownerId = await SetAuthenticatedUserAndSeedUserAsync("alice");
+        var pageId = await SeedBioPageAsync(ownerId, "alicebio");
+        var addedLinkId = await SeedLinkAsync(ownerId, "added1", "https://example.com/added");
+        var availableLinkId = await SeedLinkAsync(ownerId, "avail1", "https://example.com/available");
+        await SeedBioPageLinkAsync(pageId, addedLinkId, "Already added", 0);
+        var client = _factory.CreateClient();
+
+        var response = await client.GetAsync("/bio/edit");
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.DoesNotContain($"<option value=\"{addedLinkId}\"", body);
+        Assert.Contains($"<option value=\"{availableLinkId}\"", body);
+    }
+
+    [Fact]
     public async Task BioPageIsScopedToOwner()
     {
         var bobId = await SeedUserAsync("bob");
