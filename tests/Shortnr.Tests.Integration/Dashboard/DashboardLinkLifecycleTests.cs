@@ -247,7 +247,7 @@ public class DashboardLinkLifecycleTests : IAsyncLifetime
             ("url", "https://alice.com/after"),
             ("slug", "edt111"),
             ("title", ""), ("description", ""), ("tags", ""),
-            ("utmSource", "newsletter"), ("utmMedium", "email"), ("utmCampaign", "spring-sale"));
+            ("utm_source", "newsletter"), ("utm_medium", "email"), ("utm_campaign", "spring-sale"));
         var html = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -277,7 +277,7 @@ public class DashboardLinkLifecycleTests : IAsyncLifetime
             ("url", "https://alice.com/after"),
             ("slug", "edt111"),
             ("title", ""), ("description", ""), ("tags", ""),
-            ("pixelType", "1"), ("pixelId", "1234567890123"));
+            ("pixel_type", "1"), ("pixel_id", "1234567890123"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
@@ -300,7 +300,7 @@ public class DashboardLinkLifecycleTests : IAsyncLifetime
             ("url", "https://alice.com/after"),
             ("slug", "edt111"),
             ("title", ""), ("description", ""), ("tags", ""),
-            ("pixelType", "3"), ("pixelSnippet", "<script>track()</script>"));
+            ("pixel_type", "3"), ("pixel_snippet", "<script>track()</script>"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
@@ -323,8 +323,8 @@ public class DashboardLinkLifecycleTests : IAsyncLifetime
             ("url", "https://alice.com/after"),
             ("slug", "edt111"),
             ("title", ""), ("description", ""), ("tags", ""),
-            ("iosDeepLink", "myapp://open"),
-            ("androidDeepLink", "https://play.google.com/store/apps/details?id=com.example.app"));
+            ("ios_deep_link", "myapp://open"),
+            ("android_deep_link", "https://play.google.com/store/apps/details?id=com.example.app"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
