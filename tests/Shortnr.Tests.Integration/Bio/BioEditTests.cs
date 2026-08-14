@@ -191,6 +191,50 @@ public class BioEditTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task AddExistingLink_NoTitle_DefaultsToLinkTitle()
+    {
+        var ownerId = await SetAuthenticatedUserAndSeedUserAsync("alice");
+        await SeedBioPageAsync(ownerId, "alicebio");
+        var linkId = await SeedLinkAsync(ownerId, "abc123", "https://example.com/one");
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            (await db.ShortenedUrls.SingleAsync(l => l.Id == linkId)).Title = "Dashboard Title";
+            await db.SaveChangesAsync();
+        }
+        var client = _factory.CreateClient();
+        var token = await GetAntiforgeryTokenAsync(client);
+
+        var response = await PostFormAsync(client, "/bio/edit?handler=AddLink", token,
+            ("linkId", linkId.ToString()), ("title", ""));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var verifyScope = _factory.Services.CreateScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var entry = await verifyDb.BioPageLinks.SingleAsync();
+        Assert.Equal("Dashboard Title", entry.Title);
+    }
+
+    [Fact]
+    public async Task AddExistingLink_NoTitleNoLinkTitle_DefaultsToShortCode()
+    {
+        var ownerId = await SetAuthenticatedUserAndSeedUserAsync("alice");
+        await SeedBioPageAsync(ownerId, "alicebio");
+        var linkId = await SeedLinkAsync(ownerId, "abc123", "https://example.com/one");
+        var client = _factory.CreateClient();
+        var token = await GetAntiforgeryTokenAsync(client);
+
+        var response = await PostFormAsync(client, "/bio/edit?handler=AddLink", token,
+            ("linkId", linkId.ToString()), ("title", ""));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var entry = await db.BioPageLinks.SingleAsync();
+        Assert.Equal("abc123", entry.Title);
+    }
+
+    [Fact]
     public async Task AddNewUrl_CreatesLinkAndAddsToBioPage()
     {
         var ownerId = await SetAuthenticatedUserAndSeedUserAsync("alice");

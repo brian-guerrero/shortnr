@@ -156,11 +156,12 @@ public class EditModel : PageModel
             .MaxAsync() ?? -1;
 
         var title = (Request.Form["title"].FirstOrDefault() ?? "").Trim();
+        var defaultTitle = !string.IsNullOrWhiteSpace(link.Title) ? link.Title : link.ShortCode;
         _db.BioPageLinks.Add(new BioPageLink
         {
             BioPageId = bioPage.Id,
             ShortenedUrlId = link.Id,
-            Title = title.Length > 0 ? title : link.ShortCode,
+            Title = title.Length > 0 ? title : defaultTitle,
             SortOrder = maxOrder + 1,
             IsVisible = true
         });
