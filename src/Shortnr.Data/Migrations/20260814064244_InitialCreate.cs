@@ -1,12 +1,11 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
-using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
 #pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
 
-namespace Shortnr.Data.Postgres.Migrations
+namespace Shortnr.Data.Migrations
 {
     /// <inheritdoc />
     public partial class InitialCreate : Migration
@@ -18,22 +17,22 @@ namespace Shortnr.Data.Postgres.Migrations
                 name: "OpenIddictApplications",
                 columns: table => new
                 {
-                    Id = table.Column<string>(type: "text", nullable: false),
-                    ApplicationType = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    ClientId = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    ClientSecret = table.Column<string>(type: "text", nullable: true),
-                    ClientType = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    ConcurrencyToken = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    ConsentType = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    DisplayName = table.Column<string>(type: "text", nullable: true),
-                    DisplayNames = table.Column<string>(type: "text", nullable: true),
-                    JsonWebKeySet = table.Column<string>(type: "text", nullable: true),
-                    Permissions = table.Column<string>(type: "text", nullable: true),
-                    PostLogoutRedirectUris = table.Column<string>(type: "text", nullable: true),
-                    Properties = table.Column<string>(type: "text", nullable: true),
-                    RedirectUris = table.Column<string>(type: "text", nullable: true),
-                    Requirements = table.Column<string>(type: "text", nullable: true),
-                    Settings = table.Column<string>(type: "text", nullable: true)
+                    Id = table.Column<string>(type: "TEXT", nullable: false),
+                    ApplicationType = table.Column<string>(type: "TEXT", maxLength: 50, nullable: true),
+                    ClientId = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
+                    ClientSecret = table.Column<string>(type: "TEXT", nullable: true),
+                    ClientType = table.Column<string>(type: "TEXT", maxLength: 50, nullable: true),
+                    ConcurrencyToken = table.Column<string>(type: "TEXT", maxLength: 50, nullable: true),
+                    ConsentType = table.Column<string>(type: "TEXT", maxLength: 50, nullable: true),
+                    DisplayName = table.Column<string>(type: "TEXT", nullable: true),
+                    DisplayNames = table.Column<string>(type: "TEXT", nullable: true),
+                    JsonWebKeySet = table.Column<string>(type: "TEXT", nullable: true),
+                    Permissions = table.Column<string>(type: "TEXT", nullable: true),
+                    PostLogoutRedirectUris = table.Column<string>(type: "TEXT", nullable: true),
+                    Properties = table.Column<string>(type: "TEXT", nullable: true),
+                    RedirectUris = table.Column<string>(type: "TEXT", nullable: true),
+                    Requirements = table.Column<string>(type: "TEXT", nullable: true),
+                    Settings = table.Column<string>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -44,15 +43,15 @@ namespace Shortnr.Data.Postgres.Migrations
                 name: "OpenIddictScopes",
                 columns: table => new
                 {
-                    Id = table.Column<string>(type: "text", nullable: false),
-                    ConcurrencyToken = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    Description = table.Column<string>(type: "text", nullable: true),
-                    Descriptions = table.Column<string>(type: "text", nullable: true),
-                    DisplayName = table.Column<string>(type: "text", nullable: true),
-                    DisplayNames = table.Column<string>(type: "text", nullable: true),
-                    Name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
-                    Properties = table.Column<string>(type: "text", nullable: true),
-                    Resources = table.Column<string>(type: "text", nullable: true)
+                    Id = table.Column<string>(type: "TEXT", nullable: false),
+                    ConcurrencyToken = table.Column<string>(type: "TEXT", maxLength: 50, nullable: true),
+                    Description = table.Column<string>(type: "TEXT", nullable: true),
+                    Descriptions = table.Column<string>(type: "TEXT", nullable: true),
+                    DisplayName = table.Column<string>(type: "TEXT", nullable: true),
+                    DisplayNames = table.Column<string>(type: "TEXT", nullable: true),
+                    Name = table.Column<string>(type: "TEXT", maxLength: 200, nullable: true),
+                    Properties = table.Column<string>(type: "TEXT", nullable: true),
+                    Resources = table.Column<string>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -63,11 +62,11 @@ namespace Shortnr.Data.Postgres.Migrations
                 name: "PixelSnippets",
                 columns: table => new
                 {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    Name = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    SnippetTemplate = table.Column<string>(type: "character varying(8192)", maxLength: 8192, nullable: false),
-                    IsCustom = table.Column<bool>(type: "boolean", nullable: false)
+                    Id = table.Column<long>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    Name = table.Column<string>(type: "TEXT", maxLength: 128, nullable: false),
+                    SnippetTemplate = table.Column<string>(type: "TEXT", maxLength: 8192, nullable: false),
+                    IsCustom = table.Column<bool>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -78,14 +77,14 @@ namespace Shortnr.Data.Postgres.Migrations
                 name: "Users",
                 columns: table => new
                 {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    Issuer = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
-                    Subject = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
-                    Email = table.Column<string>(type: "character varying(320)", maxLength: 320, nullable: true),
-                    Name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
-                    CreatedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    LastLoginAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    Id = table.Column<long>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    Issuer = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
+                    Subject = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
+                    Email = table.Column<string>(type: "TEXT", maxLength: 320, nullable: true),
+                    Name = table.Column<string>(type: "TEXT", maxLength: 256, nullable: true),
+                    CreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    LastLoginAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -96,21 +95,21 @@ namespace Shortnr.Data.Postgres.Migrations
                 name: "OpenIddictAuthorizations",
                 columns: table => new
                 {
-                    Id = table.Column<string>(type: "text", nullable: false),
-                    ApplicationId = table.Column<string>(type: "text", nullable: true),
-                    ConcurrencyToken = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    CreationDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    Properties = table.Column<string>(type: "text", nullable: true),
-                    Scopes = table.Column<string>(type: "text", nullable: true),
-                    Status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    Subject = table.Column<string>(type: "character varying(400)", maxLength: 400, nullable: true),
-                    Type = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true)
+                    Id = table.Column<string>(type: "TEXT", nullable: false),
+                    ApplicationId = table.Column<string>(type: "TEXT", nullable: true),
+                    ConcurrencyToken = table.Column<string>(type: "TEXT", maxLength: 50, nullable: true),
+                    CreationDate = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    Properties = table.Column<string>(type: "TEXT", nullable: true),
+                    Scopes = table.Column<string>(type: "TEXT", nullable: true),
+                    Status = table.Column<string>(type: "TEXT", maxLength: 50, nullable: true),
+                    Subject = table.Column<string>(type: "TEXT", maxLength: 400, nullable: true),
+                    Type = table.Column<string>(type: "TEXT", maxLength: 50, nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_OpenIddictAuthorizations", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_OpenIddictAuthorizations_OpenIddictApplications_Application~",
+                        name: "FK_OpenIddictAuthorizations_OpenIddictApplications_ApplicationId",
                         column: x => x.ApplicationId,
                         principalTable: "OpenIddictApplications",
                         principalColumn: "Id");
@@ -120,16 +119,16 @@ namespace Shortnr.Data.Postgres.Migrations
                 name: "ApiKeys",
                 columns: table => new
                 {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    OwnerUserId = table.Column<long>(type: "bigint", nullable: false),
-                    KeyHash = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
-                    KeyPrefix = table.Column<string>(type: "character varying(16)", maxLength: 16, nullable: false),
-                    Label = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    Scopes = table.Column<string>(type: "text", nullable: false),
-                    CreatedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    LastUsedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    RevokedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                    Id = table.Column<long>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    OwnerUserId = table.Column<long>(type: "INTEGER", nullable: false),
+                    KeyHash = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
+                    KeyPrefix = table.Column<string>(type: "TEXT", maxLength: 16, nullable: false),
+                    Label = table.Column<string>(type: "TEXT", maxLength: 128, nullable: false),
+                    Scopes = table.Column<string>(type: "TEXT", nullable: false),
+                    CreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    LastUsedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    RevokedAt = table.Column<DateTime>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -146,15 +145,15 @@ namespace Shortnr.Data.Postgres.Migrations
                 name: "BioPages",
                 columns: table => new
                 {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    OwnerUserId = table.Column<long>(type: "bigint", nullable: false),
-                    Slug = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
-                    DisplayName = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
-                    AvatarUrl = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
-                    BioText = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: true),
-                    Theme = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
-                    CreatedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    Id = table.Column<long>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    OwnerUserId = table.Column<long>(type: "INTEGER", nullable: false),
+                    Slug = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
+                    DisplayName = table.Column<string>(type: "TEXT", maxLength: 256, nullable: false),
+                    AvatarUrl = table.Column<string>(type: "TEXT", maxLength: 512, nullable: true),
+                    BioText = table.Column<string>(type: "TEXT", maxLength: 2000, nullable: true),
+                    Theme = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false),
+                    CreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -171,16 +170,16 @@ namespace Shortnr.Data.Postgres.Migrations
                 name: "Webhooks",
                 columns: table => new
                 {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    OwnerUserId = table.Column<long>(type: "bigint", nullable: false),
-                    Url = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: false),
-                    Secret = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    EventTypes = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
-                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
-                    CreatedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    LastFailureAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    FailureCount = table.Column<int>(type: "integer", nullable: false)
+                    Id = table.Column<long>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    OwnerUserId = table.Column<long>(type: "INTEGER", nullable: false),
+                    Url = table.Column<string>(type: "TEXT", maxLength: 2048, nullable: false),
+                    Secret = table.Column<string>(type: "TEXT", maxLength: 128, nullable: false),
+                    EventTypes = table.Column<string>(type: "TEXT", maxLength: 512, nullable: false),
+                    IsActive = table.Column<bool>(type: "INTEGER", nullable: false),
+                    CreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    LastFailureAtUtc = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    FailureCount = table.Column<int>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -197,12 +196,12 @@ namespace Shortnr.Data.Postgres.Migrations
                 name: "Workspaces",
                 columns: table => new
                 {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    Name = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    Slug = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
-                    OwnerUserId = table.Column<long>(type: "bigint", nullable: false),
-                    CreatedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    Id = table.Column<long>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    Name = table.Column<string>(type: "TEXT", maxLength: 128, nullable: false),
+                    Slug = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false),
+                    OwnerUserId = table.Column<long>(type: "INTEGER", nullable: false),
+                    CreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -219,19 +218,19 @@ namespace Shortnr.Data.Postgres.Migrations
                 name: "OpenIddictTokens",
                 columns: table => new
                 {
-                    Id = table.Column<string>(type: "text", nullable: false),
-                    ApplicationId = table.Column<string>(type: "text", nullable: true),
-                    AuthorizationId = table.Column<string>(type: "text", nullable: true),
-                    ConcurrencyToken = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    CreationDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    ExpirationDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    Payload = table.Column<string>(type: "text", nullable: true),
-                    Properties = table.Column<string>(type: "text", nullable: true),
-                    RedemptionDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    ReferenceId = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    Status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    Subject = table.Column<string>(type: "character varying(400)", maxLength: 400, nullable: true),
-                    Type = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: true)
+                    Id = table.Column<string>(type: "TEXT", nullable: false),
+                    ApplicationId = table.Column<string>(type: "TEXT", nullable: true),
+                    AuthorizationId = table.Column<string>(type: "TEXT", nullable: true),
+                    ConcurrencyToken = table.Column<string>(type: "TEXT", maxLength: 50, nullable: true),
+                    CreationDate = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    ExpirationDate = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    Payload = table.Column<string>(type: "TEXT", nullable: true),
+                    Properties = table.Column<string>(type: "TEXT", nullable: true),
+                    RedemptionDate = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    ReferenceId = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
+                    Status = table.Column<string>(type: "TEXT", maxLength: 50, nullable: true),
+                    Subject = table.Column<string>(type: "TEXT", maxLength: 400, nullable: true),
+                    Type = table.Column<string>(type: "TEXT", maxLength: 150, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -252,15 +251,15 @@ namespace Shortnr.Data.Postgres.Migrations
                 name: "AiActivityLogs",
                 columns: table => new
                 {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    OwnerUserId = table.Column<long>(type: "bigint", nullable: false),
-                    ApiKeyId = table.Column<long>(type: "bigint", nullable: true),
-                    Action = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
-                    TargetEntityType = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: true),
-                    TargetEntityId = table.Column<long>(type: "bigint", nullable: true),
-                    Summary = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
-                    CreatedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    Id = table.Column<long>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    OwnerUserId = table.Column<long>(type: "INTEGER", nullable: false),
+                    ApiKeyId = table.Column<long>(type: "INTEGER", nullable: true),
+                    Action = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
+                    TargetEntityType = table.Column<string>(type: "TEXT", maxLength: 64, nullable: true),
+                    TargetEntityId = table.Column<long>(type: "INTEGER", nullable: true),
+                    Summary = table.Column<string>(type: "TEXT", maxLength: 512, nullable: false),
+                    CreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -283,15 +282,15 @@ namespace Shortnr.Data.Postgres.Migrations
                 name: "Domains",
                 columns: table => new
                 {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    Hostname = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
-                    OwnerUserId = table.Column<long>(type: "bigint", nullable: true),
-                    WorkspaceId = table.Column<long>(type: "bigint", nullable: true),
-                    IsVerified = table.Column<bool>(type: "boolean", nullable: false),
-                    IsDefault = table.Column<bool>(type: "boolean", nullable: false),
-                    VerificationToken = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    CreatedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    Id = table.Column<long>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    Hostname = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
+                    OwnerUserId = table.Column<long>(type: "INTEGER", nullable: true),
+                    WorkspaceId = table.Column<long>(type: "INTEGER", nullable: true),
+                    IsVerified = table.Column<bool>(type: "INTEGER", nullable: false),
+                    IsDefault = table.Column<bool>(type: "INTEGER", nullable: false),
+                    VerificationToken = table.Column<string>(type: "TEXT", maxLength: 128, nullable: false),
+                    CreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -314,14 +313,14 @@ namespace Shortnr.Data.Postgres.Migrations
                 name: "WorkspaceMembers",
                 columns: table => new
                 {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    WorkspaceId = table.Column<long>(type: "bigint", nullable: false),
-                    UserId = table.Column<long>(type: "bigint", nullable: true),
-                    Role = table.Column<int>(type: "integer", nullable: false),
-                    InviteEmail = table.Column<string>(type: "character varying(320)", maxLength: 320, nullable: true),
-                    InvitedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    JoinedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                    Id = table.Column<long>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    WorkspaceId = table.Column<long>(type: "INTEGER", nullable: false),
+                    UserId = table.Column<long>(type: "INTEGER", nullable: true),
+                    Role = table.Column<int>(type: "INTEGER", nullable: false),
+                    InviteEmail = table.Column<string>(type: "TEXT", maxLength: 320, nullable: true),
+                    InvitedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    JoinedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -344,15 +343,19 @@ namespace Shortnr.Data.Postgres.Migrations
                 name: "ShortenedUrls",
                 columns: table => new
                 {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    LongUrl = table.Column<string>(type: "text", nullable: false),
-                    ShortCode = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
-                    CreatedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    ClickCount = table.Column<long>(type: "bigint", nullable: false),
-                    OwnerUserId = table.Column<long>(type: "bigint", nullable: true),
-                    DomainId = table.Column<long>(type: "bigint", nullable: true),
-                    WorkspaceId = table.Column<long>(type: "bigint", nullable: true)
+                    Id = table.Column<long>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    LongUrl = table.Column<string>(type: "TEXT", nullable: false),
+                    ShortCode = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
+                    CreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    ClickCount = table.Column<long>(type: "INTEGER", nullable: false),
+                    OwnerUserId = table.Column<long>(type: "INTEGER", nullable: true),
+                    DomainId = table.Column<long>(type: "INTEGER", nullable: true),
+                    WorkspaceId = table.Column<long>(type: "INTEGER", nullable: true),
+                    Title = table.Column<string>(type: "TEXT", maxLength: 256, nullable: true),
+                    Description = table.Column<string>(type: "TEXT", maxLength: 2000, nullable: true),
+                    ArchivedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    UpdatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -381,14 +384,14 @@ namespace Shortnr.Data.Postgres.Migrations
                 name: "BioPageLinks",
                 columns: table => new
                 {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    BioPageId = table.Column<long>(type: "bigint", nullable: false),
-                    ShortenedUrlId = table.Column<long>(type: "bigint", nullable: false),
-                    Title = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
-                    IconUrl = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
-                    SortOrder = table.Column<int>(type: "integer", nullable: false),
-                    IsVisible = table.Column<bool>(type: "boolean", nullable: false)
+                    Id = table.Column<long>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    BioPageId = table.Column<long>(type: "INTEGER", nullable: false),
+                    ShortenedUrlId = table.Column<long>(type: "INTEGER", nullable: false),
+                    Title = table.Column<string>(type: "TEXT", maxLength: 256, nullable: false),
+                    IconUrl = table.Column<string>(type: "TEXT", maxLength: 512, nullable: true),
+                    SortOrder = table.Column<int>(type: "INTEGER", nullable: false),
+                    IsVisible = table.Column<bool>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -411,24 +414,24 @@ namespace Shortnr.Data.Postgres.Migrations
                 name: "ClickEvents",
                 columns: table => new
                 {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    ShortenedUrlId = table.Column<long>(type: "bigint", nullable: false),
-                    IpAddress = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
-                    UserAgent = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
-                    Referer = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: false),
-                    ClickedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    CountryCode = table.Column<string>(type: "character varying(2)", maxLength: 2, nullable: true),
-                    CountryName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    CityName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    PostalCode = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
-                    Latitude = table.Column<double>(type: "double precision", nullable: true),
-                    Longitude = table.Column<double>(type: "double precision", nullable: true),
-                    DeviceFamily = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    OperatingSystem = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    OSVersion = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    Browser = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    BrowserVersion = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true)
+                    Id = table.Column<long>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    ShortenedUrlId = table.Column<long>(type: "INTEGER", nullable: false),
+                    IpAddress = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
+                    UserAgent = table.Column<string>(type: "TEXT", maxLength: 512, nullable: false),
+                    Referer = table.Column<string>(type: "TEXT", maxLength: 2048, nullable: false),
+                    ClickedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    CountryCode = table.Column<string>(type: "TEXT", maxLength: 2, nullable: true),
+                    CountryName = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
+                    CityName = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
+                    PostalCode = table.Column<string>(type: "TEXT", maxLength: 20, nullable: true),
+                    Latitude = table.Column<double>(type: "REAL", nullable: true),
+                    Longitude = table.Column<double>(type: "REAL", nullable: true),
+                    DeviceFamily = table.Column<string>(type: "TEXT", maxLength: 50, nullable: true),
+                    OperatingSystem = table.Column<string>(type: "TEXT", maxLength: 50, nullable: true),
+                    OSVersion = table.Column<string>(type: "TEXT", maxLength: 50, nullable: true),
+                    Browser = table.Column<string>(type: "TEXT", maxLength: 50, nullable: true),
+                    BrowserVersion = table.Column<string>(type: "TEXT", maxLength: 50, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -445,18 +448,18 @@ namespace Shortnr.Data.Postgres.Migrations
                 name: "ShortenedUrlMetadatas",
                 columns: table => new
                 {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    ShortenedUrlId = table.Column<long>(type: "bigint", nullable: false),
-                    UtmSource = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
-                    UtmMedium = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
-                    UtmCampaign = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
-                    UtmTerm = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
-                    UtmContent = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
-                    PixelSnippetId = table.Column<long>(type: "bigint", nullable: true),
-                    PixelId = table.Column<string>(type: "character varying(8192)", maxLength: 8192, nullable: true),
-                    IosDeepLink = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: true),
-                    AndroidDeepLink = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: true)
+                    Id = table.Column<long>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    ShortenedUrlId = table.Column<long>(type: "INTEGER", nullable: false),
+                    UtmSource = table.Column<string>(type: "TEXT", maxLength: 512, nullable: true),
+                    UtmMedium = table.Column<string>(type: "TEXT", maxLength: 512, nullable: true),
+                    UtmCampaign = table.Column<string>(type: "TEXT", maxLength: 512, nullable: true),
+                    UtmTerm = table.Column<string>(type: "TEXT", maxLength: 512, nullable: true),
+                    UtmContent = table.Column<string>(type: "TEXT", maxLength: 512, nullable: true),
+                    PixelSnippetId = table.Column<long>(type: "INTEGER", nullable: true),
+                    PixelId = table.Column<string>(type: "TEXT", maxLength: 8192, nullable: true),
+                    IosDeepLink = table.Column<string>(type: "TEXT", maxLength: 2048, nullable: true),
+                    AndroidDeepLink = table.Column<string>(type: "TEXT", maxLength: 2048, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -479,11 +482,11 @@ namespace Shortnr.Data.Postgres.Migrations
                 name: "ShortenedUrlTags",
                 columns: table => new
                 {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    ShortenedUrlId = table.Column<long>(type: "bigint", nullable: false),
-                    Name = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    CreatedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    Id = table.Column<long>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    ShortenedUrlId = table.Column<long>(type: "INTEGER", nullable: false),
+                    Name = table.Column<string>(type: "TEXT", maxLength: 128, nullable: false),
+                    CreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -500,15 +503,15 @@ namespace Shortnr.Data.Postgres.Migrations
                 name: "TagSuggestions",
                 columns: table => new
                 {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    ShortenedUrlId = table.Column<long>(type: "bigint", nullable: false),
-                    SuggestedTag = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    Source = table.Column<int>(type: "integer", nullable: false),
-                    ClickCount = table.Column<long>(type: "bigint", nullable: false),
-                    FirstObservedUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    Status = table.Column<int>(type: "integer", nullable: false),
-                    CreatedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    Id = table.Column<long>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    ShortenedUrlId = table.Column<long>(type: "INTEGER", nullable: false),
+                    SuggestedTag = table.Column<string>(type: "TEXT", maxLength: 128, nullable: false),
+                    Source = table.Column<int>(type: "INTEGER", nullable: false),
+                    ClickCount = table.Column<long>(type: "INTEGER", nullable: false),
+                    FirstObservedUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    Status = table.Column<int>(type: "INTEGER", nullable: false),
+                    CreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
