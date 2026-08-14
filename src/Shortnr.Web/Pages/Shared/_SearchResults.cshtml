@@ -67,17 +67,23 @@ else
                             <button class="btn-sm" hx-get="/dashboard?handler=Edit&code=@link.Id" hx-target="#link-edit-region" hx-swap="innerHTML">Edit</button>
                             @if (link.IsArchived)
                             {
-                                <form hx-post="/dashboard?handler=Unarchive" hx-target="#search-results" hx-swap="innerHTML" style="display:inline;">
+                                <form hx-post="/dashboard?handler=Unarchive" hx-target="#search-results" hx-swap="innerHTML"
+                                      hx-include="#search-input, #domain-filter, #status-filter" style="display:inline;">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="code" value="@link.Id">
+                                    <input type="hidden" name="linkSort" value="@linkSort">
+                                    <input type="hidden" name="linkDir" value="@linkDir">
                                     <button type="submit" class="secondary btn-sm">Unarchive</button>
                                 </form>
                             }
                             else
                             {
-                                <form hx-post="/dashboard?handler=Archive" hx-target="#search-results" hx-swap="innerHTML" style="display:inline;">
+                                <form hx-post="/dashboard?handler=Archive" hx-target="#search-results" hx-swap="innerHTML"
+                                      hx-include="#search-input, #domain-filter, #status-filter" style="display:inline;">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="code" value="@link.Id">
+                                    <input type="hidden" name="linkSort" value="@linkSort">
+                                    <input type="hidden" name="linkDir" value="@linkDir">
                                     <button type="submit" class="secondary btn-sm">Archive</button>
                                 </form>
                             }

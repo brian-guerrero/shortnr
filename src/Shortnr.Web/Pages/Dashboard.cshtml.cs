@@ -242,7 +242,7 @@ public class DashboardModel : PageModel
         });
     }
 
-    public async Task<IActionResult> OnPostArchive(long code)
+    public async Task<IActionResult> OnPostArchive(long code, string? search, string? linkSort, string? linkDir, string? domain, string? status)
     {
         var gate = EnforceAccess();
         if (gate is not null)
@@ -258,10 +258,10 @@ public class DashboardModel : PageModel
             await _db.SaveChangesAsync();
         }
 
-        return Partial("Shared/_SearchResults", await LoadLinksAsync(null, null, null, null, null));
+        return Partial("Shared/_SearchResults", await LoadLinksAsync(search, linkSort, linkDir, domain, status));
     }
 
-    public async Task<IActionResult> OnPostUnarchive(long code)
+    public async Task<IActionResult> OnPostUnarchive(long code, string? search, string? linkSort, string? linkDir, string? domain, string? status)
     {
         var gate = EnforceAccess();
         if (gate is not null)
@@ -277,7 +277,7 @@ public class DashboardModel : PageModel
             await _db.SaveChangesAsync();
         }
 
-        return Partial("Shared/_SearchResults", await LoadLinksAsync(null, null, null, null, null));
+        return Partial("Shared/_SearchResults", await LoadLinksAsync(search, linkSort, linkDir, domain, status));
     }
 
     public async Task<IActionResult> OnPostTransfer(long code, string workspace)
