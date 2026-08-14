@@ -1,5 +1,9 @@
 @model LinkTransferViewModel
-<article class="edit-panel">
+@inject Microsoft.Extensions.Configuration.IConfiguration Config
+@{
+    var messageDisplayMs = Config.GetValue<int>("Dashboard:MessageDisplayMs", 5000);
+}
+<article class="edit-panel" x-data x-init="setTimeout(() => { $el.remove(); }, @messageDisplayMs)">
     @if (Model.ErrorMessage is not null)
     {
         <mark class="banner status-error">

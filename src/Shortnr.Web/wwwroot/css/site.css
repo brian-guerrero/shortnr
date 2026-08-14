@@ -599,6 +599,30 @@ mark {
   color: var(--sn-accent-ink);
 }
 
+/* Dismissible banner variant (link edit/transfer success) — adds a ×
+   button so a success message the user has already read doesn't linger
+   in the panel it swapped into. Auto-dismisses via Alpine x-init too. */
+.banner.banner-dismissible {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sn-space-3);
+}
+.banner-close {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+}
+.banner-close:hover {
+  opacity: 0.7;
+}
+
 /* Sortable tables (dashboard recent clicks) — DSG-002 §7. The active-sort
    column inverts so it is scannable among five identical accent headers,
    and the ▲/▼ glyph is set in the accent so it separates from the label. */
