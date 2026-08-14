@@ -51,6 +51,33 @@ public class BioPublicTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task PublicPage_ExcludesArchivedLinks()
+    {
+        var ownerId = await SeedUserAsync("alice");
+        var pageId = await SeedBioPageAsync(ownerId, "alicebio", "Alice Corner", "default");
+        var visibleLinkId = await SeedLinkAsync(ownerId, "abc123", "https://example.com/one");
+        var archivedLinkId = await SeedLinkAsync(ownerId, "xyz999", "https://example.com/archived");
+        await SeedBioPageLinkAsync(pageId, visibleLinkId, "My Remix", 0, true);
+        await SeedBioPageLinkAsync(pageId, archivedLinkId, "Old Remix", 1, true);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var link = await db.ShortenedUrls.SingleAsync(l => l.Id == archivedLinkId);
+            link.ArchivedAtUtc = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+        }
+
+        var response = await _factory.CreateClient().GetAsync("/bio/alicebio");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("My Remix", body);
+        Assert.DoesNotContain("Old Remix", body);
+        Assert.DoesNotContain("xyz999", body);
+    }
+
+    [Fact]
     public async Task PublicPage_AllLinksHidden_Returns404()
     {
         var ownerId = await SeedUserAsync("alice");

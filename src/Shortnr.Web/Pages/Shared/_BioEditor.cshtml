@@ -131,6 +131,10 @@ else
                                 {
                                     <mark>hidden</mark>
                                 }
+                                @if (link?.IsArchived == true)
+                                {
+                                    <mark class="status-error">archived — hidden from your live page</mark>
+                                }
                                 <form hx-post="/bio/edit?handler=UpdateLinkTitle" hx-target="#bio-editor" hx-swap="innerHTML" class="title-edit-form">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="id" value="@entry.Id">
