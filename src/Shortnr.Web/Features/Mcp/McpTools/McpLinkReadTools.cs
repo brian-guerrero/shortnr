@@ -20,8 +20,10 @@ public static class McpLinkReadTools
         AppDbContext db,
         UserIdentityService identity,
         [Description("Optional case-insensitive filter on short code or destination URL")] string? filter = null,
+        [Description("Optional case-insensitive filter on UTM campaign — find every link created for a given campaign")] string? campaign = null,
         [Description("Sort order: 'created' (newest first, default), 'clicks_desc', 'clicks_asc'")] string? sort = null,
         [Description("Only links on this verified domain hostname, or 'default' for the instance host")] string? domain = null,
+        [Description("Lifecycle status: 'all' (default), 'active', 'archived'")] string? status = null,
         [Description("Maximum number of links to return (1-100)")] int limit = 50,
         CancellationToken ct = default)
     {
@@ -43,6 +45,21 @@ public static class McpLinkReadTools
             var f = filter.Trim();
             query = query.Where(l => l.ShortCode.Contains(f) || l.LongUrl.Contains(f));
         }
+        if (!string.IsNullOrWhiteSpace(campaign))
+        {
+            var c = campaign.Trim();
+            query = query.Where(l => l.Metadata != null && l.Metadata.UtmCampaign != null && l.Metadata.UtmCampaign.Contains(c));
+        }
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            query = status.Trim().ToLowerInvariant() switch
+            {
+                "active" => query.Where(l => l.ArchivedAtUtc == null),
+                "archived" => query.Where(l => l.ArchivedAtUtc != null),
+                "all" => query,
+                _ => query
+            };
+        }
 
         var ordered = sort switch
         {
@@ -56,13 +73,22 @@ public static class McpLinkReadTools
 
         var links = await ordered
             .Include(l => l.Domain)
+            .Include(l => l.Tags)
             .Take(limit)
             .Select(l => new LinkListItem(
                 l.ShortCode,
                 l.Domain != null ? l.Domain.Hostname : null,
                 l.LongUrl,
                 l.ClickCount,
-                l.CreatedAtUtc))
+                l.CreatedAtUtc,
+                l.Title,
+                l.Description,
+                l.Tags.OrderBy(t => t.Name).Select(t => t.Name).ToList(),
+                l.ArchivedAtUtc,
+                l.Metadata == null ? null : new LinkMetadataResult(
+                    l.Metadata.UtmSource, l.Metadata.UtmMedium, l.Metadata.UtmCampaign, l.Metadata.UtmTerm, l.Metadata.UtmContent,
+                    l.Metadata.PixelSnippet == null ? null : l.Metadata.PixelSnippet.Name,
+                    l.Metadata.PixelId, l.Metadata.IosDeepLink, l.Metadata.AndroidDeepLink)))
             .ToListAsync(ct);
 
         return links.Count == 0
@@ -102,11 +128,28 @@ public static class McpLinkReadTools
             .Where(e => e.Browser != null && e.Browser != "")
             .GroupBy(e => e.Browser!), ct);
 
+        var metadata = link.Metadata is null
+            ? null
+            : new LinkMetadataResult(
+                link.Metadata.UtmSource, link.Metadata.UtmMedium, link.Metadata.UtmCampaign,
+                link.Metadata.UtmTerm, link.Metadata.UtmContent,
+                link.Metadata.PixelSnippet?.Name, link.Metadata.PixelId,
+                link.Metadata.IosDeepLink, link.Metadata.AndroidDeepLink);
+
         return McpToolGuard.Json(new LinkStats(
             link.ShortCode,
             link.Domain?.Hostname,
             link.LongUrl,
             total,
+            link.Title,
+            link.Description,
+            (await db.ShortenedUrlTags
+                .Where(t => t.ShortenedUrlId == link.Id)
+                .OrderBy(t => t.Name)
+                .Select(t => t.Name)
+                .ToListAsync(ct)),
+            link.ArchivedAtUtc,
+            metadata,
             topReferrers,
             topCountries,
             topDevices,
@@ -174,6 +217,8 @@ public static class McpLinkReadTools
         var links = await db.ShortenedUrls
             .Where(l => ids.Contains(l.Id))
             .Include(l => l.Domain)
+            .Include(l => l.Metadata)
+            .ThenInclude(m => m!.PixelSnippet)
             .ToListAsync(ct);
 
         var result = top
@@ -182,20 +227,60 @@ public static class McpLinkReadTools
                 l.Domain?.Hostname,
                 l.LongUrl,
                 t.Clicks,
-                l.CreatedAtUtc))
+                l.CreatedAtUtc,
+                Metadata: l.Metadata is null ? null : new LinkMetadataResult(
+                    l.Metadata.UtmSource, l.Metadata.UtmMedium, l.Metadata.UtmCampaign,
+                    l.Metadata.UtmTerm, l.Metadata.UtmContent,
+                    l.Metadata.PixelSnippet?.Name, l.Metadata.PixelId,
+                    l.Metadata.IosDeepLink, l.Metadata.AndroidDeepLink)))
             .ToList();
 
         return McpToolGuard.Json(result);
     }
 
-    private sealed record LinkListItem(string ShortCode, string? Domain, string LongUrl, long ClickCount, DateTime CreatedAtUtc);
+    [McpServerTool(Name = "list_pixel_snippets", Title = "List available retargeting pixel snippets", ReadOnly = true)]
+    public static async Task<string> ListPixelSnippets(
+        RequestContext<CallToolRequestParams> context,
+        AppDbContext db,
+        UserIdentityService identity,
+        CancellationToken ct = default)
+    {
+        var ownerUserId = await McpToolGuard.ResolveOwnerAsync(context, identity);
+        if (ownerUserId is null) return McpToolGuard.OwnerError;
+        if (!McpToolGuard.HasScope(context, ApiKeyScopes.McpRead)) return McpToolGuard.ReadScopeError;
+
+        var snippets = await db.PixelSnippets
+            .OrderBy(p => p.Id)
+            .Select(p => new PixelSnippetItem(p.Name, p.IsCustom))
+            .ToListAsync(ct);
+
+        return McpToolGuard.Json(snippets);
+    }
+
+    private sealed record LinkListItem(
+        string ShortCode, string? Domain, string LongUrl, long ClickCount, DateTime CreatedAtUtc,
+        string? Title = null, string? Description = null, IReadOnlyList<string>? Tags = null, DateTime? ArchivedAtUtc = null,
+        LinkMetadataResult? Metadata = null);
     private sealed record NameCount(string Name, int Count);
     private sealed record TopLink(long ShortenedUrlId, int Clicks);
+    /// <summary>Campaign metadata surfaced on link results: UTM components, the
+    /// resolved retargeting pixel snippet's name (not its numeric id) and value,
+    /// and platform deep links. Pass <c>PixelSnippet</c> back as create_short_link's
+    /// or update_link's <c>pixel_snippet</c> argument to keep the same pixel.</summary>
+    private sealed record LinkMetadataResult(
+        string? UtmSource, string? UtmMedium, string? UtmCampaign, string? UtmTerm, string? UtmContent,
+        string? PixelSnippet, string? PixelValue, string? IosDeepLink, string? AndroidDeepLink);
+    private sealed record PixelSnippetItem(string Name, bool IsCustom);
     private sealed record LinkStats(
         string ShortCode,
         string? Domain,
         string LongUrl,
         long ClickCount,
+        string? Title,
+        string? Description,
+        IReadOnlyList<string> Tags,
+        DateTime? ArchivedAtUtc,
+        LinkMetadataResult? Metadata,
         IReadOnlyList<NameCount> TopReferrers,
         IReadOnlyList<NameCount> TopCountries,
         IReadOnlyList<NameCount> TopDevices,

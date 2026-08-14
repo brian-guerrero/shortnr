@@ -37,7 +37,7 @@ public class IndexModel : PageModel
         }
 
         var visible = page.Links
-            .Where(l => l.IsVisible && l.ShortenedUrl is not null)
+            .Where(l => l.IsVisible && l.ShortenedUrl is not null && !l.ShortenedUrl.IsArchived)
             .OrderBy(l => l.SortOrder)
             .ThenBy(l => l.Id)
             .ToList();

@@ -11,8 +11,8 @@ using Shortnr.Data;
 namespace Shortnr.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260811202028_RemoveDefaultValueSql")]
-    partial class RemoveDefaultValueSql
+    [Migration("20260814064244_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -570,10 +570,17 @@ namespace Shortnr.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTime?>("ArchivedAtUtc")
+                        .HasColumnType("TEXT");
+
                     b.Property<long>("ClickCount")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
                         .HasColumnType("TEXT");
 
                     b.Property<long?>("DomainId")
@@ -591,6 +598,13 @@ namespace Shortnr.Data.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Title")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
                     b.Property<long?>("WorkspaceId")
                         .HasColumnType("INTEGER");
 
@@ -600,13 +614,13 @@ namespace Shortnr.Data.Migrations
 
                     b.HasIndex("ShortCode")
                         .IsUnique()
-                        .HasFilter("[DomainId] IS NULL");
+                        .HasFilter("\"DomainId\" IS NULL");
 
                     b.HasIndex("WorkspaceId");
 
                     b.HasIndex("DomainId", "ShortCode")
                         .IsUnique()
-                        .HasFilter("[DomainId] IS NOT NULL");
+                        .HasFilter("\"DomainId\" IS NOT NULL");
 
                     b.ToTable("ShortenedUrls");
                 });

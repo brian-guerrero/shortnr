@@ -83,6 +83,23 @@ public abstract class McpTestBase : IAsyncLifetime
         return link.Id;
     }
 
+    protected async Task SeedMetadataAsync(long linkId, string? utmCampaign = null, long? pixelSnippetId = null,
+        string? pixelId = null, string? iosDeepLink = null, string? androidDeepLink = null)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.ShortenedUrlMetadatas.Add(new ShortenedUrlMetadata
+        {
+            ShortenedUrlId = linkId,
+            UtmCampaign = utmCampaign,
+            PixelSnippetId = pixelSnippetId,
+            PixelId = pixelId,
+            IosDeepLink = iosDeepLink,
+            AndroidDeepLink = androidDeepLink
+        });
+        await db.SaveChangesAsync();
+    }
+
     protected async Task SeedClickAsync(long linkId, string? referer = null, string? country = null,
         string? device = null, string? browser = null, DateTime? at = null)
     {
@@ -117,6 +134,37 @@ public abstract class McpTestBase : IAsyncLifetime
         db.BioPages.Add(page);
         await db.SaveChangesAsync();
         return page.Id;
+    }
+
+    protected async Task<long> SeedWorkspaceAsync(long ownerUserId, string slug, string name)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var workspace = new Workspace
+        {
+            OwnerUserId = ownerUserId,
+            Slug = slug,
+            Name = name,
+            CreatedAtUtc = DateTime.UtcNow
+        };
+        db.Workspaces.Add(workspace);
+        await db.SaveChangesAsync();
+        return workspace.Id;
+    }
+
+    protected async Task AddWorkspaceMemberAsync(long workspaceId, long userId, WorkspaceRole role = WorkspaceRole.Owner)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.WorkspaceMembers.Add(new WorkspaceMember
+        {
+            WorkspaceId = workspaceId,
+            UserId = userId,
+            Role = role,
+            InvitedAtUtc = DateTime.UtcNow,
+            JoinedAtUtc = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync();
     }
 
     /// <summary>Polls until an AiActivityLog row matching the owner+action appears (the

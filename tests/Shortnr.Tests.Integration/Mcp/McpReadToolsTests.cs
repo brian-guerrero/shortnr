@@ -118,6 +118,68 @@ public class McpReadToolsTests : McpTestBase
     }
 
     [Fact]
+    public async Task ListLinks_FiltersByCampaign()
+    {
+        var owner = await SeedUserAndKeyAsync("campaign-owner", TestKey, ApiKeyScopes.McpRead);
+        var springLink = await SeedLinkAsync(owner, "spring1", "https://example.com/spring");
+        await SeedMetadataAsync(springLink, utmCampaign: "spring-sale-2026");
+        var summerLink = await SeedLinkAsync(owner, "summer1", "https://example.com/summer");
+        await SeedMetadataAsync(summerLink, utmCampaign: "summer-sale-2026");
+        await SeedLinkAsync(owner, "plain11", "https://example.com/plain");
+
+        var client = CreateAuthorizedClient(TestKey);
+        var response = await PostJsonRpcAsync(client, "tools/call",
+            """{"name":"list_links","arguments":{"campaign":"spring"}}""");
+
+        using var json = await ReadJsonAsync(response);
+        var text = ToolText(json.RootElement.GetProperty("result"));
+        using var doc = JsonDocument.Parse(text);
+        Assert.Equal(1, doc.RootElement.GetArrayLength());
+        Assert.Equal("spring1", doc.RootElement[0].GetProperty("shortCode").GetString());
+        Assert.Equal("spring-sale-2026", doc.RootElement[0].GetProperty("metadata").GetProperty("utmCampaign").GetString());
+    }
+
+    [Fact]
+    public async Task ListPixelSnippets_ReturnsSeededSnippets()
+    {
+        await SeedUserAndKeyAsync("pixel-owner", TestKey, ApiKeyScopes.McpRead);
+        var client = CreateAuthorizedClient(TestKey);
+
+        var response = await PostJsonRpcAsync(client, "tools/call",
+            """{"name":"list_pixel_snippets","arguments":{}}""");
+
+        using var json = await ReadJsonAsync(response);
+        var text = ToolText(json.RootElement.GetProperty("result"));
+        using var doc = JsonDocument.Parse(text);
+        var names = doc.RootElement.EnumerateArray().Select(e => e.GetProperty("name").GetString()).ToList();
+        Assert.Contains("Meta Pixel", names);
+        Assert.Contains("Google Ads", names);
+        Assert.Contains("Custom snippet", names);
+        var custom = doc.RootElement.EnumerateArray().Single(e => e.GetProperty("name").GetString() == "Custom snippet");
+        Assert.True(custom.GetProperty("isCustom").GetBoolean());
+    }
+
+    [Fact]
+    public async Task GetLinkStats_IncludesCampaignMetadata()
+    {
+        var owner = await SeedUserAndKeyAsync("stats-owner", TestKey, ApiKeyScopes.McpRead);
+        var linkId = await SeedLinkAsync(owner, "stats2", "https://example.com/stats2");
+        await SeedMetadataAsync(linkId, utmCampaign: "fall-sale", pixelSnippetId: 1, pixelId: "555");
+
+        var client = CreateAuthorizedClient(TestKey);
+        var response = await PostJsonRpcAsync(client, "tools/call",
+            """{"name":"get_link_stats","arguments":{"short_code":"stats2"}}""");
+
+        using var json = await ReadJsonAsync(response);
+        var text = ToolText(json.RootElement.GetProperty("result"));
+        using var doc = JsonDocument.Parse(text);
+        var metadata = doc.RootElement.GetProperty("metadata");
+        Assert.Equal("fall-sale", metadata.GetProperty("utmCampaign").GetString());
+        Assert.Equal("Meta Pixel", metadata.GetProperty("pixelSnippet").GetString());
+        Assert.Equal("555", metadata.GetProperty("pixelValue").GetString());
+    }
+
+    [Fact]
     public async Task GetLinkStats_ReturnsAggregates()
     {
         var owner = await SeedUserAndKeyAsync("stats-owner", TestKey, ApiKeyScopes.McpRead);

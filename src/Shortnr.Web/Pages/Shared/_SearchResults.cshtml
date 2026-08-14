@@ -13,7 +13,7 @@
         var ariaSort = !isActive ? "none" : isAsc ? "ascending" : "descending";
         <th class="@(isActive ? "sorted" : null)" aria-sort="@ariaSort"
             hx-get="@sortUrl(col, nextDir)" hx-target="#search-results" hx-swap="innerHTML"
-            hx-include="#search-input, #domain-filter">
+            hx-include="#search-input, #domain-filter, #status-filter">
             @label
             @if (isActive)
             {
@@ -40,14 +40,19 @@ else
                         SortableHeader("createdAtUtc", "Created");
                     }
                     <th>QR</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach (var link in Model)
                 {
-                    <tr>
+                    <tr class="@(link.IsArchived ? "archived-row" : null)">
                         <td>
                             <a href="@ShortUrlHelper.DisplayHref(Context.Request.Scheme, link.Domain?.Hostname, link.ShortCode)" target="_blank">@ShortUrlHelper.DisplayText(link.Domain?.Hostname, link.ShortCode)</a>
+                            @if (link.IsArchived)
+                            {
+                                <mark class="status-neutral" style="margin-left: var(--sn-space-2);">archived</mark>
+                            }
                         </td>
                         <td>@(link.Domain?.Hostname ?? "default")</td>
                         <td style="max-width: 300px; word-break: break-all;">@link.LongUrl</td>
@@ -57,6 +62,32 @@ else
                             <span class="qr-wrap">
                                 <button class="btn-sm" hx-get="/qr/@link.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML">QR</button>
                             </span>
+                        </td>
+                        <td>
+                            <button class="btn-sm" hx-get="/dashboard?handler=Edit&code=@link.Id" hx-target="#link-edit-region" hx-swap="innerHTML">Edit</button>
+                            @if (link.IsArchived)
+                            {
+                                <form hx-post="/dashboard?handler=Unarchive" hx-target="#search-results" hx-swap="innerHTML"
+                                      hx-include="#search-input, #domain-filter, #status-filter" style="display:inline;">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="code" value="@link.Id">
+                                    <input type="hidden" name="linkSort" value="@linkSort">
+                                    <input type="hidden" name="linkDir" value="@linkDir">
+                                    <button type="submit" class="secondary btn-sm">Unarchive</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <form hx-post="/dashboard?handler=Archive" hx-target="#search-results" hx-swap="innerHTML"
+                                      hx-include="#search-input, #domain-filter, #status-filter" style="display:inline;">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="code" value="@link.Id">
+                                    <input type="hidden" name="linkSort" value="@linkSort">
+                                    <input type="hidden" name="linkDir" value="@linkDir">
+                                    <button type="submit" class="secondary btn-sm">Archive</button>
+                                </form>
+                            }
+                            <button class="btn-sm" hx-get="/dashboard?handler=Transfer&code=@link.Id" hx-target="#link-edit-region" hx-swap="innerHTML">Transfer</button>
                         </td>
                     </tr>
                 }
