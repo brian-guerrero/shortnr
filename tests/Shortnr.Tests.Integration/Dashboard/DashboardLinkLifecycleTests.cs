@@ -162,6 +162,36 @@ public class DashboardLinkLifecycleTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetEditForm_IncludesExistingAdvancedMetadata()
+    {
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.ShortenedUrlMetadatas.Add(new ShortenedUrlMetadata
+            {
+                ShortenedUrlId = _aliceLinkId,
+                UtmSource = "newsletter",
+                PixelSnippetId = 1,
+                PixelId = "1234567890",
+                IosDeepLink = "myapp://open"
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var client = AuthenticatedClient();
+
+        var response = await client.GetAsync($"/dashboard?handler=Edit&code={_aliceLinkId}");
+        var html = await response.Content.ReadAsStringAsync();
+
+        // Regression: FindLinkAsync must include Metadata (+ PixelSnippet), or the
+        // advanced options section renders blank even though metadata exists.
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("newsletter", html);
+        Assert.Contains("1234567890", html);
+        Assert.Contains("myapp://open", html);
+    }
+
+    [Fact]
     public async Task GetEditForm_UnknownLink_ShowsError()
     {
         var client = AuthenticatedClient();
@@ -204,6 +234,133 @@ public class DashboardLinkLifecycleTests : IAsyncLifetime
         Assert.Equal(4, link.ClickCount);
         Assert.NotNull(link.UpdatedAtUtc);
         Assert.Equal(["newsletter", "q2"], link.Tags.Select(t => t.Name).OrderBy(n => n));
+    }
+
+    [Fact]
+    public async Task PostEdit_SetsUtmParameters_AppendsToUrlAndSavesMetadata()
+    {
+        var client = AuthenticatedClient();
+        var token = await GetAntiforgeryTokenAsync(client);
+
+        var response = await PostFormAsync(client, "/dashboard?handler=Edit", token,
+            ("code", _aliceLinkId.ToString()),
+            ("url", "https://alice.com/after"),
+            ("slug", "edt111"),
+            ("title", ""), ("description", ""), ("tags", ""),
+            ("utmSource", "newsletter"), ("utmMedium", "email"), ("utmCampaign", "spring-sale"));
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("Link updated", html);
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var link = await db.ShortenedUrls.Include(l => l.Metadata).SingleAsync(l => l.Id == _aliceLinkId);
+        Assert.StartsWith("https://alice.com/after?", link.LongUrl);
+        Assert.Contains("utm_source=newsletter", link.LongUrl);
+        Assert.Contains("utm_medium=email", link.LongUrl);
+        Assert.Contains("utm_campaign=spring-sale", link.LongUrl);
+        Assert.NotNull(link.Metadata);
+        Assert.Equal("newsletter", link.Metadata!.UtmSource);
+        Assert.Equal("email", link.Metadata.UtmMedium);
+        Assert.Equal("spring-sale", link.Metadata.UtmCampaign);
+    }
+
+    [Fact]
+    public async Task PostEdit_SetsTemplatePixelSnippet()
+    {
+        var client = AuthenticatedClient();
+        var token = await GetAntiforgeryTokenAsync(client);
+
+        var response = await PostFormAsync(client, "/dashboard?handler=Edit", token,
+            ("code", _aliceLinkId.ToString()),
+            ("url", "https://alice.com/after"),
+            ("slug", "edt111"),
+            ("title", ""), ("description", ""), ("tags", ""),
+            ("pixelType", "1"), ("pixelId", "1234567890123"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var link = await db.ShortenedUrls.Include(l => l.Metadata).SingleAsync(l => l.Id == _aliceLinkId);
+        Assert.NotNull(link.Metadata);
+        Assert.Equal(1, link.Metadata!.PixelSnippetId);
+        Assert.Equal("1234567890123", link.Metadata.PixelId);
+    }
+
+    [Fact]
+    public async Task PostEdit_SetsCustomPixelSnippet()
+    {
+        var client = AuthenticatedClient();
+        var token = await GetAntiforgeryTokenAsync(client);
+
+        var response = await PostFormAsync(client, "/dashboard?handler=Edit", token,
+            ("code", _aliceLinkId.ToString()),
+            ("url", "https://alice.com/after"),
+            ("slug", "edt111"),
+            ("title", ""), ("description", ""), ("tags", ""),
+            ("pixelType", "3"), ("pixelSnippet", "<script>track()</script>"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var link = await db.ShortenedUrls.Include(l => l.Metadata).SingleAsync(l => l.Id == _aliceLinkId);
+        Assert.NotNull(link.Metadata);
+        Assert.Equal(3, link.Metadata!.PixelSnippetId);
+        Assert.Equal("<script>track()</script>", link.Metadata.PixelId);
+    }
+
+    [Fact]
+    public async Task PostEdit_SetsDeepLinks()
+    {
+        var client = AuthenticatedClient();
+        var token = await GetAntiforgeryTokenAsync(client);
+
+        var response = await PostFormAsync(client, "/dashboard?handler=Edit", token,
+            ("code", _aliceLinkId.ToString()),
+            ("url", "https://alice.com/after"),
+            ("slug", "edt111"),
+            ("title", ""), ("description", ""), ("tags", ""),
+            ("iosDeepLink", "myapp://open"),
+            ("androidDeepLink", "https://play.google.com/store/apps/details?id=com.example.app"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var link = await db.ShortenedUrls.Include(l => l.Metadata).SingleAsync(l => l.Id == _aliceLinkId);
+        Assert.NotNull(link.Metadata);
+        Assert.Equal("myapp://open", link.Metadata!.IosDeepLink);
+        Assert.Equal("https://play.google.com/store/apps/details?id=com.example.app", link.Metadata.AndroidDeepLink);
+    }
+
+    [Fact]
+    public async Task PostEdit_ClearingAllAdvancedFields_RemovesMetadata()
+    {
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.ShortenedUrlMetadatas.Add(new ShortenedUrlMetadata { ShortenedUrlId = _aliceLinkId, IosDeepLink = "myapp://open" });
+            await db.SaveChangesAsync();
+        }
+
+        var client = AuthenticatedClient();
+        var token = await GetAntiforgeryTokenAsync(client);
+
+        var response = await PostFormAsync(client, "/dashboard?handler=Edit", token,
+            ("code", _aliceLinkId.ToString()),
+            ("url", "https://alice.com/after"),
+            ("slug", "edt111"),
+            ("title", ""), ("description", ""), ("tags", ""));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var scope2 = _factory.Services.CreateScope();
+        var db2 = scope2.ServiceProvider.GetRequiredService<AppDbContext>();
+        var link = await db2.ShortenedUrls.Include(l => l.Metadata).SingleAsync(l => l.Id == _aliceLinkId);
+        Assert.Null(link.Metadata);
     }
 
     [Fact]

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
 using Shortnr.Data.Entities;
+using Shortnr.Web.Features.ShortLinks;
 using Shortnr.Web.Features.Workspaces;
 
 namespace Shortnr.Web.Pages;
@@ -157,7 +158,7 @@ public class DashboardModel : PageModel
         if (link is null)
             return Partial("Shared/_LinkEditForm", new LinkEditViewModel { ErrorMessage = "Link not found." });
 
-        return Partial("Shared/_LinkEditForm", LinkEditViewModel.From(link));
+        return Partial("Shared/_LinkEditForm", LinkEditViewModel.From(link, pixelSnippets: await LoadPixelSnippetsAsync()));
     }
 
     public async Task<IActionResult> OnGetTransfer(long? code)
@@ -188,7 +189,9 @@ public class DashboardModel : PageModel
         });
     }
 
-    public async Task<IActionResult> OnPostEdit(long code, string url, string slug, string title, string description, string tags)
+    public async Task<IActionResult> OnPostEdit(long code, string url, string slug, string title, string description, string tags,
+        string? utmSource, string? utmMedium, string? utmCampaign, string? utmTerm, string? utmContent,
+        string? pixelType, string? pixelId, string? pixelSnippet, string? iosDeepLink, string? androidDeepLink)
     {
         var gate = EnforceAccess();
         if (gate is not null)
@@ -202,15 +205,24 @@ public class DashboardModel : PageModel
 
         var trimmedUrl = url.Trim();
         if (!Uri.TryCreate(trimmedUrl, UriKind.Absolute, out var uri) || (uri.Scheme != "http" && uri.Scheme != "https"))
-            return Partial("Shared/_LinkEditForm", LinkEditViewModel.From(link, "Enter a valid absolute http(s) URL."));
+            return Partial("Shared/_LinkEditForm", LinkEditViewModel.From(link, "Enter a valid absolute http(s) URL.", await LoadPixelSnippetsAsync()));
 
         var trimmedSlug = slug.Trim();
         if (trimmedSlug.Length == 0 || !ShortLinkCodes.IsValidSlug(trimmedSlug))
-            return Partial("Shared/_LinkEditForm", LinkEditViewModel.From(link, "Slug must be 1–64 chars: letters, digits, '-' or '_', starting with a letter or digit."));
+            return Partial("Shared/_LinkEditForm", LinkEditViewModel.From(link, "Slug must be 1–64 chars: letters, digits, '-' or '_', starting with a letter or digit.", await LoadPixelSnippetsAsync()));
 
         var collides = await _db.ShortenedUrls.AnyAsync(l => l.Id != link.Id && l.DomainId == link.DomainId && l.ShortCode == trimmedSlug);
         if (collides)
-            return Partial("Shared/_LinkEditForm", LinkEditViewModel.From(link, $"A link with slug '{trimmedSlug}' already exists on this domain."));
+            return Partial("Shared/_LinkEditForm", LinkEditViewModel.From(link, $"A link with slug '{trimmedSlug}' already exists on this domain.", await LoadPixelSnippetsAsync()));
+
+        var utm = new UtmParameters(utmSource, utmMedium, utmCampaign, utmTerm, utmContent);
+        if (!utm.IsEmpty)
+            trimmedUrl = UtmBuilder.AppendUtm(trimmedUrl, utm);
+
+        var pixelSnippetId = long.TryParse(pixelType, out var parsedPixelId) ? parsedPixelId : (long?)null;
+        var pixelValue = await ResolvePixelValueAsync(pixelSnippetId, pixelId, pixelSnippet);
+        var trimmedIosDeepLink = (iosDeepLink ?? "").Trim();
+        var trimmedAndroidDeepLink = (androidDeepLink ?? "").Trim();
 
         link.LongUrl = trimmedUrl;
         link.ShortCode = trimmedSlug;
@@ -231,6 +243,31 @@ public class DashboardModel : PageModel
             Name = name,
             CreatedAtUtc = DateTime.UtcNow
         }));
+
+        var hasMetadata = !utm.IsEmpty || pixelSnippetId is not null
+            || trimmedIosDeepLink.Length > 0 || trimmedAndroidDeepLink.Length > 0;
+        if (hasMetadata)
+        {
+            if (link.Metadata is null)
+            {
+                link.Metadata = new ShortenedUrlMetadata { ShortenedUrlId = link.Id };
+                _db.ShortenedUrlMetadatas.Add(link.Metadata);
+            }
+            link.Metadata.UtmSource = utm.Source;
+            link.Metadata.UtmMedium = utm.Medium;
+            link.Metadata.UtmCampaign = utm.Campaign;
+            link.Metadata.UtmTerm = utm.Term;
+            link.Metadata.UtmContent = utm.Content;
+            link.Metadata.PixelSnippetId = pixelSnippetId;
+            link.Metadata.PixelId = pixelValue;
+            link.Metadata.IosDeepLink = trimmedIosDeepLink.Length > 0 ? trimmedIosDeepLink : null;
+            link.Metadata.AndroidDeepLink = trimmedAndroidDeepLink.Length > 0 ? trimmedAndroidDeepLink : null;
+        }
+        else if (link.Metadata is not null)
+        {
+            _db.ShortenedUrlMetadatas.Remove(link.Metadata);
+            link.Metadata = null;
+        }
 
         await _db.SaveChangesAsync();
 
@@ -399,6 +436,8 @@ public class DashboardModel : PageModel
             .Include(l => l.Domain)
             .Include(l => l.Workspace)
             .Include(l => l.Tags)
+            .Include(l => l.Metadata)
+            .ThenInclude(m => m!.PixelSnippet)
             .AsQueryable();
         if (workspaceId is not null)
             query = query.Where(l => l.WorkspaceId == workspaceId);
@@ -406,6 +445,26 @@ public class DashboardModel : PageModel
             query = query.Where(l => l.OwnerUserId == ownerUserId);
 
         return await query.FirstOrDefaultAsync(l => l.Id == code);
+    }
+
+    private Task<List<PixelSnippet>> LoadPixelSnippetsAsync() =>
+        _db.PixelSnippets.OrderBy(p => p.Id).ToListAsync();
+
+    /// <summary>
+    /// Resolves the metadata's PixelId value: the pixel ID for template snippets,
+    /// or the full pasted HTML for the custom snippet. Mirrors Index.cshtml.cs's
+    /// identically-named helper for the create form.
+    /// </summary>
+    private async Task<string?> ResolvePixelValueAsync(long? pixelSnippetId, string? pixelId, string? customSnippet)
+    {
+        if (pixelSnippetId is null)
+            return null;
+
+        var snippet = await _db.PixelSnippets.FirstOrDefaultAsync(p => p.Id == pixelSnippetId);
+        if (snippet is null)
+            return null;
+
+        return snippet.IsCustom ? customSnippet : pixelId;
     }
 
     private static IQueryable<ShortenedUrl> ApplyScoping(IQueryable<ShortenedUrl> query, long? ownerUserId, long? workspaceId)
