@@ -15,6 +15,7 @@ public class IndexModel : PageModel
 
     public List<ShortenedUrl> RecentLinks { get; set; } = [];
     public List<PixelSnippet> PixelSnippets { get; set; } = [];
+    public LinkAdvancedOptionsViewModel AdvancedOptions { get; set; } = new() { ShowCustomCode = true };
     public bool IsHtmxRequest { get; set; }
     public string? DefaultHostname { get; set; }
     public ActiveWorkspaceContext? Workspace { get; set; }
@@ -36,6 +37,11 @@ public class IndexModel : PageModel
         DefaultHostname = defaultDomain?.Hostname;
         RecentLinks = await RecentLinksAsync(ownerUserId, Workspace?.WorkspaceId);
         PixelSnippets = await _db.PixelSnippets.OrderBy(p => p.Id).ToListAsync();
+        AdvancedOptions = new LinkAdvancedOptionsViewModel
+        {
+            ShowCustomCode = true,
+            PixelSnippets = PixelSnippets
+        };
     }
 
     public async Task<IActionResult> OnPost()

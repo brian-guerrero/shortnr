@@ -33,57 +33,7 @@
                 <input type="text" name="tags" value="@Model.Tags" maxlength="512">
             </label>
         </fieldset>
-        <button type="button" class="secondary" style="margin-bottom: 0.75rem;"
-                x-on:click="showAdvanced = !showAdvanced" :aria-expanded="showAdvanced ? 'true' : 'false'">
-            <span x-text="showAdvanced ? 'Hide advanced options' : 'Advanced options'"></span>
-        </button>
-        <div x-show="showAdvanced" x-cloak>
-            <label for="edit-utm-source">UTM source <small>(optional)</small></label>
-            <input type="text" name="utmSource" id="edit-utm-source" value="@Model.UtmSource" maxlength="512">
-
-            <label for="edit-utm-medium">UTM medium <small>(optional)</small></label>
-            <input type="text" name="utmMedium" id="edit-utm-medium" value="@Model.UtmMedium" maxlength="512">
-
-            <label for="edit-utm-campaign">UTM campaign <small>(optional)</small></label>
-            <input type="text" name="utmCampaign" id="edit-utm-campaign" value="@Model.UtmCampaign" maxlength="512">
-
-            <label for="edit-utm-term">UTM term <small>(optional)</small></label>
-            <input type="text" name="utmTerm" id="edit-utm-term" value="@Model.UtmTerm" maxlength="512">
-
-            <label for="edit-utm-content">UTM content <small>(optional)</small></label>
-            <input type="text" name="utmContent" id="edit-utm-content" value="@Model.UtmContent" maxlength="512">
-
-            <label for="edit-pixel-type">Retargeting pixel <small>(optional)</small></label>
-            <select name="pixelType" id="edit-pixel-type"
-                    x-on:change="showPixel = $event.target.value !== ''; pixelIsCustom = $event.target.selectedOptions[0]?.dataset.custom === 'true'">
-                <option value="">None</option>
-                @foreach (var snippet in Model.PixelSnippets)
-                {
-                    <option value="@snippet.Id" data-custom="@snippet.IsCustom.ToString().ToLowerInvariant()" selected="@(Model.PixelSnippetId == snippet.Id)">@snippet.Name</option>
-                }
-            </select>
-            <div x-show="showPixel" x-cloak>
-                <template x-if="!pixelIsCustom">
-                    <div>
-                        <label for="edit-pixel-id">Pixel ID <small>(for Meta/Google templates)</small></label>
-                        <input type="text" name="pixelId" id="edit-pixel-id" value="@Model.PixelId" maxlength="256">
-                    </div>
-                </template>
-                <template x-if="pixelIsCustom">
-                    <div>
-                        <label for="edit-pixel-snippet">Custom snippet HTML <small>(for custom snippets)</small></label>
-                        <textarea name="pixelSnippet" id="edit-pixel-snippet" rows="6" maxlength="8192">@Model.PixelSnippetHtml</textarea>
-                    </div>
-                </template>
-            </div>
-
-            <label for="edit-ios-deep-link">iOS deep link <small>(optional, App Store / URI scheme)</small></label>
-            <input type="text" name="iosDeepLink" id="edit-ios-deep-link" value="@Model.IosDeepLink" maxlength="2048"
-                   placeholder="https://apps.apple.com/app/id123456789 or myapp://open">
-            <label for="edit-android-deep-link">Android deep link <small>(optional, Play Store / app link)</small></label>
-            <input type="text" name="androidDeepLink" id="edit-android-deep-link" value="@Model.AndroidDeepLink" maxlength="2048"
-                   placeholder="https://play.google.com/store/apps/details?id=com.example.app">
-        </div>
+        @await Html.PartialAsync("Shared/_LinkAdvancedOptions", Model.AdvancedOptions)
         <div class="grid">
             <button type="submit" class="btn-sm">Save changes</button>
             <button type="button" class="secondary btn-sm" onclick="document.getElementById('link-edit-region').innerHTML = ''">Cancel</button>

@@ -189,9 +189,7 @@ public class DashboardModel : PageModel
         });
     }
 
-    public async Task<IActionResult> OnPostEdit(long code, string url, string slug, string title, string description, string tags,
-        string? utmSource, string? utmMedium, string? utmCampaign, string? utmTerm, string? utmContent,
-        string? pixelType, string? pixelId, string? pixelSnippet, string? iosDeepLink, string? androidDeepLink)
+public async Task<IActionResult> OnPostEdit(long code, string url, string slug, string title, string description, string tags)
     {
         var gate = EnforceAccess();
         if (gate is not null)
@@ -215,14 +213,21 @@ public class DashboardModel : PageModel
         if (collides)
             return Partial("Shared/_LinkEditForm", LinkEditViewModel.From(link, $"A link with slug '{trimmedSlug}' already exists on this domain.", await LoadPixelSnippetsAsync()));
 
-        var utm = new UtmParameters(utmSource, utmMedium, utmCampaign, utmTerm, utmContent);
+        var utm = new UtmParameters(
+            Source: Request.Form["utm_source"].FirstOrDefault(),
+            Medium: Request.Form["utm_medium"].FirstOrDefault(),
+            Campaign: Request.Form["utm_campaign"].FirstOrDefault(),
+            Term: Request.Form["utm_term"].FirstOrDefault(),
+            Content: Request.Form["utm_content"].FirstOrDefault());
         if (!utm.IsEmpty)
             trimmedUrl = UtmBuilder.AppendUtm(trimmedUrl, utm);
 
-        var pixelSnippetId = long.TryParse(pixelType, out var parsedPixelId) ? parsedPixelId : (long?)null;
-        var pixelValue = await ResolvePixelValueAsync(pixelSnippetId, pixelId, pixelSnippet);
-        var trimmedIosDeepLink = (iosDeepLink ?? "").Trim();
-        var trimmedAndroidDeepLink = (androidDeepLink ?? "").Trim();
+        var pixelSnippetId = long.TryParse(Request.Form["pixel_type"].FirstOrDefault(), out var parsedPixelId) ? parsedPixelId : (long?)null;
+        var pixelValue = await ResolvePixelValueAsync(pixelSnippetId,
+            Request.Form["pixel_id"].FirstOrDefault(),
+            Request.Form["pixel_snippet"].FirstOrDefault());
+        var trimmedIosDeepLink = (Request.Form["ios_deep_link"].FirstOrDefault() ?? "").Trim();
+        var trimmedAndroidDeepLink = (Request.Form["android_deep_link"].FirstOrDefault() ?? "").Trim();
 
         link.LongUrl = trimmedUrl;
         link.ShortCode = trimmedSlug;
