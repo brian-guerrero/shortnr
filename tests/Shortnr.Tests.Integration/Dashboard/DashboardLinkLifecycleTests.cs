@@ -136,6 +136,32 @@ public class DashboardLinkLifecycleTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetEditForm_IncludesExistingTags()
+    {
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.ShortenedUrlTags.Add(new ShortenedUrlTag
+            {
+                ShortenedUrlId = _aliceLinkId,
+                Name = "newsletter",
+                CreatedAtUtc = DateTime.UtcNow
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var client = AuthenticatedClient();
+
+        var response = await client.GetAsync($"/dashboard?handler=Edit&code={_aliceLinkId}");
+        var html = await response.Content.ReadAsStringAsync();
+
+        // Regression: FindLinkAsync must include Tags, or the edit form renders
+        // an empty tags field and the next save silently wipes existing tags.
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("newsletter", html);
+    }
+
+    [Fact]
     public async Task GetEditForm_UnknownLink_ShowsError()
     {
         var client = AuthenticatedClient();

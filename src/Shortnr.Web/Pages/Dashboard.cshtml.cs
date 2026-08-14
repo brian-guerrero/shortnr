@@ -398,6 +398,7 @@ public class DashboardModel : PageModel
         var query = _db.ShortenedUrls
             .Include(l => l.Domain)
             .Include(l => l.Workspace)
+            .Include(l => l.Tags)
             .AsQueryable();
         if (workspaceId is not null)
             query = query.Where(l => l.WorkspaceId == workspaceId);
