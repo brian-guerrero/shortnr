@@ -20,6 +20,14 @@ Open `http://localhost:8080`. The SQLite database is stored in the `shortnr-data
 
 By default, authentication is disabled &mdash; every link and click is visible to whoever can reach the instance. This is fine for personal or single-user use.
 
+Prefer Postgres, or planning to run more than one instance? Bring both up together:
+
+```bash
+docker compose -f docker-compose.postgres.yml up -d
+```
+
+See [Database](/shortnr/docs/configuration/database/) for when that's worth doing.
+
 To build the image from source instead:
 
 ```bash
@@ -48,6 +56,20 @@ dotnet run --project src/Shortnr.Web/Shortnr.Web.csproj
 Open `http://localhost:5156`.
 
 > `dotnet build` triggers `Microsoft.Web.LibraryManager.Build`, which downloads Pico CSS, htmx, Chart.js, and Alpine.js into `wwwroot/lib/` automatically. No manual `libman restore` needed.
+
+## Choosing a database
+
+shortnr runs on **SQLite** by default &mdash; a single file, no setup, and enough for most self-hosted instances. Nothing to configure to get started.
+
+It also supports **PostgreSQL**, which you'll want once you need to run more than one instance behind a load balancer (a SQLite file can't be shared between replicas):
+
+```bash
+Database__Provider=Postgres \
+Database__ConnectionString="Host=localhost;Database=shortnr;Username=shortnr;Password=secret" \
+dotnet run --project src/Shortnr.Web
+```
+
+The schema is created automatically on first start under either provider. See the [database guide](/shortnr/docs/configuration/database/) for the full comparison and migration steps.
 
 ## What you can do next
 
@@ -80,4 +102,5 @@ This starts `Shortnr.Web` and a local [Dex](https://dexidp.io) container togethe
 
 - [Self-hosting guide](/shortnr/docs/self-hosting/) &mdash; production deployment, reverse proxy, and persistence
 - [Configuration reference](/shortnr/docs/configuration/) &mdash; all available settings
+- [Database](/shortnr/docs/configuration/database/) &mdash; SQLite vs Postgres, and how to migrate
 - [Architecture overview](/shortnr/docs/architecture/) &mdash; how shortnr works under the hood

@@ -1,0 +1,45 @@
+name: Documentation Improvement
+description: Report a docs issue
+title: "Docs: "
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve the documentation. Please fill in the details below.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of the documentation issue.
+    validations:
+      required: true
+  - type: input
+    id: page
+    attributes:
+      label: Page or Section
+      description: Which page or section of the documentation is affected?
+      placeholder: e.g. docs/getting-started.md
+    validations:
+      required: false
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's Wrong
+      description: Describe what is incorrect, missing, or unclear.
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested Change
+      description: Describe the change or addition you'd like to see.
+    validations:
+      required: false
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context or screenshots.
+    validations:
+      required: false

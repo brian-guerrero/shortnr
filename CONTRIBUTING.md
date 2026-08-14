@@ -22,12 +22,16 @@ please read this before opening a PR so your work lands cleanly.
 
 See `README.md` — `dotnet build` (restores frontend assets via LibMan) and
 `dotnet run --project src/Shortnr.Web/Shortnr.Web.csproj` for a standalone
-instance. Running under Aspire also starts a local Dex IdP for auth testing.
+instance. For full auth (OIDC via Dex + SMTP via MailPit), run under .NET
+Aspire: `dotnet run --project src/Shortnr.AppHost`.
 
 ## Development workflow
 
 - Branch from `main` (`git worktree add -b my-feature <dir> main` is the project
   convention). There is one worktree per PRD/feature branch.
+- Major features are tracked in Obsidian PRDs. Before starting a large
+  refactoring, check whether the issue already has an associated PRD — the
+  design decisions may already be made.
 - `dotnet build` then `dotnet test` — both test projects must pass before a PR.
 - Commit messages are lowercase and imperative (`Add branded domain entity`,
   `Fix redirect host resolution`).
@@ -41,6 +45,12 @@ instance. Running under Aspire also starts a local Dex IdP for auth testing.
 
 Add tests alongside any behavior change. New endpoints and new service logic are
 expected to be covered.
+
+## Documentation
+
+The live docs site is at https://brian-guerrero.github.io/shortnr/. Docs source
+lives in `docs/` (Astro + Starlight); run `npm run dev` there to preview
+locally.
 
 ## Licensing
 
