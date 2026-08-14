@@ -27,24 +27,33 @@ public class AiInsightsService(AppDbContext db, IOptions<AiInsightsOptions> opti
             .Select(l => new { l.Id, l.LongUrl })
             .ToListAsync(ct);
 
+        if (candidates.Count == 0)
+            return 0;
+
+        var candidateIds = candidates.Select(c => c.Id).ToList();
+
+        var clicksById = (await db.ClickEvents
+                .AsNoTracking()
+                .Where(c => candidateIds.Contains(c.ShortenedUrlId) && c.ClickedAtUtc >= windowStart)
+                .Select(c => new { c.ShortenedUrlId, c.Referer, c.ClickedAtUtc })
+                .ToListAsync(ct))
+            .ToLookup(c => c.ShortenedUrlId, c => new ClickDatum(c.Referer, c.ClickedAtUtc));
+
+        var existingTagsById = (await db.TagSuggestions
+                .AsNoTracking()
+                .Where(s => candidateIds.Contains(s.ShortenedUrlId))
+                .Select(s => new { s.ShortenedUrlId, s.SuggestedTag })
+                .ToListAsync(ct))
+            .ToLookup(s => s.ShortenedUrlId, s => s.SuggestedTag);
+
         var created = 0;
         foreach (var candidate in candidates)
         {
-            var clicks = await db.ClickEvents
-                .AsNoTracking()
-                .Where(c => c.ShortenedUrlId == candidate.Id && c.ClickedAtUtc >= windowStart)
-                .Select(c => new ClickDatum(c.Referer, c.ClickedAtUtc))
-                .ToListAsync(ct);
-
+            var clicks = clicksById[candidate.Id].ToList();
             var drafts = InsightHeuristics.Analyze(candidate.LongUrl, clicks);
             if (drafts.Count == 0) continue;
 
-            var existingTags = await db.TagSuggestions
-                .AsNoTracking()
-                .Where(s => s.ShortenedUrlId == candidate.Id)
-                .Select(s => s.SuggestedTag)
-                .ToHashSetAsync(ct);
-
+            var existingTags = new HashSet<string>(existingTagsById[candidate.Id]);
             var rows = drafts
                 .Where(d => !existingTags.Contains(d.Tag))
                 .Select(d => new TagSuggestion
