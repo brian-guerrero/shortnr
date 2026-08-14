@@ -27,6 +27,16 @@ public static class McpLinkWriteTools
         [Description("The destination URL (http or https)")] string url,
         [Description("Optional vanity slug: 1-64 chars, letters/digits/'-'/'_', starting with a letter or digit")] string? custom_slug = null,
         [Description("Optional verified domain hostname, 'default' for the instance host, or omit to use your default domain")] string? domain = null,
+        [Description("UTM source for campaign tracking, e.g. 'newsletter' (optional)")] string? utm_source = null,
+        [Description("UTM medium, e.g. 'email' (optional)")] string? utm_medium = null,
+        [Description("UTM campaign, e.g. 'spring-sale-2026' (optional) — use a distinct value per campaign so you can tell campaign links apart later with list_links")] string? utm_campaign = null,
+        [Description("UTM term (optional)")] string? utm_term = null,
+        [Description("UTM content (optional)")] string? utm_content = null,
+        [Description("Name of a retargeting pixel snippet to attach (see list_pixel_snippets); omit for none")] string? pixel_snippet = null,
+        [Description("Pixel ID substituted into a template snippet; required when pixel_snippet names a template (non-custom) snippet")] string? pixel_id = null,
+        [Description("Full custom snippet HTML; required when pixel_snippet names the custom snippet")] string? pixel_snippet_html = null,
+        [Description("iOS deep link: App Store URL or custom URI scheme (optional)")] string? ios_deep_link = null,
+        [Description("Android deep link: Play Store URL or app link (optional)")] string? android_deep_link = null,
         CancellationToken ct = default)
     {
         var ownerUserId = await McpToolGuard.ResolveOwnerAsync(context, identity);
@@ -36,6 +46,17 @@ public static class McpLinkWriteTools
         var target = url.Trim();
         if (!Uri.TryCreate(target, UriKind.Absolute, out var uri) || (uri.Scheme != "http" && uri.Scheme != "https"))
             return "Error: url must be an absolute http(s) URL.";
+
+        var utm = new UtmParameters(utm_source, utm_medium, utm_campaign, utm_term, utm_content);
+        if (!utm.IsEmpty)
+            target = UtmBuilder.AppendUtm(target, utm);
+
+        var (pixelSnippetId, pixelValue, pixelError) = await ResolvePixelSelectionAsync(db, pixel_snippet, pixel_id, pixel_snippet_html, ct);
+        if (pixelError is not null)
+            return pixelError;
+
+        var trimmedIosDeepLink = ios_deep_link?.Trim();
+        var trimmedAndroidDeepLink = android_deep_link?.Trim();
 
         long? domainId = null;
         if (!string.IsNullOrWhiteSpace(domain))
@@ -82,6 +103,25 @@ public static class McpLinkWriteTools
             OwnerUserId = ownerUserId.Value,
             CreatedAtUtc = DateTime.UtcNow
         };
+
+        var hasMetadata = !utm.IsEmpty || pixelSnippetId is not null
+            || !string.IsNullOrWhiteSpace(trimmedIosDeepLink) || !string.IsNullOrWhiteSpace(trimmedAndroidDeepLink);
+        if (hasMetadata)
+        {
+            link.Metadata = new ShortenedUrlMetadata
+            {
+                UtmSource = utm.Source,
+                UtmMedium = utm.Medium,
+                UtmCampaign = utm.Campaign,
+                UtmTerm = utm.Term,
+                UtmContent = utm.Content,
+                PixelSnippetId = pixelSnippetId,
+                PixelId = pixelValue,
+                IosDeepLink = string.IsNullOrWhiteSpace(trimmedIosDeepLink) ? null : trimmedIosDeepLink,
+                AndroidDeepLink = string.IsNullOrWhiteSpace(trimmedAndroidDeepLink) ? null : trimmedAndroidDeepLink
+            };
+        }
+
         db.ShortenedUrls.Add(link);
         await db.SaveChangesAsync(ct);
 
@@ -89,7 +129,10 @@ public static class McpLinkWriteTools
             "create_short_link", nameof(ShortenedUrl), link.Id,
             $"Created short link '{shortCode}' pointing to {target}");
 
-        return McpToolGuard.Json(new LinkResult(shortCode, link.Domain?.Hostname, target, 0, null, null, [], null, null));
+        var pixelSnippetName = await ResolvePixelNameAsync(db, pixelSnippetId, ct);
+
+        return McpToolGuard.Json(new LinkResult(shortCode, link.Domain?.Hostname, target, 0, null, null, [], null, null,
+            ToMetadataResult(link.Metadata, pixelSnippetName)));
     }
 
     [McpServerTool(Name = "update_link", Title = "Update a short link")]
@@ -107,6 +150,16 @@ public static class McpLinkWriteTools
         [Description("New title (metadata)")] string? title = null,
         [Description("New description (metadata)")] string? description = null,
         [Description("Comma-separated tags replacing the current tags")] string? tags = null,
+        [Description("New UTM source; empty string clears it, omit to leave unchanged")] string? utm_source = null,
+        [Description("New UTM medium; empty string clears it, omit to leave unchanged")] string? utm_medium = null,
+        [Description("New UTM campaign; empty string clears it, omit to leave unchanged — use a distinct value per campaign so you can tell campaign links apart later with list_links")] string? utm_campaign = null,
+        [Description("New UTM term; empty string clears it, omit to leave unchanged")] string? utm_term = null,
+        [Description("New UTM content; empty string clears it, omit to leave unchanged")] string? utm_content = null,
+        [Description("Name of a retargeting pixel snippet to attach (see list_pixel_snippets); empty string removes the pixel, omit to leave unchanged. Pass pixel_id or pixel_snippet_html alongside it")] string? pixel_snippet = null,
+        [Description("Pixel ID for a template snippet, or new value for the currently-attached template snippet")] string? pixel_id = null,
+        [Description("Custom snippet HTML for the custom snippet, or new value for the currently-attached custom snippet")] string? pixel_snippet_html = null,
+        [Description("New iOS deep link; empty string clears it, omit to leave unchanged")] string? ios_deep_link = null,
+        [Description("New Android deep link; empty string clears it, omit to leave unchanged")] string? android_deep_link = null,
         [Description("Explicit confirmation: required when changing the destination of a link that already has clicks or a bio-page placement")] bool? confirmed = null,
         CancellationToken ct = default)
     {
@@ -225,6 +278,74 @@ public static class McpLinkWriteTools
             changes.Add("tags");
         }
 
+        var metadataTouched = utm_source is not null || utm_medium is not null || utm_campaign is not null
+            || utm_term is not null || utm_content is not null
+            || pixel_snippet is not null || pixel_id is not null || pixel_snippet_html is not null
+            || ios_deep_link is not null || android_deep_link is not null;
+
+        if (metadataTouched)
+        {
+            var existing = link.Metadata;
+
+            var mergedUtm = new UtmParameters(
+                MergeNullable(utm_source, existing?.UtmSource),
+                MergeNullable(utm_medium, existing?.UtmMedium),
+                MergeNullable(utm_campaign, existing?.UtmCampaign),
+                MergeNullable(utm_term, existing?.UtmTerm),
+                MergeNullable(utm_content, existing?.UtmContent));
+
+            long? mergedPixelSnippetId = existing?.PixelSnippetId;
+            string? mergedPixelValue = existing?.PixelId;
+            if (pixel_snippet is not null)
+            {
+                var (id, value, error) = await ResolvePixelSelectionAsync(db, pixel_snippet, pixel_id, pixel_snippet_html, ct);
+                if (error is not null)
+                    return error;
+                mergedPixelSnippetId = id;
+                mergedPixelValue = value;
+            }
+            else if (pixel_id is not null || pixel_snippet_html is not null)
+            {
+                if (mergedPixelSnippetId is null)
+                    return "Error: no pixel snippet is currently attached to this link; pass pixel_snippet to choose one.";
+                var currentSnippet = existing?.PixelSnippet
+                    ?? await db.PixelSnippets.FirstOrDefaultAsync(p => p.Id == mergedPixelSnippetId, ct);
+                mergedPixelValue = (currentSnippet?.IsCustom == true ? pixel_snippet_html : pixel_id)?.Trim();
+            }
+
+            var mergedIos = MergeNullable(ios_deep_link, existing?.IosDeepLink);
+            var mergedAndroid = MergeNullable(android_deep_link, existing?.AndroidDeepLink);
+
+            if (!mergedUtm.IsEmpty)
+                link.LongUrl = UtmBuilder.AppendUtm(link.LongUrl, mergedUtm);
+
+            var hasMetadata = !mergedUtm.IsEmpty || mergedPixelSnippetId is not null
+                || mergedIos is not null || mergedAndroid is not null;
+            if (hasMetadata)
+            {
+                if (link.Metadata is null)
+                {
+                    link.Metadata = new ShortenedUrlMetadata { ShortenedUrlId = link.Id };
+                    db.ShortenedUrlMetadatas.Add(link.Metadata);
+                }
+                link.Metadata.UtmSource = mergedUtm.Source;
+                link.Metadata.UtmMedium = mergedUtm.Medium;
+                link.Metadata.UtmCampaign = mergedUtm.Campaign;
+                link.Metadata.UtmTerm = mergedUtm.Term;
+                link.Metadata.UtmContent = mergedUtm.Content;
+                link.Metadata.PixelSnippetId = mergedPixelSnippetId;
+                link.Metadata.PixelId = mergedPixelValue;
+                link.Metadata.IosDeepLink = mergedIos;
+                link.Metadata.AndroidDeepLink = mergedAndroid;
+            }
+            else if (link.Metadata is not null)
+            {
+                db.ShortenedUrlMetadatas.Remove(link.Metadata);
+                link.Metadata = null;
+            }
+            changes.Add("campaign metadata");
+        }
+
         if (changes.Count == 0)
             return "No changes were requested or needed.";
 
@@ -241,8 +362,12 @@ public static class McpLinkWriteTools
             "update_link", nameof(ShortenedUrl), link.Id,
             $"Updated short link '{code}': {string.Join(", ", changes)}");
 
+        var resultPixelName = link.Metadata?.PixelSnippet?.Name
+            ?? await ResolvePixelNameAsync(db, link.Metadata?.PixelSnippetId, ct);
+
         return McpToolGuard.Json(new LinkResult(link.ShortCode, resultDomain, link.LongUrl, link.ClickCount,
-            link.Title, link.Description, tagsNow, link.ArchivedAtUtc, link.Workspace?.Slug));
+            link.Title, link.Description, tagsNow, link.ArchivedAtUtc, link.Workspace?.Slug,
+            ToMetadataResult(link.Metadata, resultPixelName)));
     }
 
     [McpServerTool(Name = "archive_link", Title = "Archive a short link")]
@@ -352,8 +477,12 @@ public static class McpLinkWriteTools
             "transfer_link", nameof(ShortenedUrl), link.Id,
             $"Transferred short link '{code}' to workspace '{target.Slug}'");
 
+        var transferPixelName = link.Metadata?.PixelSnippet?.Name
+            ?? await ResolvePixelNameAsync(db, link.Metadata?.PixelSnippetId, ct);
+
         return McpToolGuard.Json(new LinkResult(link.ShortCode, link.Domain?.Hostname, link.LongUrl, link.ClickCount,
-            link.Title, link.Description, [], link.ArchivedAtUtc, target.Slug));
+            link.Title, link.Description, [], link.ArchivedAtUtc, target.Slug,
+            ToMetadataResult(link.Metadata, transferPixelName)));
     }
 
     [McpServerTool(Name = "delete_link", Title = "Delete a short link")]
@@ -400,7 +529,14 @@ public static class McpLinkWriteTools
     private sealed record LinkResult(
         string ShortCode, string? Domain, string LongUrl, long ClickCount,
         string? Title, string? Description, IReadOnlyList<string> Tags,
-        DateTime? ArchivedAtUtc, string? Workspace);
+        DateTime? ArchivedAtUtc, string? Workspace, LinkMetadataResult? Metadata = null);
+
+    /// <summary>Campaign metadata surfaced on link results: UTM components, the
+    /// resolved retargeting pixel snippet's name (not its numeric id) and value,
+    /// and platform deep links.</summary>
+    private sealed record LinkMetadataResult(
+        string? UtmSource, string? UtmMedium, string? UtmCampaign, string? UtmTerm, string? UtmContent,
+        string? PixelSnippet, string? PixelValue, string? IosDeepLink, string? AndroidDeepLink);
 
     private static async Task ReplaceTagsAsync(AppDbContext db, long linkId, IEnumerable<string> names, CancellationToken ct)
     {
@@ -415,4 +551,43 @@ public static class McpLinkWriteTools
             CreatedAtUtc = DateTime.UtcNow
         }));
     }
+
+    /// <summary>
+    /// Resolves a pixel_snippet name argument (see list_pixel_snippets) into a
+    /// PixelSnippet id + the value to store (pixel_id for template snippets,
+    /// pixel_snippet_html for the custom snippet). A null/empty name means "no
+    /// selection" and returns (null, null, null) rather than an error.
+    /// </summary>
+    private static async Task<(long? Id, string? Value, string? Error)> ResolvePixelSelectionAsync(
+        AppDbContext db, string? pixelSnippetName, string? pixelId, string? pixelSnippetHtml, CancellationToken ct)
+    {
+        var name = pixelSnippetName?.Trim() ?? "";
+        if (name.Length == 0)
+            return (null, null, null);
+
+        var snippet = await db.PixelSnippets.FirstOrDefaultAsync(p => p.Name.ToLower() == name.ToLower(), ct);
+        if (snippet is null)
+            return (null, null, $"Error: no pixel snippet named '{name}'. Use list_pixel_snippets to see available names.");
+
+        var value = (snippet.IsCustom ? pixelSnippetHtml : pixelId)?.Trim();
+        if (string.IsNullOrWhiteSpace(value))
+            return (null, null, snippet.IsCustom
+                ? "Error: pixel_snippet_html is required when selecting a custom pixel snippet."
+                : "Error: pixel_id is required when selecting a template pixel snippet.");
+
+        return (snippet.Id, value, null);
+    }
+
+    private static async Task<string?> ResolvePixelNameAsync(AppDbContext db, long? pixelSnippetId, CancellationToken ct) =>
+        pixelSnippetId is null ? null : (await db.PixelSnippets.FirstOrDefaultAsync(p => p.Id == pixelSnippetId, ct))?.Name;
+
+    /// <summary>An update argument that's non-null replaces the current value (trimmed;
+    /// empty clears it to null); a null argument means "leave unchanged".</summary>
+    private static string? MergeNullable(string? provided, string? current) =>
+        provided is not null ? (provided.Trim().Length > 0 ? provided.Trim() : null) : current;
+
+    private static LinkMetadataResult? ToMetadataResult(ShortenedUrlMetadata? metadata, string? pixelSnippetName) =>
+        metadata is null ? null : new LinkMetadataResult(
+            metadata.UtmSource, metadata.UtmMedium, metadata.UtmCampaign, metadata.UtmTerm, metadata.UtmContent,
+            pixelSnippetName, metadata.PixelId, metadata.IosDeepLink, metadata.AndroidDeepLink);
 }

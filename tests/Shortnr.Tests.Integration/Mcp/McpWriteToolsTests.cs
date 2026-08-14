@@ -86,6 +86,179 @@ public class McpWriteToolsTests : McpTestBase
     }
 
     [Fact]
+    public async Task CreateShortLink_WithUtmParams_AppendsToUrlAndReturnsMetadata()
+    {
+        await SeedUserAndKeyAsync("create-owner", TestKey, ApiKeyScopes.McpWrite);
+        var client = CreateAuthorizedClient(TestKey);
+
+        var response = await PostJsonRpcAsync(client, "tools/call",
+            """{"name":"create_short_link","arguments":{"url":"https://example.com/spring","utm_source":"newsletter","utm_medium":"email","utm_campaign":"spring-sale"}}""");
+
+        using var json = await ReadJsonAsync(response);
+        var text = ToolText(json.RootElement.GetProperty("result"));
+        using var doc = JsonDocument.Parse(text);
+        var longUrl = doc.RootElement.GetProperty("longUrl").GetString();
+        Assert.Contains("utm_source=newsletter", longUrl);
+        Assert.Contains("utm_medium=email", longUrl);
+        Assert.Contains("utm_campaign=spring-sale", longUrl);
+        var metadata = doc.RootElement.GetProperty("metadata");
+        Assert.Equal("newsletter", metadata.GetProperty("utmSource").GetString());
+        Assert.Equal("spring-sale", metadata.GetProperty("utmCampaign").GetString());
+    }
+
+    [Fact]
+    public async Task CreateShortLink_WithTemplatePixelSnippet_SavesMetadata()
+    {
+        await SeedUserAndKeyAsync("create-owner", TestKey, ApiKeyScopes.McpWrite);
+        var client = CreateAuthorizedClient(TestKey);
+
+        var response = await PostJsonRpcAsync(client, "tools/call",
+            """{"name":"create_short_link","arguments":{"url":"https://example.com/x","pixel_snippet":"Meta Pixel","pixel_id":"1234567890"}}""");
+
+        using var json = await ReadJsonAsync(response);
+        var text = ToolText(json.RootElement.GetProperty("result"));
+        using var doc = JsonDocument.Parse(text);
+        var metadata = doc.RootElement.GetProperty("metadata");
+        Assert.Equal("Meta Pixel", metadata.GetProperty("pixelSnippet").GetString());
+        Assert.Equal("1234567890", metadata.GetProperty("pixelValue").GetString());
+    }
+
+    [Fact]
+    public async Task CreateShortLink_PixelSnippetWithoutValue_ReturnsError()
+    {
+        await SeedUserAndKeyAsync("create-owner", TestKey, ApiKeyScopes.McpWrite);
+        var client = CreateAuthorizedClient(TestKey);
+
+        var response = await PostJsonRpcAsync(client, "tools/call",
+            """{"name":"create_short_link","arguments":{"url":"https://example.com/x","pixel_snippet":"Meta Pixel"}}""");
+
+        using var json = await ReadJsonAsync(response);
+        var text = ToolText(json.RootElement.GetProperty("result"));
+        Assert.Contains("pixel_id is required", text);
+    }
+
+    [Fact]
+    public async Task CreateShortLink_UnknownPixelSnippet_ReturnsError()
+    {
+        await SeedUserAndKeyAsync("create-owner", TestKey, ApiKeyScopes.McpWrite);
+        var client = CreateAuthorizedClient(TestKey);
+
+        var response = await PostJsonRpcAsync(client, "tools/call",
+            """{"name":"create_short_link","arguments":{"url":"https://example.com/x","pixel_snippet":"Not A Real Snippet"}}""");
+
+        using var json = await ReadJsonAsync(response);
+        var text = ToolText(json.RootElement.GetProperty("result"));
+        Assert.Contains("no pixel snippet named", text);
+    }
+
+    [Fact]
+    public async Task CreateShortLink_WithDeepLinks_SavesMetadata()
+    {
+        await SeedUserAndKeyAsync("create-owner", TestKey, ApiKeyScopes.McpWrite);
+        var client = CreateAuthorizedClient(TestKey);
+
+        var response = await PostJsonRpcAsync(client, "tools/call",
+            """{"name":"create_short_link","arguments":{"url":"https://example.com/x","ios_deep_link":"myapp://open","android_deep_link":"https://play.google.com/store/apps/details?id=com.example.app"}}""");
+
+        using var json = await ReadJsonAsync(response);
+        var text = ToolText(json.RootElement.GetProperty("result"));
+        using var doc = JsonDocument.Parse(text);
+        var metadata = doc.RootElement.GetProperty("metadata");
+        Assert.Equal("myapp://open", metadata.GetProperty("iosDeepLink").GetString());
+        Assert.Equal("https://play.google.com/store/apps/details?id=com.example.app", metadata.GetProperty("androidDeepLink").GetString());
+    }
+
+    [Fact]
+    public async Task UpdateLink_ChangesOneUtmField_KeepsOthers()
+    {
+        var owner = await SeedUserAndKeyAsync("update-owner", TestKey, ApiKeyScopes.McpWrite);
+        var linkId = await SeedLinkAsync(owner, "aaaaaa", "https://example.com/old");
+        await SeedMetadataAsync(linkId, utmCampaign: "old-campaign");
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var metadata = await db.ShortenedUrlMetadatas.SingleAsync(m => m.ShortenedUrlId == linkId);
+            metadata.UtmSource = "newsletter";
+            await db.SaveChangesAsync();
+        }
+        var client = CreateAuthorizedClient(TestKey);
+
+        var response = await PostJsonRpcAsync(client, "tools/call",
+            """{"name":"update_link","arguments":{"short_code":"aaaaaa","utm_campaign":"new-campaign"}}""");
+
+        using var json = await ReadJsonAsync(response);
+        var text = ToolText(json.RootElement.GetProperty("result"));
+        using var doc = JsonDocument.Parse(text);
+        var metadataResult = doc.RootElement.GetProperty("metadata");
+        Assert.Equal("new-campaign", metadataResult.GetProperty("utmCampaign").GetString());
+        Assert.Equal("newsletter", metadataResult.GetProperty("utmSource").GetString());
+    }
+
+    [Fact]
+    public async Task UpdateLink_ClearingUtmFieldWithEmptyString_RemovesJustThatField()
+    {
+        var owner = await SeedUserAndKeyAsync("update-owner", TestKey, ApiKeyScopes.McpWrite);
+        var linkId = await SeedLinkAsync(owner, "aaaaaa", "https://example.com/old");
+        await SeedMetadataAsync(linkId, utmCampaign: "spring-sale");
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var metadata = await db.ShortenedUrlMetadatas.SingleAsync(m => m.ShortenedUrlId == linkId);
+            metadata.UtmSource = "newsletter";
+            await db.SaveChangesAsync();
+        }
+        var client = CreateAuthorizedClient(TestKey);
+
+        var response = await PostJsonRpcAsync(client, "tools/call",
+            """{"name":"update_link","arguments":{"short_code":"aaaaaa","utm_source":""}}""");
+
+        using var json = await ReadJsonAsync(response);
+        var text = ToolText(json.RootElement.GetProperty("result"));
+        using var doc = JsonDocument.Parse(text);
+        var metadataResult = doc.RootElement.GetProperty("metadata");
+        Assert.Equal(JsonValueKind.Null, metadataResult.GetProperty("utmSource").ValueKind);
+        Assert.Equal("spring-sale", metadataResult.GetProperty("utmCampaign").GetString());
+    }
+
+    [Fact]
+    public async Task UpdateLink_ClearingAllMetadataFields_RemovesMetadata()
+    {
+        var owner = await SeedUserAndKeyAsync("update-owner", TestKey, ApiKeyScopes.McpWrite);
+        var linkId = await SeedLinkAsync(owner, "aaaaaa", "https://example.com/old");
+        await SeedMetadataAsync(linkId, iosDeepLink: "myapp://open");
+        var client = CreateAuthorizedClient(TestKey);
+
+        var response = await PostJsonRpcAsync(client, "tools/call",
+            """{"name":"update_link","arguments":{"short_code":"aaaaaa","ios_deep_link":""}}""");
+
+        using (var json = await ReadJsonAsync(response))
+        {
+            var text = ToolText(json.RootElement.GetProperty("result"));
+            using var doc = JsonDocument.Parse(text);
+            Assert.Equal(JsonValueKind.Null, doc.RootElement.GetProperty("metadata").ValueKind);
+        }
+
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Assert.False(await db.ShortenedUrlMetadatas.AnyAsync(m => m.ShortenedUrlId == linkId));
+    }
+
+    [Fact]
+    public async Task UpdateLink_PixelIdWithoutSelectedSnippet_ReturnsError()
+    {
+        var owner = await SeedUserAndKeyAsync("update-owner", TestKey, ApiKeyScopes.McpWrite);
+        await SeedLinkAsync(owner, "aaaaaa", "https://example.com/old");
+        var client = CreateAuthorizedClient(TestKey);
+
+        var response = await PostJsonRpcAsync(client, "tools/call",
+            """{"name":"update_link","arguments":{"short_code":"aaaaaa","pixel_id":"999"}}""");
+
+        using var json = await ReadJsonAsync(response);
+        var text = ToolText(json.RootElement.GetProperty("result"));
+        Assert.Contains("no pixel snippet is currently attached", text);
+    }
+
+    [Fact]
     public async Task UpdateLink_DestinationWithClicks_RequiresConfirmationThenApplies()
     {
         var owner = await SeedUserAndKeyAsync("update-owner", TestKey, ApiKeyScopes.McpWrite);

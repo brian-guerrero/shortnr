@@ -83,6 +83,23 @@ public abstract class McpTestBase : IAsyncLifetime
         return link.Id;
     }
 
+    protected async Task SeedMetadataAsync(long linkId, string? utmCampaign = null, long? pixelSnippetId = null,
+        string? pixelId = null, string? iosDeepLink = null, string? androidDeepLink = null)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.ShortenedUrlMetadatas.Add(new ShortenedUrlMetadata
+        {
+            ShortenedUrlId = linkId,
+            UtmCampaign = utmCampaign,
+            PixelSnippetId = pixelSnippetId,
+            PixelId = pixelId,
+            IosDeepLink = iosDeepLink,
+            AndroidDeepLink = androidDeepLink
+        });
+        await db.SaveChangesAsync();
+    }
+
     protected async Task SeedClickAsync(long linkId, string? referer = null, string? country = null,
         string? device = null, string? browser = null, DateTime? at = null)
     {

@@ -54,6 +54,8 @@ public static class McpToolGuard
     {
         var matches = await db.ShortenedUrls
             .Include(l => l.Domain)
+            .Include(l => l.Metadata)
+            .ThenInclude(m => m!.PixelSnippet)
             .Where(l => l.OwnerUserId == ownerUserId && l.ShortCode == shortCode)
             .ToListAsync(ct);
 
@@ -75,6 +77,8 @@ public static class McpToolGuard
         var personal = await db.ShortenedUrls
             .Include(l => l.Domain)
             .Include(l => l.Workspace)
+            .Include(l => l.Metadata)
+            .ThenInclude(m => m!.PixelSnippet)
             .Where(l => l.OwnerUserId == ownerUserId && l.ShortCode == shortCode)
             .ToListAsync(ct);
 
@@ -91,6 +95,8 @@ public static class McpToolGuard
         var workspaceMatches = await db.ShortenedUrls
             .Include(l => l.Domain)
             .Include(l => l.Workspace)
+            .Include(l => l.Metadata)
+            .ThenInclude(m => m!.PixelSnippet)
             .Where(l => l.ShortCode == shortCode &&
                         l.WorkspaceId != null &&
                         memberWorkspaceIds.Contains(l.WorkspaceId!.Value))
