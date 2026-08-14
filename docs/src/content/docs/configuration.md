@@ -13,8 +13,7 @@ shortnr is configured via `appsettings.json`, environment variables, or command-
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `Database__Provider` | `Sqlite` | Database provider: `Sqlite` or `Postgres`. |
-| `Database__ConnectionString` | *(empty)* | Connection string for the selected provider. Falls back to `ConnectionStrings__DefaultConnection` if not set. |
-| `ConnectionStrings__DefaultConnection` | `Data Source=shortnr.db` | Legacy connection string setting. Used as fallback for SQLite. |
+| `Database__ConnectionString` | *(empty)* | Connection string for the selected provider. Defaults to `Data Source=shortnr.db` for `Sqlite`; required for `Postgres`. |
 | `ASPNETCORE_URLS` | `http://+:5000` (dev) / `http://+:8080` (Docker) | Listening address. |
 
 ### Database providers
@@ -112,13 +111,13 @@ The `/api/v1` endpoints use a separate chained rate limiter per API key: 60 requ
 
 ```bash
 dotnet run --project src/Shortnr.Web -- \
-  --ConnectionStrings:DefaultConnection="Data Source=/mnt/data/shortnr.db"
+  --Database:ConnectionString="Data Source=/mnt/data/shortnr.db"
 ```
 
 Docker:
 
 ```bash
-docker run -e ConnectionStrings__DefaultConnection="Data Source=/data/shortnr.db" ghcr.io/brian-guerrero/shortnr:latest
+docker run -e Database__ConnectionString="Data Source=/data/shortnr.db" ghcr.io/brian-guerrero/shortnr:latest
 ```
 
 ### PostgreSQL

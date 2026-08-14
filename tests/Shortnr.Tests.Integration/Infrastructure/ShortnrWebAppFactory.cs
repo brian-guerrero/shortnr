@@ -74,7 +74,7 @@ public class ShortnrWebAppFactory : WebApplicationFactory<Program>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["ConnectionStrings:DefaultConnection"] = $"DataSource={_dbPath}",
+                ["Database:ConnectionString"] = $"DataSource={_dbPath}",
                 ["Authentication:Enabled"] = _authEnabled ? "true" : "false",
                 ["AiInsights:Enabled"] = _aiInsightsEnabled ? "true" : "false",
                 ["Authentication:Oidc:Authority"] = TestIssuer,

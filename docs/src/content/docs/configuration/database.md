@@ -30,9 +30,8 @@ Two settings control the database. Environment variables use `__` as the hierarc
 |---------|---------|-------------|
 | `Database__Provider` | `Sqlite` | `Sqlite` or `Postgres`. Also accepts `PostgreSQL` / `Npgsql`. Case-insensitive. |
 | `Database__ConnectionString` | *(empty)* | Connection string for the selected provider. |
-| `ConnectionStrings__DefaultConnection` | `Data Source=shortnr.db` | Legacy fallback, used only when `Database__ConnectionString` is empty. |
 
-If neither connection string is set and the provider is `Postgres`, startup fails with `No connection string configured for database provider 'Postgres'`. SQLite falls back to `Data Source=shortnr.db` in the working directory.
+If `Database__ConnectionString` is unset and the provider is `Postgres`, startup fails with `No connection string configured for database provider 'Postgres'`. SQLite falls back to `Data Source=shortnr.db` in the working directory.
 
 ### SQLite
 
@@ -41,7 +40,7 @@ The default. Nothing to configure &mdash; but in Docker you should point it at a
 ```bash
 docker run -p 8080:8080 \
   -v shortnr-data:/data \
-  -e ConnectionStrings__DefaultConnection="Data Source=/data/shortnr.db" \
+  -e Database__ConnectionString="Data Source=/data/shortnr.db" \
   ghcr.io/brian-guerrero/shortnr:latest
 ```
 

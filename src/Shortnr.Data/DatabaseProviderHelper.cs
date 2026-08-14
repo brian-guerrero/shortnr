@@ -34,9 +34,8 @@ public static class DatabaseProviderHelper
 
         return provider switch
         {
-            DatabaseProvider.Sqlite => configuration.GetConnectionString("DefaultConnection")
-                ?? "Data Source=shortnr.db",
-            _ => configuration.GetConnectionString("DefaultConnection")
+            DatabaseProvider.Sqlite => "Data Source=shortnr.db",
+            _ => null
         };
     }
 
