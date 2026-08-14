@@ -352,6 +352,81 @@ input[type="radio"] {
 fieldset { border: none; margin-bottom: var(--sn-space-3); }
 
 /* ============================================================
+   Grouped optional fields (PRD-025) — the index page's advanced
+   options panel.
+
+   Each group is a real <fieldset>/<legend> so screen readers announce
+   the grouping for free; the browser default styles (min-inline-size:
+   min-content, inset border, 0.75em padding) are reset first so the
+   theme's own border/fill applies cleanly. The legend is stamped like a
+   <mark>: accent fill, ink border, small offset shadow — a section tab
+   sitting on the group's top edge (DSG-002 §5).
+
+   Short fields pair up two-per-row so the panel reads as four scannable
+   groups rather than one long column; the labels and inputs drop their
+   own stacking margins and let the grid gap own the rhythm.
+   ============================================================ */
+.advanced-panel { margin-bottom: var(--sn-space-4); }
+
+.advanced-note {
+  margin-bottom: var(--sn-space-3);
+  font-size: var(--sn-text-small);
+}
+
+.field-section {
+  min-inline-size: 0;
+  border: var(--sn-border-width) solid var(--sn-line);
+  background: var(--sn-surface-muted);
+  padding: var(--sn-space-3);
+  margin: 0 0 var(--sn-space-3);
+}
+
+.field-section > legend {
+  padding: 0 var(--sn-space-2);
+  margin-inline-start: var(--sn-space-2);
+  font-size: var(--sn-text-small);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: var(--sn-accent);
+  color: var(--sn-accent-ink);
+  border: var(--sn-border-width) solid var(--sn-line);
+  box-shadow: var(--sn-shadow-offset-sm);
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sn-space-3);
+}
+/* A field that gets the full row (UTM content) — row-major flow keeps
+   DOM order and visual order identical, so tab order stays sane. */
+.field-grid > .field-span { grid-column: 1 / -1; }
+
+.advanced-panel .field > label {
+  margin: 0 0 var(--sn-space-1);
+  font-size: var(--sn-text-small);
+}
+.advanced-panel .field > :is(input, select, textarea) { margin-bottom: 0; }
+.advanced-panel .field + .field { margin-top: var(--sn-space-3); }
+
+/* The pixel-type sub-fields reveal inside their own section, so showing
+   them never shifts the deep-link group below. */
+.field-reveal { margin-top: var(--sn-space-3); }
+
+/* Desktop trims the input padding — these are secondary fields, and the
+   panel is already dense. Below the collapse point the inputs keep their
+   full height so they stay comfortable touch targets. */
+@media (min-width: 641px) {
+  .advanced-panel :is(input, select) { padding-block: var(--sn-space-1); }
+}
+
+@media (max-width: 640px) {
+  .field-grid { grid-template-columns: 1fr; }
+  .field-grid > .field-span { grid-column: auto; }
+}
+
+/* ============================================================
    Buttons — the three tiers of DSG-002 §5.
 
    Primary (bare <button>): accent fill, heavy border, full offset shadow.
