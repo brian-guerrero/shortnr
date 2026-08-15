@@ -42,14 +42,14 @@ public static class McpBioWriteTools
             if (link is null)
                 return $"Error: no link with short code '{short_code}' found.";
 
-            if (await db.BioPageLinks.AnyAsync(b => b.BioPageId == bioPage.Id && b.ShortenedUrlId == link.Id, ct))
-                return "Error: that link is already on your bio page.";
-
             var existing = await db.BioPageLinks
                 .Where(b => b.BioPageId == bioPage.Id)
                 .OrderBy(b => b.SortOrder)
                 .ThenBy(b => b.Id)
                 .ToListAsync(ct);
+
+            if (existing.Any(b => b.ShortenedUrlId == link.Id))
+                return "Error: that link is already on your bio page.";
 
             int insertIndex;
             if (position is null or <= 0)
@@ -65,27 +65,18 @@ public static class McpBioWriteTools
                 insertIndex = position.Value - 1;
             }
 
+            foreach (var entry in existing.Where(b => b.SortOrder >= insertIndex))
+                entry.SortOrder++;
+
             var titleText = (title ?? "").Trim();
             db.BioPageLinks.Add(new BioPageLink
             {
                 BioPageId = bioPage.Id,
                 ShortenedUrlId = link.Id,
                 Title = titleText.Length > 0 ? titleText : link.ShortCode,
-                SortOrder = existing.Count,
+                SortOrder = insertIndex,
                 IsVisible = true
             });
-            await db.SaveChangesAsync(ct);
-
-            var ordered = await db.BioPageLinks
-                .Where(b => b.BioPageId == bioPage.Id)
-                .OrderBy(b => b.SortOrder)
-                .ThenBy(b => b.Id)
-                .ToListAsync(ct);
-            var moved = ordered.First(b => b.ShortenedUrlId == link.Id);
-            ordered.Remove(moved);
-            ordered.Insert(Math.Min(insertIndex, ordered.Count), moved);
-            for (var i = 0; i < ordered.Count; i++)
-                ordered[i].SortOrder = i;
             await db.SaveChangesAsync(ct);
 
             McpToolGuard.LogActivity(activity, ownerUserId.Value, McpToolGuard.ResolveApiKeyId(context),
@@ -112,21 +103,22 @@ public static class McpBioWriteTools
             if (bioPage is null)
                 return "Error: no bio page exists yet.";
 
-            var entry = await db.BioPageLinks
-                .FirstOrDefaultAsync(b => b.BioPageId == bioPage.Id && b.ShortenedUrl!.ShortCode == short_code.Trim(), ct);
-            if (entry is null)
-                return $"Error: no link with short code '{short_code}' is on your bio page.";
-
-            db.BioPageLinks.Remove(entry);
-            await db.SaveChangesAsync(ct);
-
-            var remaining = await db.BioPageLinks
+            var entries = await db.BioPageLinks
+                .Include(b => b.ShortenedUrl)
                 .Where(b => b.BioPageId == bioPage.Id)
                 .OrderBy(b => b.SortOrder)
                 .ThenBy(b => b.Id)
                 .ToListAsync(ct);
-            for (var i = 0; i < remaining.Count; i++)
-                remaining[i].SortOrder = i;
+
+            var code = short_code.Trim();
+            var entry = entries.FirstOrDefault(b => b.ShortenedUrl?.ShortCode == code);
+            if (entry is null)
+                return $"Error: no link with short code '{code}' is on your bio page.";
+
+            db.BioPageLinks.Remove(entry);
+            entries.Remove(entry);
+            for (var i = 0; i < entries.Count; i++)
+                entries[i].SortOrder = i;
             await db.SaveChangesAsync(ct);
 
             McpToolGuard.LogActivity(activity, ownerUserId.Value, McpToolGuard.ResolveApiKeyId(context),

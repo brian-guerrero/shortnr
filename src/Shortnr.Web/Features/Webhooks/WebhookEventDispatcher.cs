@@ -66,7 +66,13 @@ public class WebhookEventDispatcher
 
     public async Task DispatchLinkClickedBatchAsync(long ownerUserId, Dictionary<long, (string ShortCode, string LongUrl, string? Domain, int ClickDelta, long TotalClicks)> linkClicks, DateTime windowStart, DateTime windowEnd, string scheme, string host)
     {
-        foreach (var (linkId, data) in linkClicks)
+        var webhooks = await LoadSubscribedWebhooksAsync(ownerUserId);
+        var subscribed = webhooks
+            .Where(w => WebhookEventTypes.Parse(w.EventTypes).Contains(WebhookEventTypes.LinkClicked))
+            .ToList();
+        if (subscribed.Count == 0) return;
+
+        foreach (var (_, data) in linkClicks)
         {
             var shortUrl = data.Domain is not null
                 ? $"{scheme}://{data.Domain}/{data.ShortCode}"
@@ -85,18 +91,21 @@ public class WebhookEventDispatcher
                     windowStart,
                     windowEnd));
 
-            await EnqueueAsync(ownerUserId, WebhookEventTypes.LinkClicked, payload);
+            foreach (var webhook in subscribed)
+            {
+                _channel.Writer.TryWrite(new WebhookDeliveryRecord
+                {
+                    WebhookId = webhook.Id,
+                    EventType = WebhookEventTypes.LinkClicked,
+                    Payload = payload
+                });
+            }
         }
     }
 
     private async Task EnqueueAsync(long ownerUserId, string eventType, object payload)
     {
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-        var webhooks = await db.Webhooks
-            .Where(w => w.OwnerUserId == ownerUserId && w.IsActive)
-            .ToListAsync();
+        var webhooks = await LoadSubscribedWebhooksAsync(ownerUserId);
 
         foreach (var webhook in webhooks)
         {
@@ -111,5 +120,16 @@ public class WebhookEventDispatcher
                 });
             }
         }
+    }
+
+    private async Task<List<Webhook>> LoadSubscribedWebhooksAsync(long ownerUserId)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        return await db.Webhooks
+            .AsNoTracking()
+            .Where(w => w.OwnerUserId == ownerUserId && w.IsActive)
+            .ToListAsync();
     }
 }

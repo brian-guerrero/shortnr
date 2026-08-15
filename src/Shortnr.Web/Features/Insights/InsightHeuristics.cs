@@ -47,21 +47,22 @@ public static class InsightHeuristics
         var clusters = clicks
             .Where(c => !string.IsNullOrWhiteSpace(c.Referer))
             .GroupBy(c => NormalizeReferrerHost(c.Referer), StringComparer.OrdinalIgnoreCase)
-            .Select(g => new { Host = g.Key, Clicks = g.ToList() })
-            .Where(g => g.Clicks.Count >= MinReferrerClicksForSuggestion);
+            .Where(g => !string.IsNullOrWhiteSpace(g.Key));
 
         foreach (var cluster in clusters)
         {
-            if ((double)cluster.Clicks.Count / total < ReferrerClusterRatio) continue;
+            var count = cluster.Count();
+            if (count < MinReferrerClicksForSuggestion) continue;
+            if ((double)count / total < ReferrerClusterRatio) continue;
 
-            var tag = CleanTag(cluster.Host);
+            var tag = CleanTag(cluster.Key);
             if (tag.Length == 0) continue;
 
             drafts.Add(new TagSuggestionDraft(
                 tag,
                 TagSuggestionSource.ReferrerDomainCluster,
-                cluster.Clicks.Count,
-                cluster.Clicks.Min(c => c.ClickedAtUtc)));
+                count,
+                cluster.Min(c => c.ClickedAtUtc)));
         }
     }
 
