@@ -531,6 +531,46 @@ namespace Shortnr.Data.Postgres.Migrations
                     b.ToTable("Domains");
                 });
 
+            modelBuilder.Entity("Shortnr.Data.Entities.LlmInsightRun", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Content")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FriendlyMessage")
+                        .HasColumnType("text");
+
+                    b.Property<string>("InputSummary")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long?>("OwnerUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("Success")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerUserId", "CreatedAtUtc");
+
+                    b.ToTable("LlmInsightRuns");
+                });
+
             modelBuilder.Entity("Shortnr.Data.Entities.LlmUsageLog", b =>
                 {
                     b.Property<long>("Id")
@@ -1086,6 +1126,16 @@ namespace Shortnr.Data.Postgres.Migrations
                     b.Navigation("Owner");
 
                     b.Navigation("Workspace");
+                });
+
+            modelBuilder.Entity("Shortnr.Data.Entities.LlmInsightRun", b =>
+                {
+                    b.HasOne("Shortnr.Data.Entities.User", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Owner");
                 });
 
             modelBuilder.Entity("Shortnr.Data.Entities.LlmUsageLog", b =>

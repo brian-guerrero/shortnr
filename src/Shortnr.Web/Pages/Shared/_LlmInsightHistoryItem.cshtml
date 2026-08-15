@@ -1,0 +1,22 @@
+@model Shortnr.Web.Features.Insights.Llm.LlmInsightRunRow
+<article class="llm-history-item">
+    <header class="llm-history-item-header">
+        <partial name="Shared/_Badge" model="@(new BadgeViewModel { Kind = Model.Success ? StatusKind.Success : StatusKind.Error, Text = Model.OperationLabel })" />
+        @if (!string.IsNullOrEmpty(Model.InputSummary))
+        {
+            <code>@Model.InputSummary</code>
+        }
+        <time datetime="@Model.CreatedAtUtc.ToString("O")">@Model.CreatedAtUtc.ToString("MMM d, HH:mm")</time>
+    </header>
+    @if (Model.Success)
+    {
+        <mark class="status-info">AI-generated — verify before publishing.</mark>
+        <p class="llm-result" style="white-space: pre-wrap;">@Model.Content</p>
+    }
+    else
+    {
+        <mark class="banner status-error">
+            <strong>@Model.FriendlyMessage</strong>
+        </mark>
+    }
+</article>

@@ -7,36 +7,66 @@
 
 @if (Model.LlmEnabled)
 {
-    <article class="ai-activity">
+    <article class="ai-activity" x-data="{ action: 'analyze' }" x-cloak>
         <hgroup>
             <h2>Ask AI</h2>
             <p>Explain what's driving a link's traffic, optimize a campaign, draft social copy, or suggest tags for a new URL.
                 <mark class="status-info">AI-generated — verify before publishing.</mark></p>
         </hgroup>
-        <div class="grid">
-            <form hx-post="/insights?handler=Analyze" hx-target="#llm-insights" hx-swap="innerHTML">
-                @Html.AntiForgeryToken()
-                <input type="text" name="code" placeholder="Short code (e.g. a1b2c3)" aria-label="Short code to analyze">
-                <button type="submit" class="btn-sm">Analyze traffic</button>
-            </form>
-            <form hx-post="/insights?handler=OptimizeCampaign" hx-target="#llm-insights" hx-swap="innerHTML">
-                @Html.AntiForgeryToken()
-                <input type="text" name="tag" placeholder="Campaign tag (e.g. campaign-summer)" aria-label="Campaign tag">
-                <button type="submit" class="btn-sm">Optimize campaign</button>
-            </form>
-            <form hx-post="/insights?handler=DraftSocialCopy" hx-target="#llm-insights" hx-swap="innerHTML">
-                @Html.AntiForgeryToken()
-                <input type="text" name="code" placeholder="Short code" aria-label="Short code for social copy">
-                <button type="submit" class="btn-sm">Draft social copy</button>
-            </form>
-            <form hx-post="/insights?handler=SuggestTags" hx-target="#llm-insights" hx-swap="innerHTML">
-                @Html.AntiForgeryToken()
-                <input type="text" name="url" placeholder="https://example.com/new-page" aria-label="Destination URL">
-                <button type="submit" class="btn-sm">Suggest tags</button>
-            </form>
+
+        <label for="ai-action">What do you want to do?</label>
+        <select id="ai-action" x-model="action">
+            <option value="analyze">Explain a link's traffic</option>
+            <option value="campaign">Optimize a campaign</option>
+            <option value="social">Draft social copy for a link</option>
+            <option value="tags">Suggest tags for a new URL</option>
+        </select>
+
+        <form x-show="action === 'analyze'" hx-post="/insights?handler=Analyze" hx-target="#llm-insights" hx-swap="innerHTML"
+              hx-indicator="#llm-busy" hx-disabled-elt="find button" class="inline-form">
+            @Html.AntiForgeryToken()
+            <input type="text" name="code" list="short-code-options" placeholder="Short code (e.g. a1b2c3)" aria-label="Short code to analyze" autocomplete="off">
+            <button type="submit">Analyze traffic</button>
+        </form>
+        <form x-show="action === 'campaign'" hx-post="/insights?handler=OptimizeCampaign" hx-target="#llm-insights" hx-swap="innerHTML"
+              hx-indicator="#llm-busy" hx-disabled-elt="find button" class="inline-form">
+            @Html.AntiForgeryToken()
+            <input type="text" name="tag" list="campaign-tag-options" placeholder="Campaign tag (e.g. campaign-summer)" aria-label="Campaign tag" autocomplete="off">
+            <button type="submit">Optimize campaign</button>
+        </form>
+        <form x-show="action === 'social'" hx-post="/insights?handler=DraftSocialCopy" hx-target="#llm-insights" hx-swap="innerHTML"
+              hx-indicator="#llm-busy" hx-disabled-elt="find button" class="inline-form">
+            @Html.AntiForgeryToken()
+            <input type="text" name="code" list="short-code-options" placeholder="Short code" aria-label="Short code for social copy" autocomplete="off">
+            <button type="submit">Draft social copy</button>
+        </form>
+        <form x-show="action === 'tags'" hx-post="/insights?handler=SuggestTags" hx-target="#llm-insights" hx-swap="innerHTML"
+              hx-indicator="#llm-busy" hx-disabled-elt="find button" class="inline-form">
+            @Html.AntiForgeryToken()
+            <input type="text" name="url" placeholder="https://example.com/new-page" aria-label="Destination URL">
+            <button type="submit">Suggest tags</button>
+        </form>
+
+        <datalist id="short-code-options">
+            @foreach (var code in Model.ShortCodeOptions)
+            {
+                <option value="@code"></option>
+            }
+        </datalist>
+        <datalist id="campaign-tag-options">
+            @foreach (var tag in Model.CampaignTagOptions)
+            {
+                <option value="@tag"></option>
+            }
+        </datalist>
+
+        <p id="llm-busy" class="htmx-indicator" aria-busy="true">Thinking…</p>
+
+        <div id="llm-insights" class="stack-md">
+            <partial name="Shared/_LlmInsightHistory" model="Model" />
         </div>
-        <div id="llm-insights"></div>
     </article>
+    <script src="/lib/alpinejs/dist/cdn.min.js"></script>
 }
 
 <form hx-post="/insights?handler=RunNow" hx-target="#insights-list" hx-swap="innerHTML"

@@ -167,6 +167,20 @@ public class LlmInsightsPageTests : IAsyncLifetime
         Assert.Contains("verify before publishing", html);
     }
 
+    [Fact]
+    public async Task Get_PopulatesTypeaheadDatalists_ScopedToOwner()
+    {
+        var client = AuthenticatedClient();
+
+        var html = await (await client.GetAsync("/insights")).Content.ReadAsStringAsync();
+
+        // alice's own short code and campaign tag show up as options...
+        Assert.Contains("""<option value="aaa111">""", html);
+        Assert.Contains("""<option value="campaign-summer">""", html);
+        // ...but bob's link never does, even though it exists in the same DB.
+        Assert.DoesNotContain("""<option value="bbb222">""", html);
+    }
+
     // -------------------------------------------------------------------------
     // Each analysis endpoint (happy path)
     // -------------------------------------------------------------------------
@@ -339,6 +353,72 @@ public class LlmInsightsPageTests : IAsyncLifetime
         Assert.Equal(20, row.CompletionTokens);
         Assert.True(row.EstimatedCostUsd > 0);
         Assert.Equal(_alice.Id, row.OwnerUserId);
+    }
+
+    // -------------------------------------------------------------------------
+    // Persistent history (survives a refresh, not just the htmx swap)
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task History_PersistsAcrossRequests_AndSurvivesPlainGet()
+    {
+        var client = AuthenticatedClient();
+        var token = await GetAntiforgeryTokenAsync(client);
+
+        await PostFormAsync(client, "/insights?handler=Analyze", token, ("code", "aaa111"));
+        await PostFormAsync(client, "/insights?handler=SuggestTags", token, ("url", "https://example.com/guide"));
+
+        // A plain GET (no htmx header, simulating a page refresh) must show both prior runs,
+        // not just whatever the most recent htmx swap left in the DOM.
+        var html = await (await client.GetAsync("/insights")).Content.ReadAsStringAsync();
+
+        Assert.Contains("aaa111", html);
+        Assert.Contains("https://example.com/guide", html);
+        Assert.Contains("Traffic spiked because of a Reddit post", html);
+    }
+
+    [Fact]
+    public async Task NotFoundResult_IsNotPersistedToHistory()
+    {
+        var client = AuthenticatedClient();
+        var token = await GetAntiforgeryTokenAsync(client);
+
+        await PostFormAsync(client, "/insights?handler=Analyze", token, ("code", "zzz999"));
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Assert.Empty(await db.LlmInsightRuns.ToListAsync());
+    }
+
+    [Fact]
+    public async Task SuccessfulRun_PersistsToLlmInsightRunsTable()
+    {
+        var client = AuthenticatedClient();
+        var token = await GetAntiforgeryTokenAsync(client);
+
+        await PostFormAsync(client, "/insights?handler=Analyze", token, ("code", "aaa111"));
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var row = Assert.Single(await db.LlmInsightRuns.ToListAsync());
+        Assert.Equal(_alice.Id, row.OwnerUserId);
+        Assert.Equal("AnalyzeTraffic", row.Operation);
+        Assert.Equal("aaa111", row.InputSummary);
+        Assert.True(row.Success);
+        Assert.Contains("Traffic spiked because of a Reddit post", row.Content);
+    }
+
+    [Fact]
+    public async Task FailedRun_PersistsToHistory_AndAppearsOnRefresh()
+    {
+        using var factory = MakeStubFactory(new FakeChatClient { Throw = new LlmException("rate limited", LlmErrorKind.RateLimit) });
+        var client = AuthenticatedClient(factory);
+        var token = await GetAntiforgeryTokenAsync(client);
+
+        await PostFormAsync(client, "/insights?handler=SuggestTags", token, ("url", "https://example.com/x"));
+
+        var html = await (await client.GetAsync("/insights")).Content.ReadAsStringAsync();
+        Assert.Contains("rate-limited", html);
     }
 
     // -------------------------------------------------------------------------

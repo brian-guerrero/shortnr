@@ -18,6 +18,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<BioPageLink> BioPageLinks => Set<BioPageLink>();
     public DbSet<AiActivityLog> AiActivityLogs => Set<AiActivityLog>();
     public DbSet<LlmUsageLog> LlmUsageLogs => Set<LlmUsageLog>();
+    public DbSet<LlmInsightRun> LlmInsightRuns => Set<LlmInsightRun>();
     public DbSet<Workspace> Workspaces => Set<Workspace>();
     public DbSet<WorkspaceMember> WorkspaceMembers => Set<WorkspaceMember>();
     public DbSet<Webhook> Webhooks => Set<Webhook>();
@@ -71,6 +72,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                     e.CreatedAtUtc = now;
                     break;
                 case LlmUsageLog e when e.CreatedAtUtc == default:
+                    e.CreatedAtUtc = now;
+                    break;
+                case LlmInsightRun e when e.CreatedAtUtc == default:
                     e.CreatedAtUtc = now;
                     break;
                 case Workspace e when e.CreatedAtUtc == default:
@@ -328,6 +332,19 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.Operation).IsRequired().HasMaxLength(64);
             entity.Property(e => e.ErrorKind).HasMaxLength(32);
             entity.HasIndex(e => e.CreatedAtUtc);
+
+            entity.HasOne(e => e.Owner)
+                .WithMany()
+                .HasForeignKey(e => e.OwnerUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<LlmInsightRun>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Operation).IsRequired().HasMaxLength(64);
+            entity.Property(e => e.InputSummary).IsRequired().HasMaxLength(512);
+            entity.HasIndex(e => new { e.OwnerUserId, e.CreatedAtUtc });
 
             entity.HasOne(e => e.Owner)
                 .WithMany()

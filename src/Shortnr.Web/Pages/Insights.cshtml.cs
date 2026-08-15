@@ -26,18 +26,29 @@ public class InsightsModel : PageModel, IStatusMessages
     private readonly IConfiguration _config;
     private readonly AiInsightsOptions _options;
     private readonly LlmInsightService _llmInsights;
+    private readonly LlmInsightHistoryService _history;
 
     public InsightsModel(AppDbContext db, UserIdentityService identity, IConfiguration config,
-        IOptions<AiInsightsOptions> options, LlmInsightService llmInsights)
+        IOptions<AiInsightsOptions> options, LlmInsightService llmInsights, LlmInsightHistoryService history)
     {
         _db = db;
         _identity = identity;
         _config = config;
         _options = options.Value;
         _llmInsights = llmInsights;
+        _history = history;
     }
 
     public List<InsightSuggestionRow> Suggestions { get; set; } = [];
+    public List<LlmInsightRunRow> RecentRuns { get; set; } = [];
+    /// <summary>A local-validation miss (bad short code/tag/URL) from the most recent "Ask AI"
+    /// POST -- never reached the provider, so it's rendered once as a banner rather than
+    /// persisted to <see cref="RecentRuns"/>. Null on every other request.</summary>
+    public LlmInsightResult? TransientResult { get; set; }
+    /// <summary>Backs the &lt;datalist&gt; typeahead on the short-code inputs (Analyze/Draft social copy).</summary>
+    public List<string> ShortCodeOptions { get; set; } = [];
+    /// <summary>Backs the &lt;datalist&gt; typeahead on the campaign-tag input (Optimize campaign).</summary>
+    public List<string> CampaignTagOptions { get; set; } = [];
     public string? StatusMessage { get; set; }
     public string? ErrorMessage { get; set; }
     public int AnalysisIntervalHours => _options.AnalysisIntervalHours;
@@ -56,6 +67,11 @@ public class InsightsModel : PageModel, IStatusMessages
             return Partial("Shared/_InsightsList", this);
 
         Suggestions = await LoadSuggestionsAsync();
+        if (LlmEnabled)
+        {
+            RecentRuns = await _history.RecentAsync(await _identity.ResolveOwnerUserIdAsync(User));
+            await LoadAskAiOptionsAsync();
+        }
         return Page();
     }
 
@@ -87,56 +103,60 @@ public class InsightsModel : PageModel, IStatusMessages
     // -------------------------------------------------------------------------
 
     /// <summary>POST /insights?handler=Analyze — explain a link's traffic patterns.</summary>
-    public Task<IActionResult> OnPostAnalyzeAsync(string? code) => RunLlmAsync(async (ownerUserId, workspaceId) =>
-    {
-        if (string.IsNullOrWhiteSpace(code))
-            return LlmResultNotFound("Enter a short code first.");
+    public Task<IActionResult> OnPostAnalyzeAsync(string? code) =>
+        RunLlmAsync(LlmOperation.AnalyzeTraffic, code ?? "", async (ownerUserId, workspaceId) =>
+        {
+            if (string.IsNullOrWhiteSpace(code))
+                return LlmResultNotFound("Enter a short code first.");
 
-        var summary = await BuildScopedLinkSummaryAsync(code, ownerUserId, workspaceId);
-        if (summary is null)
-            return LlmResultNotFound($"No link with code '{code}' was found in your account.");
+            var summary = await BuildScopedLinkSummaryAsync(code, ownerUserId, workspaceId);
+            if (summary is null)
+                return LlmResultNotFound($"No link with code '{code}' was found in your account.");
 
-        return await _llmInsights.CompleteAsync(
-            LlmPromptFactory.AnalyzeTraffic(code, summary, _llmInsights.Model), ownerUserId);
-    });
+            return await _llmInsights.CompleteAsync(
+                LlmPromptFactory.AnalyzeTraffic(code, summary, _llmInsights.Model), ownerUserId);
+        });
 
     /// <summary>POST /insights?handler=OptimizeCampaign — suggest campaign optimizations.</summary>
-    public Task<IActionResult> OnPostOptimizeCampaignAsync(string? tag) => RunLlmAsync(async (ownerUserId, workspaceId) =>
-    {
-        if (string.IsNullOrWhiteSpace(tag))
-            return LlmResultNotFound("Enter a campaign tag first.");
+    public Task<IActionResult> OnPostOptimizeCampaignAsync(string? tag) =>
+        RunLlmAsync(LlmOperation.OptimizeCampaign, tag ?? "", async (ownerUserId, workspaceId) =>
+        {
+            if (string.IsNullOrWhiteSpace(tag))
+                return LlmResultNotFound("Enter a campaign tag first.");
 
-        var summary = await BuildCampaignSummaryAsync(tag, ownerUserId, workspaceId);
-        if (summary is null)
-            return LlmResultNotFound($"No links tagged '{tag}' were found in your account.");
+            var summary = await BuildCampaignSummaryAsync(tag, ownerUserId, workspaceId);
+            if (summary is null)
+                return LlmResultNotFound($"No links tagged '{tag}' were found in your account.");
 
-        return await _llmInsights.CompleteAsync(
-            LlmPromptFactory.OptimizeCampaign(tag, summary, _llmInsights.Model), ownerUserId);
-    });
+            return await _llmInsights.CompleteAsync(
+                LlmPromptFactory.OptimizeCampaign(tag, summary, _llmInsights.Model), ownerUserId);
+        });
 
     /// <summary>POST /insights?handler=DraftSocialCopy — draft social copy for a link.</summary>
-    public Task<IActionResult> OnPostDraftSocialCopyAsync(string? code) => RunLlmAsync(async (ownerUserId, workspaceId) =>
-    {
-        if (string.IsNullOrWhiteSpace(code))
-            return LlmResultNotFound("Enter a short code first.");
+    public Task<IActionResult> OnPostDraftSocialCopyAsync(string? code) =>
+        RunLlmAsync(LlmOperation.DraftSocialCopy, code ?? "", async (ownerUserId, workspaceId) =>
+        {
+            if (string.IsNullOrWhiteSpace(code))
+                return LlmResultNotFound("Enter a short code first.");
 
-        var summary = await BuildScopedLinkSummaryAsync(code, ownerUserId, workspaceId);
-        if (summary is null)
-            return LlmResultNotFound($"No link with code '{code}' was found in your account.");
+            var summary = await BuildScopedLinkSummaryAsync(code, ownerUserId, workspaceId);
+            if (summary is null)
+                return LlmResultNotFound($"No link with code '{code}' was found in your account.");
 
-        return await _llmInsights.CompleteAsync(
-            LlmPromptFactory.DraftSocialCopy(code, summary, _llmInsights.Model), ownerUserId);
-    });
+            return await _llmInsights.CompleteAsync(
+                LlmPromptFactory.DraftSocialCopy(code, summary, _llmInsights.Model), ownerUserId);
+        });
 
     /// <summary>POST /insights?handler=SuggestTags — suggest tags for a new destination URL.</summary>
-    public Task<IActionResult> OnPostSuggestTagsAsync(string? url) => RunLlmAsync(async (ownerUserId, workspaceId) =>
-    {
-        if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out _))
-            return LlmResultNotFound("Enter a full URL (starting with http:// or https://) first.");
+    public Task<IActionResult> OnPostSuggestTagsAsync(string? url) =>
+        RunLlmAsync(LlmOperation.SuggestTags, url ?? "", async (ownerUserId, workspaceId) =>
+        {
+            if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out _))
+                return LlmResultNotFound("Enter a full URL (starting with http:// or https://) first.");
 
-        return await _llmInsights.CompleteAsync(
-            LlmPromptFactory.SuggestTags(url, _llmInsights.Model), ownerUserId);
-    });
+            return await _llmInsights.CompleteAsync(
+                LlmPromptFactory.SuggestTags(url, _llmInsights.Model), ownerUserId);
+        });
 
     // -------------------------------------------------------------------------
     // PRD-006 accept / dismiss
@@ -212,7 +232,14 @@ public class InsightsModel : PageModel, IStatusMessages
         return null;
     }
 
-    private async Task<IActionResult> RunLlmAsync(Func<long?, long?, Task<LlmInsightResult>> operation)
+    /// <summary>
+    /// Shared wrapper for the four "Ask AI" handlers: enforce access, run the operation, and
+    /// -- unless it was a local NotFound (bad short code/tag/URL, never reached the provider) --
+    /// persist the outcome to <see cref="LlmInsightHistoryService"/> so it survives a refresh.
+    /// Always re-renders the full history list (not just the new result) so the swapped-in
+    /// content matches what a GET would show.
+    /// </summary>
+    private async Task<IActionResult> RunLlmAsync(LlmOperation operation, string inputSummary, Func<long?, long?, Task<LlmInsightResult>> action)
     {
         var gate = EnforceAccess();
         if (gate is not null)
@@ -221,8 +248,15 @@ public class InsightsModel : PageModel, IStatusMessages
         var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
         var workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
 
-        var result = await operation(ownerUserId, workspace?.WorkspaceId);
-        return Partial("Shared/_LlmInsightResult", result);
+        var result = await action(ownerUserId, workspace?.WorkspaceId);
+
+        if (result.Status == LlmInsightStatus.NotFound)
+            TransientResult = result;
+        else
+            await _history.RecordAsync(ownerUserId, operation, inputSummary, result);
+
+        RecentRuns = await _history.RecentAsync(ownerUserId);
+        return Partial("Shared/_LlmInsightHistory", this);
     }
 
     private static LlmInsightResult LlmResultNotFound(string message) => new()
@@ -345,6 +379,31 @@ public class InsightsModel : PageModel, IStatusMessages
                 FirstObservedUtc = s.FirstObservedUtc,
                 CreatedAtUtc = s.CreatedAtUtc
             })
+            .ToListAsync();
+    }
+
+    /// <summary>Populates the &lt;datalist&gt; typeahead options for the "Ask AI" short-code and
+    /// campaign-tag inputs, scoped the same way as everything else on this page.</summary>
+    private async Task LoadAskAiOptionsAsync()
+    {
+        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        var workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+        var workspaceId = workspace?.WorkspaceId;
+
+        var activeLinks = ScopedLinks(ownerUserId, workspaceId).Where(l => l.ArchivedAtUtc == null);
+
+        ShortCodeOptions = await activeLinks
+            .OrderByDescending(l => l.ClickCount)
+            .Select(l => l.ShortCode)
+            .Take(50)
+            .ToListAsync();
+
+        CampaignTagOptions = await activeLinks
+            .SelectMany(l => l.Tags)
+            .Select(t => t.Name)
+            .Distinct()
+            .OrderBy(t => t)
+            .Take(50)
             .ToListAsync();
     }
 

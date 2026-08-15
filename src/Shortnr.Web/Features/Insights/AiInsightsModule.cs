@@ -42,6 +42,7 @@ public static class AiInsightsModule
 
         services.AddScoped<LlmPricing>();
         services.AddScoped<LlmUsageService>();
+        services.AddScoped<LlmInsightHistoryService>();
         services.AddScoped<LlmInsightService>();
 
         if (!configuration.GetValue<bool>("AiInsights:Enabled", defaultValue: false))
