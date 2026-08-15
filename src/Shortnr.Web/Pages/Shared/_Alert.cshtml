@@ -1,0 +1,30 @@
+@model Shortnr.Web.Features.Infrastructure.AlertViewModel
+@inject Microsoft.Extensions.Configuration.IConfiguration Config
+@{
+    var messageDisplayMs = Config.GetValue<int>("Dashboard:MessageDisplayMs", 5000);
+    var cssClass = Model.Dismissible
+        ? $"banner {Model.StatusClass} banner-dismissible"
+        : $"banner {Model.StatusClass}";
+}
+@if (Model.Dismissible)
+{
+    <mark class="@cssClass" style="@Model.Style" x-data="{ show: true }" x-show="show"
+          x-init="setTimeout(() => show = false, @messageDisplayMs)">
+        <strong>@Model.Message</strong>
+        @if (Model.Detail is not null)
+        {
+            <code class="banner-detail">@Model.Detail</code>
+        }
+        <button type="button" class="banner-close" x-on:click="show = false" aria-label="Dismiss">&times;</button>
+    </mark>
+}
+else
+{
+    <mark class="@cssClass" style="@Model.Style">
+        <strong>@Model.Message</strong>
+        @if (Model.Detail is not null)
+        {
+            <code class="banner-detail">@Model.Detail</code>
+        }
+    </mark>
+}

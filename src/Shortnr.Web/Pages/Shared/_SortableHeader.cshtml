@@ -1,0 +1,9 @@
+@model Shortnr.Web.Features.Infrastructure.SortableHeaderViewModel
+<th class="@(Model.IsActive ? "sorted" : null)" aria-sort="@Model.AriaSort"
+    hx-get="@Model.Url" hx-target="@Model.Target" hx-swap="innerHTML" hx-include="@Model.HxInclude">
+    @Model.Label
+    @if (Model.IsActive)
+    {
+        <span class="sort-indicator" aria-hidden="true">@(Model.IsAscending ? "▲" : "▼")</span>
+    }
+</th>
