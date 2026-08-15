@@ -756,6 +756,33 @@ mark {
   margin-top: var(--sn-space-4);
 }
 
+
+/* htmx ships the .htmx-indicator/.htmx-request class toggling behavior but not the CSS to
+   act on it -- this is htmx's own documented pattern, not something core.js injects. Used by
+   the /insights "Ask AI" busy indicator (hx-indicator="#llm-busy") so a slow LLM call shows
+   visible feedback instead of the form just sitting there. */
+.htmx-indicator {
+  display: none;
+}
+.htmx-request.htmx-indicator,
+.htmx-request .htmx-indicator {
+  display: block;
+}
+
+/* One persisted "Ask AI" run on /insights -- badge + input summary + timestamp on one line,
+   generated text or error banner below. */
+.llm-history-item-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sn-space-2);
+  margin-bottom: var(--sn-space-2);
+}
+.llm-history-item-header time {
+  margin-left: auto;
+  color: var(--pico-muted-color);
+  font-size: 0.875em;
+}
+
 /* QR trigger sitting after the short URL on the shorten result line. */
 .qr-wrap-inline {
   display: inline-block;

@@ -1,0 +1,53 @@
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+
+#nullable disable
+
+namespace Shortnr.Data.Postgres.Migrations
+{
+    /// <inheritdoc />
+    public partial class AddLlmInsightRun : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.CreateTable(
+                name: "LlmInsightRuns",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    OwnerUserId = table.Column<long>(type: "bigint", nullable: true),
+                    Operation = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
+                    InputSummary = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
+                    Success = table.Column<bool>(type: "boolean", nullable: false),
+                    Content = table.Column<string>(type: "text", nullable: true),
+                    FriendlyMessage = table.Column<string>(type: "text", nullable: true),
+                    CreatedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_LlmInsightRuns", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_LlmInsightRuns_Users_OwnerUserId",
+                        column: x => x.OwnerUserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_LlmInsightRuns_OwnerUserId_CreatedAtUtc",
+                table: "LlmInsightRuns",
+                columns: new[] { "OwnerUserId", "CreatedAtUtc" });
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropTable(
+                name: "LlmInsightRuns");
+        }
+    }
+}
