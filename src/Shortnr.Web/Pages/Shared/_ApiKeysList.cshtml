@@ -1,26 +1,12 @@
 @model Shortnr.Web.Pages.Settings.ApiKeysModel
-@if (Model.ErrorMessage is not null)
-{
-    <mark class="banner status-error">
-        <strong>@Model.ErrorMessage</strong>
-    </mark>
-}
-@if (Model.StatusMessage is not null)
-{
-    <mark class="banner status-success">
-        <strong>@Model.StatusMessage</strong>
-    </mark>
-}
+<partial name="Shared/_StatusMessages" model="Model" />
 @if (Model.CreatedKey is not null)
 {
-    <mark class="banner status-info">
-        <strong>Copy this now — it cannot be recovered later:</strong>
-        <code style="display:block; margin-top: 0.5rem; word-break: break-all;">@Model.CreatedKey</code>
-    </mark>
+    <partial name="Shared/_Alert" model="@(new AlertViewModel { Kind = StatusKind.Info, Message = "Copy this now — it cannot be recovered later:", Detail = Model.CreatedKey })" />
 }
 @if (Model.ApiKeys.Count == 0)
 {
-    <p>No API keys yet. Create one above to start using the API.</p>
+    <partial name="Shared/_EmptyState" model="@(new EmptyStateViewModel { Message = "No API keys yet. Create one above to start using the API." })" />
 }
 else
 {
@@ -35,12 +21,7 @@ else
                     <td data-label="Label">@key.Label</td>
                     <td data-label="Key"><code>@key.KeyPrefix…</code></td>
                     <td data-label="Scopes">
-                        <div class="badge-group">
-                            @foreach (var scope in Shortnr.Web.Features.Authentication.ApiKeyScopes.Resolve(key.Scopes))
-                            {
-                                <mark class="status-info">@scope</mark>
-                            }
-                        </div>
+                        <partial name="Shared/_BadgeGroup" model="@(Shortnr.Web.Features.Authentication.ApiKeyScopes.Resolve(key.Scopes).Select(s => new BadgeViewModel { Kind = StatusKind.Info, Text = s }))" />
                     </td>
                     <td data-label="Created"><small>@key.CreatedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</small></td>
                     <td data-label="Last used">
@@ -56,23 +37,22 @@ else
                         </small>
                     </td>
                     <td data-label="Status">
-                        @if (key.RevokedAt is not null)
-                        {
-                            <mark class="status-neutral">revoked</mark>
-                        }
-                        else
-                        {
-                            <mark class="status-success">active</mark>
-                        }
+                        <partial name="Shared/_Badge" model="@(key.RevokedAt is not null
+                            ? new BadgeViewModel { Kind = StatusKind.Neutral, Text = "revoked" }
+                            : new BadgeViewModel { Kind = StatusKind.Success, Text = "active" })" />
                     </td>
                     <td data-label="Actions">
                         @if (key.RevokedAt is null)
                         {
-                            <form hx-post="/settings/api-keys?handler=Revoke" hx-target="#api-keys-list" hx-swap="innerHTML" style="display:inline;">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="id" value="@key.Id">
-                                <button type="submit" class="danger btn-sm">Revoke</button>
-                            </form>
+                            <partial name="Shared/_ActionForm" model="@(new ActionFormViewModel
+                            {
+                                PostUrl = "/settings/api-keys?handler=Revoke",
+                                Target = "#api-keys-list",
+                                HiddenFields = { ["id"] = key.Id.ToString() },
+                                ButtonLabel = "Revoke",
+                                ButtonStyle = ActionButtonStyle.Danger,
+                                ConfirmMessage = "Revoke this API key? Anything using it will stop working immediately."
+                            })" />
                         }
                     </td>
                 </tr>

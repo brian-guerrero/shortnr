@@ -22,19 +22,19 @@
             <li class="menu-section-label">Workspaces</li>
             @if (workspaceCtx is not null)
             {
-                <li class="menu-active-workspace"><mark class="status-info preserve-case">@workspaceCtx.Name</mark></li>
+                <li class="menu-active-workspace"><partial name="Shared/_Badge" model="@(new BadgeViewModel { Kind = StatusKind.Info, Text = workspaceCtx.Name, PreserveCase = true })" /></li>
             }
             @foreach (var ws in workspaces)
             {
                 <li>
-                    <form method="post" action="/workspace/switch" style="margin: 0; display: inline;">
+                    <form method="post" action="/workspace/switch" class="inline-form">
                         <input type="hidden" name="slug" value="@ws.Slug">
                         <button type="submit" class="@(workspaceCtx?.WorkspaceId == ws.Id ? "is-active" : null)">@ws.Name</button>
                     </form>
                 </li>
             }
             <li>
-                <form method="post" action="/workspace/switch" style="margin: 0; display: inline;">
+                <form method="post" action="/workspace/switch" class="inline-form">
                     <input type="hidden" name="slug" value="personal">
                     <button type="submit" class="@(workspaceCtx is null ? "is-active" : null)">Personal</button>
                 </form>

@@ -5,22 +5,24 @@
     var workspaceId = Model.WorkspaceId;
     var workspaceSlug = Model.WorkspaceSlug;
 }
-<table class="stacked-table">
-    <thead>
-        <tr>
-            <th>Member</th>
-            <th>Role</th>
-            <th>Joined</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var m in members)
-        {
-            @await Html.PartialAsync("Shared/_MemberRow", m, new ViewDataDictionary(ViewData) { ["WorkspaceId"] = workspaceId })
-        }
-    </tbody>
-</table>
+<div class="overflow-auto">
+    <table class="stacked-table">
+        <thead>
+            <tr>
+                <th>Member</th>
+                <th>Role</th>
+                <th>Joined</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var m in members)
+            {
+                @await Html.PartialAsync("Shared/_MemberRow", m, new ViewDataDictionary(ViewData) { ["WorkspaceId"] = workspaceId })
+            }
+        </tbody>
+    </table>
+</div>
 
 @if (members.Any(m => m.Role == WorkspaceRole.Owner && m.JoinedAtUtc != null))
 {
@@ -47,10 +49,16 @@
     </details>
 }
 
-<form hx-post="/settings/workspaces?handler=Delete&id=@workspaceId" hx-target="#workspaces-list" hx-swap="innerHTML"
-      hx-confirm="Permanently delete this workspace? This cannot be undone." style="margin-top: 1rem;">
-    @Html.AntiForgeryToken()
-    <button type="submit" class="danger">Delete workspace</button>
-</form>
+<div class="stack-md">
+    <partial name="Shared/_ActionForm" model="@(new ActionFormViewModel
+    {
+        PostUrl = $"/settings/workspaces?handler=Delete&id={workspaceId}",
+        Target = "#workspaces-list",
+        ButtonLabel = "Delete workspace",
+        ButtonStyle = ActionButtonStyle.Danger,
+        Small = false,
+        ConfirmMessage = "Permanently delete this workspace? This cannot be undone."
+    })" />
+</div>
 
-<p style="margin-top: 0.5rem;"><small>Set this as your active workspace from the user menu in the top bar.</small></p>
+<p class="stack-sm"><small>Set this as your active workspace from the user menu in the top bar.</small></p>

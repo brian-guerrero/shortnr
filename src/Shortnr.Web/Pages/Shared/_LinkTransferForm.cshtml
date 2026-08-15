@@ -6,13 +6,11 @@
 <article class="edit-panel" x-data x-init="setTimeout(() => { $el.remove(); }, @messageDisplayMs)">
     @if (Model.ErrorMessage is not null)
     {
-        <mark class="banner status-error">
-            <strong>@Model.ErrorMessage</strong>
-        </mark>
+        <partial name="Shared/_Alert" model="@(new AlertViewModel { Kind = StatusKind.Error, Message = Model.ErrorMessage })" />
     }
     @if (Model.Workspaces.Count == 0)
     {
-        <p>You are not a member of any workspace yet.</p>
+        <partial name="Shared/_EmptyState" model="@(new EmptyStateViewModel { Message = "You are not a member of any workspace yet." })" />
     }
     else
     {
