@@ -33,7 +33,7 @@ else
                         <td>@click.CountryCode</td>
                         <td>@click.Browser @click.BrowserVersion</td>
                         <td>@click.OperatingSystem @click.OSVersion</td>
-                        <td class="truncate" title="@click.Referer">@click.Referer</td>
+                        <td title="@click.Referer">@click.Referer</td>
                         <td>@click.ClickedAtUtc.ToLocalTime().ToString("g")</td>
                     </tr>
                     @* Inline display is load-bearing: Dashboard.cshtml's toggle script selects on [style*="table-row"]. *@
