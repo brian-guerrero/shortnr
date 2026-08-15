@@ -9,7 +9,7 @@ using Shortnr.Web.Features.Workspaces;
 
 namespace Shortnr.Web.Pages;
 
-public class DashboardModel : PageModel
+public class DashboardModel : PageModel, IStatusMessages
 {
     private readonly AppDbContext _db;
     private readonly UserIdentityService _identity;
