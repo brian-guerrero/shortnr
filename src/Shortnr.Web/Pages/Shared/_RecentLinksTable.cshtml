@@ -22,7 +22,7 @@
             {
                 <tr>
                     <td><a href="@link.DisplayUrl()" target="_blank">@link.DisplayText()</a></td>
-                    <td class="truncate" title="@link.LongUrl">@link.LongUrl</td>
+                    <td title="@link.LongUrl">@link.LongUrl</td>
                     <td>@link.ClickCount</td>
                     <td>
                         <partial name="Shared/_QrTrigger" model="@(new QrTriggerViewModel { ShortCode = link.ShortCode })" />
