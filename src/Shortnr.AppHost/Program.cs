@@ -25,6 +25,31 @@ var isTestRun = builder.Configuration.GetValue("IsTestRun", false);
 var shortnrWeb = builder.AddProject<Projects.Shortnr_Web>("shortnr-web")
     .WithEnvironment("Database__Provider", dbProvider);
 
+// Mirrors the db-provider parameter above: read once, forward unconditionally into shortnr-web
+// so its own AiInsights:Llm:Provider config always reflects what the AppHost resolved (same
+// "AppHost wins under Aspire, appsettings.json wins standalone" shape as Database:Provider).
+var llmProviderValue = builder.Configuration["Parameters:llm-provider"] ?? "OpenAI";
+var llmProvider = builder.AddParameter("llm-provider", llmProviderValue);
+
+// Toggle parameters for the two independent feature gates PRD-006/PRD-023 read from config
+// (AiInsights:Enabled for the deterministic background pass, AiInsights:Llm:Enabled for the
+// /insights "Ask AI" section) -- so both can be flipped the same way as db-provider/llm-provider
+// (--Parameters:ai-insights=false / --Parameters:llm-enabled=false) instead of hand-editing
+// appsettings.json. Defaults here intentionally differ from the committed appsettings.json
+// defaults: under the AppHost the goal is a zero-friction "just try it" loop, so both default
+// on -- an enabled-but-unconfigured LLM layer is inert (LlmInsightService's NotConfigured gate
+// short-circuits before any network call), so there's no real cost to defaulting llm-enabled on.
+var aiInsightsEnabledValue = builder.Configuration["Parameters:ai-insights"] ?? "true";
+var aiInsightsEnabled = builder.AddParameter("ai-insights", aiInsightsEnabledValue);
+
+var llmEnabledValue = builder.Configuration["Parameters:llm-enabled"] ?? "true";
+var llmEnabled = builder.AddParameter("llm-enabled", llmEnabledValue);
+
+shortnrWeb
+    .WithEnvironment("AiInsights__Enabled", aiInsightsEnabled)
+    .WithEnvironment("AiInsights__Llm__Enabled", llmEnabled)
+    .WithEnvironment("AiInsights__Llm__Provider", llmProvider);
+
 if (!isTestRun)
 {
     var dex = builder.AddContainer("dex", "dexidp/dex", "v2.39.1")
@@ -65,6 +90,37 @@ if (dbProviderValue.Equals("Postgres", StringComparison.OrdinalIgnoreCase))
     shortnrWeb
         .WithEnvironment("Database__ConnectionString", shortnrDb)
         .WaitFor(postgres);
+}
+
+// Local-dev-only: when llm-provider is "Ollama", spin up a real Ollama server container
+// (community-maintained hosting integration -- there's no first-party Aspire.Hosting.Ollama
+// package) and auto-pull a small default model, so `dotnet run --project src\Shortnr.AppHost`
+// gives a one-command local LLM to manually test /insights against. Resource is named
+// "llm-ollama" to match the connection-string key AiInsightsModule looks up in Shortnr.Web.
+// No automated test depends on this -- integration tests stub IChatClient directly instead
+// (see ShortnrWebAppFactory).
+if (llmProviderValue.Equals("Ollama", StringComparison.OrdinalIgnoreCase) && !isTestRun)
+{
+    var ollamaModelName = builder.Configuration["Parameters:llm-model"] is { Length: > 0 } configuredModel
+        ? configuredModel
+        : "phi4-mini:3.8b";
+
+    var ollama = builder.AddOllama("ollama")
+        .WithDataVolume("shortnr-ollama-data")
+        .WithLifetime(ContainerLifetime.Persistent);
+
+    var ollamaModel = ollama.AddModel("llm-ollama", ollamaModelName);
+
+    shortnrWeb
+        // AiInsightsModule's DI-time IChatClient construction reads the "llm-ollama"
+        // connection string (below) for the endpoint, but LlmInsightService's own
+        // pre-flight gate and the prompt-building calls in InsightsModel both read
+        // LlmOptions.Model directly -- that's config-bound (AiInsights:Llm:Model), not
+        // derived from the connection string, so it has to be forwarded explicitly or
+        // the page shows "No AI model is configured" even though the client is wired.
+        .WithEnvironment("AiInsights__Llm__Model", ollamaModelName)
+        .WithReference(ollamaModel)
+        .WaitFor(ollamaModel);
 }
 
 var docsDir = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", "docs"));

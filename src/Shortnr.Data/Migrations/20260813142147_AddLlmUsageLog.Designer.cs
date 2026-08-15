@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Shortnr.Data;
 
@@ -10,9 +11,11 @@ using Shortnr.Data;
 namespace Shortnr.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260813142147_AddLlmUsageLog")]
+    partial class AddLlmUsageLog
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
@@ -514,44 +517,6 @@ namespace Shortnr.Data.Migrations
                     b.ToTable("Domains");
                 });
 
-            modelBuilder.Entity("Shortnr.Data.Entities.LlmInsightRun", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Content")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("FriendlyMessage")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("InputSummary")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Operation")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("TEXT");
-
-                    b.Property<long?>("OwnerUserId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("Success")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OwnerUserId", "CreatedAtUtc");
-
-                    b.ToTable("LlmInsightRuns");
-                });
-
             modelBuilder.Entity("Shortnr.Data.Entities.LlmUsageLog", b =>
                 {
                     b.Property<long>("Id")
@@ -657,17 +622,10 @@ namespace Shortnr.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTime?>("ArchivedAtUtc")
-                        .HasColumnType("TEXT");
-
                     b.Property<long>("ClickCount")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(2000)
                         .HasColumnType("TEXT");
 
                     b.Property<long?>("DomainId")
@@ -683,13 +641,6 @@ namespace Shortnr.Data.Migrations
                     b.Property<string>("ShortCode")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Title")
-                        .HasMaxLength(256)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<long?>("WorkspaceId")
@@ -1087,16 +1038,6 @@ namespace Shortnr.Data.Migrations
                     b.Navigation("Owner");
 
                     b.Navigation("Workspace");
-                });
-
-            modelBuilder.Entity("Shortnr.Data.Entities.LlmInsightRun", b =>
-                {
-                    b.HasOne("Shortnr.Data.Entities.User", "Owner")
-                        .WithMany()
-                        .HasForeignKey("OwnerUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Owner");
                 });
 
             modelBuilder.Entity("Shortnr.Data.Entities.LlmUsageLog", b =>
