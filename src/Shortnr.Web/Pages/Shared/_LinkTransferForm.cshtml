@@ -1,0 +1,42 @@
+@model LinkTransferViewModel
+@inject Microsoft.Extensions.Configuration.IConfiguration Config
+@{
+    var messageDisplayMs = Config.GetValue<int>("Dashboard:MessageDisplayMs", 5000);
+}
+<article class="edit-panel" x-data x-init="setTimeout(() => { $el.remove(); }, @messageDisplayMs)">
+    @if (Model.ErrorMessage is not null)
+    {
+        <partial name="Shared/_Alert" model="@(new AlertViewModel { Kind = StatusKind.Error, Message = Model.ErrorMessage })" />
+    }
+    @if (Model.Workspaces.Count == 0)
+    {
+        <partial name="Shared/_EmptyState" model="@(new EmptyStateViewModel { Message = "You are not a member of any workspace yet." })" />
+    }
+    else
+    {
+        <form method="post" hx-post="/dashboard?handler=Transfer"
+              hx-target="#link-edit-region" hx-swap="innerHTML">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="code" value="@Model.Code">
+            <fieldset>
+                <label>
+                    Current workspace
+                    <input type="text" value="@Model.CurrentWorkspace" disabled>
+                </label>
+                <label>
+                    Transfer to
+                    <select name="workspace" required>
+                        @foreach (var workspace in Model.Workspaces)
+                        {
+                            <option value="@workspace.Slug">@workspace.Name (@workspace.Slug)</option>
+                        }
+                    </select>
+                </label>
+            </fieldset>
+            <div class="grid">
+                <button type="submit" class="btn-sm">Transfer link</button>
+                <button type="button" class="secondary btn-sm" onclick="document.getElementById('link-edit-region').innerHTML = ''">Cancel</button>
+            </div>
+        </form>
+    }
+</article>

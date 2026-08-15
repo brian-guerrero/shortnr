@@ -29,7 +29,7 @@ public static class ApiV1Endpoints
         group.MapGet("/links", ListLinksAsync)
             .WithName("ListLinks")
             .WithSummary("List short links")
-            .WithDescription("Paginated list scoped to the authenticated key's owner. Filters: domain (hostname or 'default'), workspace (slug), from, to.")
+            .WithDescription("Paginated list scoped to the authenticated key's owner. Filters: domain (hostname or 'default'), workspace (slug), campaign (case-insensitive substring match on UTM campaign), from, to.")
             .RequireAuthorization(ApiKeyScopes.LinksRead)
             .Produces<LinkListResponse>();
 
@@ -50,6 +50,42 @@ public static class ApiV1Endpoints
             .Produces(StatusCodes.Status404NotFound)
             .Produces(StatusCodes.Status409Conflict);
 
+        group.MapPatch("/links/{shortCode}", UpdateLinkAsync)
+            .WithName("PatchLink")
+            .WithSummary("Partially update a short link")
+            .WithDescription("PATCH alias of PUT — updates destination URL, slug, tags, title and description. Omitted fields keep their current value.")
+            .RequireAuthorization(ApiKeyScopes.LinksWrite)
+            .Produces<LinkResponse>()
+            .ProducesValidationProblem()
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status409Conflict);
+
+        group.MapPost("/links/{shortCode}/archive", ArchiveLinkAsync)
+            .WithName("ArchiveLink")
+            .WithSummary("Archive a short link")
+            .WithDescription("Archived links stop redirecting (HTTP 410) but are not deleted. Archiving an already-archived link is a no-op.")
+            .RequireAuthorization(ApiKeyScopes.LinksWrite)
+            .Produces<LinkResponse>()
+            .Produces(StatusCodes.Status404NotFound);
+
+        group.MapPost("/links/{shortCode}/unarchive", UnarchiveLinkAsync)
+            .WithName("UnarchiveLink")
+            .WithSummary("Restore an archived short link")
+            .WithDescription("Restores a link's redirect so it resolves again. Unarchiving an active link is a no-op.")
+            .RequireAuthorization(ApiKeyScopes.LinksWrite)
+            .Produces<LinkResponse>()
+            .Produces(StatusCodes.Status404NotFound);
+
+        group.MapPost("/links/{shortCode}/transfer", TransferLinkAsync)
+            .WithName("TransferLink")
+            .WithSummary("Transfer a short link to another workspace")
+            .WithDescription("Moves the link into the target workspace. The caller must be a member of both the source and the target workspace, otherwise a 403 is returned.")
+            .RequireAuthorization(ApiKeyScopes.LinksWrite)
+            .Produces<LinkResponse>()
+            .ProducesValidationProblem()
+            .Produces(StatusCodes.Status403Forbidden)
+            .Produces(StatusCodes.Status404NotFound);
+
         group.MapDelete("/links/{shortCode}", DeleteLinkAsync)
             .WithName("DeleteLink")
             .WithSummary("Delete a short link")
@@ -64,6 +100,13 @@ public static class ApiV1Endpoints
             .RequireAuthorization(ApiKeyScopes.LinksRead)
             .Produces<ClickListResponse>()
             .Produces(StatusCodes.Status404NotFound);
+
+        group.MapGet("/pixel-snippets", ListPixelSnippetsAsync)
+            .WithName("ListPixelSnippets")
+            .WithSummary("List available retargeting pixel snippets")
+            .WithDescription("Names to pass as links.metadata.pixelSnippet on create/update.")
+            .RequireAuthorization(ApiKeyScopes.LinksRead)
+            .Produces<IReadOnlyList<PixelSnippetResponse>>();
     }
 
     private static async Task<IResult> CreateLinkAsync(
@@ -93,6 +136,20 @@ public static class ApiV1Endpoints
         var url = body.Url?.Trim() ?? "";
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || (uri.Scheme != "http" && uri.Scheme != "https"))
             return TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["url"] = ["Must be an absolute http(s) URL."] });
+
+        var utm = new UtmParameters(
+            body.Metadata?.UtmSource, body.Metadata?.UtmMedium, body.Metadata?.UtmCampaign,
+            body.Metadata?.UtmTerm, body.Metadata?.UtmContent);
+        if (!utm.IsEmpty)
+            url = UtmBuilder.AppendUtm(url, utm);
+
+        var (pixelSnippetId, pixelValue, pixelError) = await ResolvePixelSelectionAsync(
+            db, body.Metadata?.PixelSnippet, body.Metadata?.PixelId, body.Metadata?.PixelSnippetHtml, ct);
+        if (pixelError is not null)
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["metadata.pixelSnippet"] = [pixelError] });
+
+        var iosDeepLink = body.Metadata?.IosDeepLink?.Trim();
+        var androidDeepLink = body.Metadata?.AndroidDeepLink?.Trim();
 
         Domain? domain = null;
         var domainId = (long?)null;
@@ -139,6 +196,25 @@ public static class ApiV1Endpoints
             WorkspaceId = workspaceId,
             CreatedAtUtc = DateTime.UtcNow
         };
+
+        var hasMetadata = !utm.IsEmpty || pixelSnippetId is not null
+            || !string.IsNullOrWhiteSpace(iosDeepLink) || !string.IsNullOrWhiteSpace(androidDeepLink);
+        if (hasMetadata)
+        {
+            link.Metadata = new ShortenedUrlMetadata
+            {
+                UtmSource = utm.Source,
+                UtmMedium = utm.Medium,
+                UtmCampaign = utm.Campaign,
+                UtmTerm = utm.Term,
+                UtmContent = utm.Content,
+                PixelSnippetId = pixelSnippetId,
+                PixelId = pixelValue,
+                IosDeepLink = string.IsNullOrWhiteSpace(iosDeepLink) ? null : iosDeepLink,
+                AndroidDeepLink = string.IsNullOrWhiteSpace(androidDeepLink) ? null : androidDeepLink
+            };
+        }
+
         db.ShortenedUrls.Add(link);
         await db.SaveChangesAsync(ct);
 
@@ -147,9 +223,10 @@ public static class ApiV1Endpoints
         var workspaceSlug = workspaceId is not null
             ? (await db.Workspaces.Where(w => w.Id == workspaceId).Select(w => w.Slug).FirstOrDefaultAsync(ct))
             : null;
+        var pixelSnippetName = await ResolvePixelNameAsync(db, pixelSnippetId, ct);
         return TypedResults.Created(
             $"/api/v1/links/{shortCode}",
-            ToResponse(link, domain, request.Scheme, request.Host.Host, workspaceSlug));
+            ToResponse(link, domain, request.Scheme, request.Host.Host, workspaceSlug, pixelSnippetName));
     }
 
     private static async Task<IResult> ListLinksAsync(
@@ -157,6 +234,7 @@ public static class ApiV1Endpoints
         int? pageSize,
         string? domain,
         string? workspace,
+        string? campaign,
         HttpRequest request,
         AppDbContext db,
         UserIdentityService identity,
@@ -191,12 +269,21 @@ public static class ApiV1Endpoints
                 : query.Where(l => l.Domain != null && l.Domain.Hostname == domain);
         }
 
+        if (!string.IsNullOrWhiteSpace(campaign))
+        {
+            var c = campaign.Trim();
+            query = query.Where(l => l.Metadata != null && l.Metadata.UtmCampaign != null && l.Metadata.UtmCampaign.Contains(c));
+        }
+
         var total = await query.CountAsync(ct);
         var links = await query
             .AsNoTracking()
             .OrderByDescending(l => l.CreatedAtUtc)
             .Include(l => l.Domain)
             .Include(l => l.Workspace)
+            .Include(l => l.Tags)
+            .Include(l => l.Metadata)
+            .ThenInclude(m => m!.PixelSnippet)
             .Skip((p - 1) * ps)
             .Take(ps)
             .ToListAsync(ct);
@@ -294,6 +381,67 @@ public static class ApiV1Endpoints
                 link.LongUrl = newUrl;
         }
 
+        if (body.Title is not null)
+            link.Title = string.IsNullOrWhiteSpace(body.Title) ? null : body.Title.Trim();
+
+        if (body.Description is not null)
+            link.Description = string.IsNullOrWhiteSpace(body.Description) ? null : body.Description.Trim();
+
+        // Campaign metadata: unlike the fields above, each sub-field independently
+        // follows the omit-keeps/empty-clears convention, merged against whatever
+        // the link already has — a caller can touch just metadata.utmCampaign
+        // without resending the rest.
+        var metadataTouched = body.Metadata is not null && (
+            body.Metadata.UtmSource is not null || body.Metadata.UtmMedium is not null || body.Metadata.UtmCampaign is not null
+            || body.Metadata.UtmTerm is not null || body.Metadata.UtmContent is not null
+            || body.Metadata.PixelSnippet is not null || body.Metadata.PixelId is not null || body.Metadata.PixelSnippetHtml is not null
+            || body.Metadata.IosDeepLink is not null || body.Metadata.AndroidDeepLink is not null);
+
+        var mergedUtm = new UtmParameters(null, null, null, null, null);
+        long? mergedPixelSnippetId = null;
+        string? mergedPixelValue = null;
+        string? mergedIos = null;
+        string? mergedAndroid = null;
+
+        if (metadataTouched)
+        {
+            var existing = link.Metadata;
+            mergedUtm = new UtmParameters(
+                MergeNullable(body.Metadata!.UtmSource, existing?.UtmSource),
+                MergeNullable(body.Metadata.UtmMedium, existing?.UtmMedium),
+                MergeNullable(body.Metadata.UtmCampaign, existing?.UtmCampaign),
+                MergeNullable(body.Metadata.UtmTerm, existing?.UtmTerm),
+                MergeNullable(body.Metadata.UtmContent, existing?.UtmContent));
+
+            mergedPixelSnippetId = existing?.PixelSnippetId;
+            mergedPixelValue = existing?.PixelId;
+            if (body.Metadata.PixelSnippet is not null)
+            {
+                var (id, value, pixelError) = await ResolvePixelSelectionAsync(
+                    db, body.Metadata.PixelSnippet, body.Metadata.PixelId, body.Metadata.PixelSnippetHtml, ct);
+                if (pixelError is not null)
+                    errors["metadata.pixelSnippet"] = [pixelError];
+                mergedPixelSnippetId = id;
+                mergedPixelValue = value;
+            }
+            else if (body.Metadata.PixelId is not null || body.Metadata.PixelSnippetHtml is not null)
+            {
+                if (mergedPixelSnippetId is null)
+                {
+                    errors["metadata.pixelId"] = ["No pixel snippet is currently attached to this link; set metadata.pixelSnippet to choose one."];
+                }
+                else
+                {
+                    var currentSnippet = existing?.PixelSnippet
+                        ?? await db.PixelSnippets.FirstOrDefaultAsync(p => p.Id == mergedPixelSnippetId, ct);
+                    mergedPixelValue = (currentSnippet?.IsCustom == true ? body.Metadata.PixelSnippetHtml : body.Metadata.PixelId)?.Trim();
+                }
+            }
+
+            mergedIos = MergeNullable(body.Metadata.IosDeepLink, existing?.IosDeepLink);
+            mergedAndroid = MergeNullable(body.Metadata.AndroidDeepLink, existing?.AndroidDeepLink);
+        }
+
         if (slug != link.ShortCode || domainId != link.DomainId)
         {
             var collides = await db.ShortenedUrls.AnyAsync(
@@ -307,9 +455,146 @@ public static class ApiV1Endpoints
 
         link.ShortCode = slug;
         link.DomainId = domainId;
+        link.UpdatedAtUtc = DateTime.UtcNow;
+
+        if (body.Tags is not null)
+            await ReplaceTagsAsync(db, link, body.Tags, ct);
+
+        if (metadataTouched)
+        {
+            if (!mergedUtm.IsEmpty)
+                link.LongUrl = UtmBuilder.AppendUtm(link.LongUrl, mergedUtm);
+
+            var hasMetadata = !mergedUtm.IsEmpty || mergedPixelSnippetId is not null
+                || mergedIos is not null || mergedAndroid is not null;
+            if (hasMetadata)
+            {
+                if (link.Metadata is null)
+                {
+                    link.Metadata = new ShortenedUrlMetadata { ShortenedUrlId = link.Id };
+                    db.ShortenedUrlMetadatas.Add(link.Metadata);
+                }
+                link.Metadata.UtmSource = mergedUtm.Source;
+                link.Metadata.UtmMedium = mergedUtm.Medium;
+                link.Metadata.UtmCampaign = mergedUtm.Campaign;
+                link.Metadata.UtmTerm = mergedUtm.Term;
+                link.Metadata.UtmContent = mergedUtm.Content;
+                link.Metadata.PixelSnippetId = mergedPixelSnippetId;
+                link.Metadata.PixelId = mergedPixelValue;
+                link.Metadata.IosDeepLink = mergedIos;
+                link.Metadata.AndroidDeepLink = mergedAndroid;
+            }
+            else if (link.Metadata is not null)
+            {
+                db.ShortenedUrlMetadatas.Remove(link.Metadata);
+                link.Metadata = null;
+            }
+        }
+
         await db.SaveChangesAsync(ct);
 
-        return TypedResults.Ok(ToResponse(link, resolvedDomain, request.Scheme, request.Host.Host, link.Workspace?.Slug));
+        var resultPixelName = link.Metadata?.PixelSnippet?.Name
+            ?? await ResolvePixelNameAsync(db, link.Metadata?.PixelSnippetId, ct);
+
+        return TypedResults.Ok(ToResponse(link, resolvedDomain, request.Scheme, request.Host.Host, link.Workspace?.Slug, resultPixelName));
+    }
+
+    private static async Task<IResult> ArchiveLinkAsync(
+        string shortCode,
+        string? domain,
+        string? workspace,
+        HttpRequest request,
+        AppDbContext db,
+        UserIdentityService identity,
+        WorkspaceService workspaceService,
+        ClaimsPrincipal user,
+        CancellationToken ct)
+    {
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(user);
+        if (ownerUserId is null)
+            return TypedResults.Unauthorized();
+
+        var link = await ResolveOwnedLinkAsync(db, ownerUserId.Value, shortCode, domain, workspace, workspaceService, ct);
+        if (link is null)
+            return TypedResults.NotFound();
+
+        if (link.ArchivedAtUtc is null)
+        {
+            link.ArchivedAtUtc = DateTime.UtcNow;
+            link.UpdatedAtUtc = link.ArchivedAtUtc;
+            await db.SaveChangesAsync(ct);
+        }
+
+        return TypedResults.Ok(ToResponse(link, link.Domain, request.Scheme, request.Host.Host, link.Workspace?.Slug));
+    }
+
+    private static async Task<IResult> UnarchiveLinkAsync(
+        string shortCode,
+        string? domain,
+        string? workspace,
+        HttpRequest request,
+        AppDbContext db,
+        UserIdentityService identity,
+        WorkspaceService workspaceService,
+        ClaimsPrincipal user,
+        CancellationToken ct)
+    {
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(user);
+        if (ownerUserId is null)
+            return TypedResults.Unauthorized();
+
+        var link = await ResolveOwnedLinkAsync(db, ownerUserId.Value, shortCode, domain, workspace, workspaceService, ct);
+        if (link is null)
+            return TypedResults.NotFound();
+
+        if (link.ArchivedAtUtc is not null)
+        {
+            link.ArchivedAtUtc = null;
+            link.UpdatedAtUtc = DateTime.UtcNow;
+            await db.SaveChangesAsync(ct);
+        }
+
+        return TypedResults.Ok(ToResponse(link, link.Domain, request.Scheme, request.Host.Host, link.Workspace?.Slug));
+    }
+
+    private static async Task<IResult> TransferLinkAsync(
+        string shortCode,
+        TransferLinkRequest body,
+        string? domain,
+        string? workspace,
+        HttpRequest request,
+        AppDbContext db,
+        UserIdentityService identity,
+        WorkspaceService workspaceService,
+        ClaimsPrincipal user,
+        CancellationToken ct)
+    {
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(user);
+        if (ownerUserId is null)
+            return TypedResults.Unauthorized();
+
+        var link = await ResolveOwnedLinkAsync(db, ownerUserId.Value, shortCode, domain, workspace, workspaceService, ct);
+        if (link is null)
+            return TypedResults.NotFound();
+
+        var targetSlug = body.Workspace.Trim();
+        if (targetSlug.Length == 0 || !WorkspaceService.IsValidSlug(targetSlug))
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["workspace"] = ["Enter a valid workspace slug."] });
+
+        var target = await workspaceService.GetWorkspaceBySlugAsync(targetSlug);
+        if (target is null || !await workspaceService.IsMemberAsync(target.Id, ownerUserId.Value))
+            return TypedResults.StatusCode(StatusCodes.Status403Forbidden);
+
+        var sourceWorkspaceId = link.WorkspaceId;
+        if (sourceWorkspaceId is not null && !await workspaceService.IsMemberAsync(sourceWorkspaceId.Value, ownerUserId.Value))
+            return TypedResults.StatusCode(StatusCodes.Status403Forbidden);
+
+        link.WorkspaceId = target.Id;
+        link.OwnerUserId = null;
+        link.UpdatedAtUtc = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+
+        return TypedResults.Ok(ToResponse(link, link.Domain, request.Scheme, request.Host.Host, target.Slug));
     }
 
     private static async Task<IResult> DeleteLinkAsync(
@@ -376,6 +661,24 @@ public static class ApiV1Endpoints
         return TypedResults.Ok(new ClickListResponse(rows, p, ps, total));
     }
 
+    private static async Task<IResult> ListPixelSnippetsAsync(
+        AppDbContext db,
+        UserIdentityService identity,
+        ClaimsPrincipal user,
+        CancellationToken ct)
+    {
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(user);
+        if (ownerUserId is null)
+            return TypedResults.Unauthorized();
+
+        var snippets = await db.PixelSnippets
+            .OrderBy(p => p.Id)
+            .Select(p => new PixelSnippetResponse(p.Name, p.IsCustom))
+            .ToListAsync(ct);
+
+        return TypedResults.Ok<IReadOnlyList<PixelSnippetResponse>>(snippets);
+    }
+
     private static async Task<ShortenedUrl?> ResolveOwnedLinkAsync(
         AppDbContext db, long ownerUserId, string shortCode, string? domain, string? workspace,
         WorkspaceService workspaceService, CancellationToken ct)
@@ -383,6 +686,9 @@ public static class ApiV1Endpoints
         var query = db.ShortenedUrls
             .Include(l => l.Domain)
             .Include(l => l.Workspace)
+            .Include(l => l.Tags)
+            .Include(l => l.Metadata)
+            .ThenInclude(m => m!.PixelSnippet)
             .AsQueryable();
 
         if (workspace is { Length: > 0 } ws)
@@ -412,9 +718,18 @@ public static class ApiV1Endpoints
         return matches.FirstOrDefault(l => l.DomainId == null) ?? matches[0];
     }
 
-    private static LinkResponse ToResponse(ShortenedUrl link, Domain? domain, string scheme, string defaultHost, string? workspaceSlug = null)
+    private static LinkResponse ToResponse(ShortenedUrl link, Domain? domain, string scheme, string defaultHost,
+        string? workspaceSlug = null, string? pixelSnippetNameOverride = null)
     {
         var host = domain?.Hostname ?? defaultHost;
+        var metadata = link.Metadata is null
+            ? null
+            : new LinkMetadataResponse(
+                link.Metadata.UtmSource, link.Metadata.UtmMedium, link.Metadata.UtmCampaign,
+                link.Metadata.UtmTerm, link.Metadata.UtmContent,
+                pixelSnippetNameOverride ?? link.Metadata.PixelSnippet?.Name,
+                link.Metadata.PixelId, link.Metadata.IosDeepLink, link.Metadata.AndroidDeepLink);
+
         return new LinkResponse(
             link.ShortCode,
             $"{scheme}://{host}/{link.ShortCode}",
@@ -422,6 +737,68 @@ public static class ApiV1Endpoints
             domain?.Hostname,
             link.ClickCount,
             link.CreatedAtUtc,
-            workspaceSlug);
+            workspaceSlug,
+            link.Tags?.Select(t => t.Name).OrderBy(n => n).ToList(),
+            link.Title,
+            link.Description,
+            link.ArchivedAtUtc,
+            link.UpdatedAtUtc,
+            metadata);
     }
+
+    private static async Task ReplaceTagsAsync(AppDbContext db, ShortenedUrl link, IReadOnlyList<string> tags, CancellationToken ct)
+    {
+        var existing = await db.ShortenedUrlTags
+            .Where(t => t.ShortenedUrlId == link.Id)
+            .ToListAsync(ct);
+        db.ShortenedUrlTags.RemoveRange(existing);
+
+        foreach (var raw in tags)
+        {
+            var name = raw.Trim();
+            if (name.Length > 0)
+            {
+                db.ShortenedUrlTags.Add(new ShortenedUrlTag
+                {
+                    ShortenedUrlId = link.Id,
+                    Name = name.Length > 128 ? name[..128] : name,
+                    CreatedAtUtc = DateTime.UtcNow
+                });
+            }
+        }
+    }
+
+    /// <summary>
+    /// Resolves a metadata.pixelSnippet name (see GET /api/v1/pixel-snippets) into a
+    /// PixelSnippet id + the value to store (pixelId for template snippets,
+    /// pixelSnippetHtml for the custom snippet). A null/empty name means "no
+    /// selection" and returns (null, null, null) rather than an error.
+    /// </summary>
+    private static async Task<(long? Id, string? Value, string? Error)> ResolvePixelSelectionAsync(
+        AppDbContext db, string? pixelSnippetName, string? pixelId, string? pixelSnippetHtml, CancellationToken ct)
+    {
+        var name = pixelSnippetName?.Trim() ?? "";
+        if (name.Length == 0)
+            return (null, null, null);
+
+        var snippet = await db.PixelSnippets.FirstOrDefaultAsync(p => p.Name.ToLower() == name.ToLower(), ct);
+        if (snippet is null)
+            return (null, null, $"No pixel snippet named '{name}'. See GET /api/v1/pixel-snippets for available names.");
+
+        var value = (snippet.IsCustom ? pixelSnippetHtml : pixelId)?.Trim();
+        if (string.IsNullOrWhiteSpace(value))
+            return (null, null, snippet.IsCustom
+                ? "metadata.pixelSnippetHtml is required when selecting the custom pixel snippet."
+                : "metadata.pixelId is required when selecting a template pixel snippet.");
+
+        return (snippet.Id, value, null);
+    }
+
+    private static async Task<string?> ResolvePixelNameAsync(AppDbContext db, long? pixelSnippetId, CancellationToken ct) =>
+        pixelSnippetId is null ? null : (await db.PixelSnippets.FirstOrDefaultAsync(p => p.Id == pixelSnippetId, ct))?.Name;
+
+    /// <summary>An update argument that's non-null replaces the current value (trimmed;
+    /// empty clears it to null); a null argument means "leave unchanged".</summary>
+    private static string? MergeNullable(string? provided, string? current) =>
+        provided is not null ? (provided.Trim().Length > 0 ? provided.Trim() : null) : current;
 }

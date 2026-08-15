@@ -4,105 +4,21 @@
     Layout = Model.IsHtmxRequest ? null : "_Layout";
 }
 <article>
-    <header>
-        <h1>shortnr @if (Model.Workspace is not null) { @await Html.PartialAsync("Shared/_WorkspaceBadge", Model.Workspace) }</h1>
-    </header>
+    <partial name="Shared/_PageHeader" model="@(new PageHeaderViewModel { Title = "shortnr", Workspace = Model.Workspace })" />
     <form hx-post="/" hx-target="#result" hx-swap="innerHTML" x-data="{ showAdvanced: false, showPixel: false, pixelIsCustom: false }">
         @Html.AntiForgeryToken()
         <label for="url">Enter a long URL</label>
         <input type="url" name="url" id="url" placeholder="https://example.com/very/long/path" required>
-        <button type="button" class="secondary" style="margin-bottom: 0.75rem;"
-                @@click="showAdvanced = !showAdvanced" aria-expanded="false" :aria-expanded="showAdvanced ? 'true' : 'false'">
-            <span x-text="showAdvanced ? 'Hide advanced options' : 'Advanced options'"></span>
-        </button>
-        <div x-show="showAdvanced" x-cloak>
-            <label for="slug">Custom code <small>(optional)</small></label>
-            <input type="text" name="slug" id="slug" placeholder="my-custom-code"
-                   pattern="[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}" maxlength="64">
-
-            <label for="utm_source">UTM source <small>(optional)</small></label>
-            <input type="text" name="utm_source" id="utm_source" placeholder="newsletter" maxlength="512">
-
-            <label for="utm_medium">UTM medium <small>(optional)</small></label>
-            <input type="text" name="utm_medium" id="utm_medium" placeholder="email" maxlength="512">
-
-            <label for="utm_campaign">UTM campaign <small>(optional)</small></label>
-            <input type="text" name="utm_campaign" id="utm_campaign" placeholder="spring-sale-2026" maxlength="512">
-
-            <label for="utm_term">UTM term <small>(optional)</small></label>
-            <input type="text" name="utm_term" id="utm_term" placeholder="running-shoes" maxlength="512">
-
-            <label for="utm_content">UTM content <small>(optional)</small></label>
-            <input type="text" name="utm_content" id="utm_content" placeholder="hero-banner" maxlength="512">
-
-            <label for="pixel_type">Retargeting pixel <small>(optional)</small></label>
-            <select name="pixel_type" id="pixel_type"
-                    @@change="showPixel = $event.target.value !== ''; pixelIsCustom = $event.target.selectedOptions[0]?.dataset.custom === 'true'">
-                <option value="">None</option>
-                @foreach (var snippet in Model.PixelSnippets)
-                {
-                    <option value="@snippet.Id" data-custom="@snippet.IsCustom.ToString().ToLowerInvariant()">@snippet.Name</option>
-                }
-            </select>
-            <div x-show="showPixel" x-cloak>
-                <template x-if="!pixelIsCustom">
-                    <div>
-                        <label for="pixel_id">Pixel ID <small>(for Meta/Google templates)</small></label>
-                        <input type="text" name="pixel_id" id="pixel_id" placeholder="e.g. 1234567890123" maxlength="256">
-                    </div>
-                </template>
-                <template x-if="pixelIsCustom">
-                    <div>
-                        <label for="pixel_snippet">Custom snippet HTML <small>(for custom snippets)</small></label>
-                        <textarea name="pixel_snippet" id="pixel_snippet" rows="6" maxlength="8192" placeholder="&lt;script&gt;…&lt;/script&gt;"></textarea>
-                    </div>
-                </template>
-            </div>
-
-            <label for="ios_deep_link">iOS deep link <small>(optional, App Store / URI scheme)</small></label>
-            <input type="text" name="ios_deep_link" id="ios_deep_link" maxlength="2048"
-                   placeholder="https://apps.apple.com/app/id123456789 or myapp://open">
-            <label for="android_deep_link">Android deep link <small>(optional, Play Store / app link)</small></label>
-            <input type="text" name="android_deep_link" id="android_deep_link" maxlength="2048"
-                   placeholder="https://play.google.com/store/apps/details?id=com.example.app">
-        </div>
+        @await Html.PartialAsync("Shared/_LinkAdvancedOptions", Model.AdvancedOptions)
         <button type="submit">Shorten</button>
     </form>
     <div id="result"></div>
 </article>
 
 <section id="recent">
-    <h2>Recent links</h2>
-    <div class="overflow-auto">
-        <table>
-            <thead>
-                <tr>
-                    <th>Short URL</th>
-                    <th>Original</th>
-                    <th>Clicks</th>
-                    <th>QR</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var link in Model.RecentLinks)
-                {
-                    <tr>
-                        <td><a href="@link.DisplayUrl()" target="_blank">@link.DisplayText()</a></td>
-                        <td>
-                            @link.LongUrl</td>
-                            <td>@link.ClickCount</td>
-                            <td>
-                                <span class="qr-wrap">
-                                    <button class="btn-sm" hx-get="/qr/@link.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML">QR</button>
-                                </span>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    </section>
+    <partial name="Shared/_RecentLinksTable" model="Model.RecentLinks" />
+</section>
 
-    @section Scripts {
-        <script defer src="/lib/alpinejs/dist/cdn.min.js"></script>
-    }
+@section Scripts {
+    <script defer src="/lib/alpinejs/dist/cdn.min.js"></script>
+}

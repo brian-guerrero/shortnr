@@ -3,10 +3,7 @@
 @{
     ViewData["Title"] = "Dashboard";
 }
-<hgroup>
-    <h1>Dashboard</h1>
-    <p>Real-time metrics for your shortened links. @if (Model.Workspace is not null) { @await Html.PartialAsync("Shared/_WorkspaceBadge", Model.Workspace) }</p>
-</hgroup>
+<partial name="Shared/_PageHeader" model="@(new PageHeaderViewModel { Title = "Dashboard", Subtitle = "Real-time metrics for your shortened links.", Workspace = Model.Workspace })" />
 
 <div sse-connect="/api/events">
     <div id="dashboard-data" hx-get="/dashboard" hx-trigger="load, sse:data-update" hx-swap="innerHTML">
@@ -32,19 +29,30 @@
                    hx-trigger="keyup changed delay:200ms"
                    hx-target="#search-results"
                    hx-swap="innerHTML"
-                   hx-include="#domain-filter">
+                   hx-include="#domain-filter, #status-filter">
             <select id="domain-filter" name="domain"
                     hx-get="/dashboard"
                     hx-trigger="change"
                     hx-target="#search-results"
                     hx-swap="innerHTML"
-                    hx-include="#search-input">
+                    hx-include="#search-input, #status-filter">
                 @foreach (var d in Model.DomainOptions)
                 {
                     <option value="@d">@d</option>
                 }
             </select>
+            <select id="status-filter" name="status"
+                    hx-get="/dashboard"
+                    hx-trigger="change"
+                    hx-target="#search-results"
+                    hx-swap="innerHTML"
+                    hx-include="#search-input, #domain-filter">
+                <option value="active">Active</option>
+                <option value="all">All</option>
+                <option value="archived">Archived</option>
+            </select>
         </div>
+        <div id="link-edit-region"></div>
         <div id="search-results" hx-get="/dashboard" hx-trigger="load" hx-swap="innerHTML">
             <article aria-busy="true"><p>Loading...</p></article>
         </div>

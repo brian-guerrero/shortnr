@@ -15,7 +15,7 @@ dev/test.
 ## Where it lives
 
 - `dex/config.yaml` — Dex's runtime config, bind-mounted into the container by the
-  AppHost (see the `dotnet-aspire` skill for the mount wiring).
+  AppHost (see the `aspire` skill for the mount wiring).
 - The Dex container resource itself is defined in `src/Shortnr.AppHost/Program.cs`.
 - `Shortnr.Web` consumes it purely as an OIDC client — no Dex-specific code in the web
   app, just standard `Microsoft.AspNetCore.Authentication.OpenIdConnect` pointed at
@@ -61,7 +61,7 @@ staticPasswords:
 Notes:
 - `issuer` **must** exactly match the URL that both the browser and `Shortnr.Web`'s
   backend use to reach Dex (path included) — OIDC discovery validates the `iss` claim
-  against it. Because the AppHost publishes a fixed host port (see `dotnet-aspire`
+  against it. Because the AppHost publishes a fixed host port (see `aspire`
   skill), `http://localhost:5556/dex` is reachable identically from both sides in local
   dev, so there's no split issuer/internal-URL problem to work around.
 - `staticClients[].redirectURIs` must exactly match `Shortnr.Web`'s configured

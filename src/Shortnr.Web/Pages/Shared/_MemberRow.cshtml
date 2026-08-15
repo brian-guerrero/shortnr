@@ -17,7 +17,7 @@
         }
     </td>
     <td data-label="Role">
-        <form hx-post="/settings/workspaces?handler=SetRole&id=@workspaceId&memberId=@Model.Id" hx-target="#workspaces-list" hx-swap="innerHTML" style="margin: 0;">
+        <form class="inline-form" hx-post="/settings/workspaces?handler=SetRole&id=@workspaceId&memberId=@Model.Id" hx-target="#workspaces-list" hx-swap="innerHTML">
             @Html.AntiForgeryToken()
             <select name="role" onchange="this.form.requestSubmit()">
                 <option value="2" selected="@(Model.Role == WorkspaceRole.Owner)">Owner</option>
@@ -29,7 +29,7 @@
     <td data-label="Joined">
         @if (isPending)
         {
-            <mark class="status-info">Pending</mark>
+            <partial name="Shared/_Badge" model="@(new BadgeViewModel { Kind = StatusKind.Info, Text = "Pending" })" />
         }
         else
         {
@@ -39,14 +39,18 @@
     <td data-label="Actions">
         @if (isPending)
         {
-            <form hx-post="/settings/workspaces?handler=ResendInvite&id=@workspaceId&memberId=@Model.Id" hx-target="#workspaces-list" hx-swap="innerHTML" style="margin: 0; display: inline;">
-                @Html.AntiForgeryToken()
-                <button type="submit" class="secondary btn-sm">Resend</button>
-            </form>
+            <partial name="Shared/_ActionForm" model="@(new ActionFormViewModel
+            {
+                PostUrl = $"/settings/workspaces?handler=ResendInvite&id={workspaceId}&memberId={Model.Id}",
+                Target = "#workspaces-list",
+                ButtonLabel = "Resend"
+            })" />
         }
-        <form hx-post="/settings/workspaces?handler=RemoveMember&id=@workspaceId&memberId=@Model.Id" hx-target="#workspaces-list" hx-swap="innerHTML" style="margin: 0; display: inline;">
-            @Html.AntiForgeryToken()
-            <button type="submit" class="secondary btn-sm">Remove</button>
-        </form>
+        <partial name="Shared/_ActionForm" model="@(new ActionFormViewModel
+        {
+            PostUrl = $"/settings/workspaces?handler=RemoveMember&id={workspaceId}&memberId={Model.Id}",
+            Target = "#workspaces-list",
+            ButtonLabel = "Remove"
+        })" />
     </td>
 </tr>

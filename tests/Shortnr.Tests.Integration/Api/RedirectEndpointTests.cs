@@ -78,6 +78,28 @@ public class RedirectEndpointTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Redirect_ArchivedLink_ReturnsGone()
+    {
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.ShortenedUrls.Add(new ShortenedUrl
+            {
+                LongUrl = "https://example.com/archived",
+                ShortCode = "archived",
+                ArchivedAtUtc = DateTime.UtcNow,
+                CreatedAtUtc = DateTime.UtcNow
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var client = _factory.CreateClientNoRedirect();
+        var response = await client.GetAsync("/archived");
+
+        Assert.Equal(HttpStatusCode.Gone, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Redirect_DefaultHost_DoesNotResolveDomainScopedCode()
     {
         var client = _factory.CreateClientNoRedirect();

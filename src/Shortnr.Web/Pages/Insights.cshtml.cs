@@ -19,7 +19,7 @@ namespace Shortnr.Web.Pages;
 /// gracefully to the deterministic insights on any provider failure. Returns 404 when
 /// the feature is disabled; mirrors the Dashboard/Activity access-control conventions.
 /// </summary>
-public class InsightsModel : PageModel
+public class InsightsModel : PageModel, IStatusMessages
 {
     private readonly AppDbContext _db;
     private readonly UserIdentityService _identity;

@@ -56,7 +56,7 @@ docker run -d \
   --name shortnr \
   -p 8080:8080 \
   -v shortnr-data:/data \
-  -e ConnectionStrings__DefaultConnection="Data Source=/data/shortnr.db" \
+  -e Database__ConnectionString="Data Source=/data/shortnr.db" \
   -e Authentication__Enabled=true \
   -e Authentication__Oidc__Authority=https://your-idp.example.com \
   -e Authentication__Oidc__ClientId=shortnr-web \

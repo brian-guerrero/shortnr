@@ -352,6 +352,81 @@ input[type="radio"] {
 fieldset { border: none; margin-bottom: var(--sn-space-3); }
 
 /* ============================================================
+   Grouped optional fields (PRD-025) — the index page's advanced
+   options panel.
+
+   Each group is a real <fieldset>/<legend> so screen readers announce
+   the grouping for free; the browser default styles (min-inline-size:
+   min-content, inset border, 0.75em padding) are reset first so the
+   theme's own border/fill applies cleanly. The legend is stamped like a
+   <mark>: accent fill, ink border, small offset shadow — a section tab
+   sitting on the group's top edge (DSG-002 §5).
+
+   Short fields pair up two-per-row so the panel reads as four scannable
+   groups rather than one long column; the labels and inputs drop their
+   own stacking margins and let the grid gap own the rhythm.
+   ============================================================ */
+.advanced-panel { margin-bottom: var(--sn-space-4); }
+
+.advanced-note {
+  margin-bottom: var(--sn-space-3);
+  font-size: var(--sn-text-small);
+}
+
+.field-section {
+  min-inline-size: 0;
+  border: var(--sn-border-width) solid var(--sn-line);
+  background: var(--sn-surface-muted);
+  padding: var(--sn-space-3);
+  margin: 0 0 var(--sn-space-3);
+}
+
+.field-section > legend {
+  padding: 0 var(--sn-space-2);
+  margin-inline-start: var(--sn-space-2);
+  font-size: var(--sn-text-small);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: var(--sn-accent);
+  color: var(--sn-accent-ink);
+  border: var(--sn-border-width) solid var(--sn-line);
+  box-shadow: var(--sn-shadow-offset-sm);
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sn-space-3);
+}
+/* A field that gets the full row (UTM content) — row-major flow keeps
+   DOM order and visual order identical, so tab order stays sane. */
+.field-grid > .field-span { grid-column: 1 / -1; }
+
+.advanced-panel .field > label {
+  margin: 0 0 var(--sn-space-1);
+  font-size: var(--sn-text-small);
+}
+.advanced-panel .field > :is(input, select, textarea) { margin-bottom: 0; }
+.advanced-panel .field + .field { margin-top: var(--sn-space-3); }
+
+/* The pixel-type sub-fields reveal inside their own section, so showing
+   them never shifts the deep-link group below. */
+.field-reveal { margin-top: var(--sn-space-3); }
+
+/* Desktop trims the input padding — these are secondary fields, and the
+   panel is already dense. Below the collapse point the inputs keep their
+   full height so they stay comfortable touch targets. */
+@media (min-width: 641px) {
+  .advanced-panel :is(input, select) { padding-block: var(--sn-space-1); }
+}
+
+@media (max-width: 640px) {
+  .field-grid { grid-template-columns: 1fr; }
+  .field-grid > .field-span { grid-column: auto; }
+}
+
+/* ============================================================
    Buttons — the three tiers of DSG-002 §5.
 
    Primary (bare <button>): accent fill, heavy border, full offset shadow.
@@ -597,6 +672,119 @@ mark {
   border: var(--sn-border-width) solid var(--sn-line);
   box-shadow: var(--sn-shadow-offset-sm);
   color: var(--sn-accent-ink);
+}
+
+/* Dismissible banner variant (link edit/transfer success) — adds a ×
+   button so a success message the user has already read doesn't linger
+   in the panel it swapped into. Auto-dismisses via Alpine x-init too. */
+.banner.banner-dismissible {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sn-space-3);
+}
+.banner-close {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+}
+.banner-close:hover {
+  opacity: 0.7;
+}
+
+/* Secret payload inside a banner (API key / webhook secret reveal) — one-shot
+   values that must wrap rather than overflow their banner. */
+.banner-detail {
+  display: block;
+  margin-top: var(--sn-space-2);
+  word-break: break-all;
+}
+
+/* Empty-state copy shown in place of a list or table. */
+.empty-state-centered {
+  text-align: center;
+}
+
+/* ── Layout utilities ────────────────────────────────────────────────────────
+   Small, single-purpose classes replacing inline style attributes that were
+   repeated verbatim across views. Prefer these over a new `style="…"`. */
+
+/* A form that is only a button (or a select), sitting inline in a table cell. */
+.inline-form {
+  display: inline;
+  margin: 0;
+}
+
+/* Long URLs in a fixed-width table cell: one line, ellipsised. */
+.truncate {
+  display: inline-block;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+/* Long URLs that may wrap instead of ellipsising. */
+.break-all {
+  word-break: break-all;
+}
+.break-all-300 {
+  max-width: 300px;
+  word-break: break-all;
+}
+
+/* A badge trailing other content in the same cell. */
+.badge-gap {
+  margin-left: var(--sn-space-2);
+}
+
+.block {
+  display: block;
+}
+
+.stack-sm {
+  margin-top: var(--sn-space-2);
+}
+.stack-md {
+  margin-top: var(--sn-space-4);
+}
+
+/* QR trigger sitting after the short URL on the shorten result line. */
+.qr-wrap-inline {
+  display: inline-block;
+  margin-left: var(--sn-space-3);
+  vertical-align: middle;
+}
+
+/* Domain verification token and its accompanying instructions. */
+.token-text {
+  font-size: 0.75rem;
+}
+.token-help {
+  font-size: 0.75rem;
+  margin-top: var(--sn-space-1);
+}
+
+/* Inline title-edit form inside the bio-page links table — a text input
+   and Save button on one line instead of Pico's full-width, stacked
+   default for form controls. */
+.title-edit-form {
+  display: flex;
+  align-items: center;
+  gap: var(--sn-space-2);
+  margin: 0;
+}
+.title-edit-form input {
+  width: auto;
+  min-width: 8rem;
+  margin: 0;
 }
 
 /* Sortable tables (dashboard recent clicks) — DSG-002 §7. The active-sort

@@ -2,17 +2,10 @@
 @{
     var expandedSlug = Model.ExpandedWorkspace;
 }
-@if (Model.StatusMessage is not null)
-{
-    <p class="banner status-success">@Model.StatusMessage</p>
-}
-@if (Model.ErrorMessage is not null)
-{
-    <p class="banner status-error">@Model.ErrorMessage</p>
-}
+<partial name="Shared/_StatusMessages" model="Model" />
 @if (Model.Workspaces.Count == 0)
 {
-    <p>No workspaces yet. Create one above to get started.</p>
+    <partial name="Shared/_EmptyState" model="@(new EmptyStateViewModel { Message = "No workspaces yet. Create one above to get started." })" />
 }
 else
 {

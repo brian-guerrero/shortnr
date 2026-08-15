@@ -619,10 +619,17 @@ namespace Shortnr.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTime?>("ArchivedAtUtc")
+                        .HasColumnType("TEXT");
+
                     b.Property<long>("ClickCount")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
                         .HasColumnType("TEXT");
 
                     b.Property<long?>("DomainId")
@@ -638,6 +645,13 @@ namespace Shortnr.Data.Migrations
                     b.Property<string>("ShortCode")
                         .IsRequired()
                         .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<long?>("WorkspaceId")

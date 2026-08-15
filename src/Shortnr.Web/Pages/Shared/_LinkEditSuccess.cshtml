@@ -1,0 +1,5 @@
+@model LinkEditSuccessViewModel
+<div id="search-results" hx-swap-oob="true">
+    @await Html.PartialAsync("Shared/_SearchResults", Model.Links)
+</div>
+<partial name="Shared/_Alert" model="@(new AlertViewModel { Kind = StatusKind.Success, Message = Model.Message, Dismissible = true })" />

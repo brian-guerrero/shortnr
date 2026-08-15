@@ -6,7 +6,7 @@ using Shortnr.Data.Entities;
 
 namespace Shortnr.Web.Pages.Settings;
 
-public class WebhooksModel : PageModel
+public class WebhooksModel : PageModel, IStatusMessages
 {
     private readonly AppDbContext _db;
     private readonly UserIdentityService _identity;

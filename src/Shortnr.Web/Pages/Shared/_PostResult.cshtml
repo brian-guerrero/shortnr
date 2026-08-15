@@ -1,40 +1,16 @@
 @model Shortnr.Web.Features.ShortLinks.Models.PostResultViewModel
 @if (Model.HasError)
 {
-    <mark class="banner status-error" style="margin-top: var(--sn-space-4);">
-        <strong>@Model.ErrorMessage</strong>
-    </mark>
+    <partial name="Shared/_Alert" model="@(new AlertViewModel { Kind = StatusKind.Error, Message = Model.ErrorMessage!, Style = "margin-top: var(--sn-space-4);" })" />
 }
 else
 {
-    <ins style="display:block; margin-top: 1rem;">
+    <ins class="block stack-md">
         <strong>Short URL:</strong>
         <a href="@Model.ShortUrl" target="_blank">@Model.ShortUrl</a>
-        <span class="qr-wrap" style="display:inline-block; margin-left: 0.75rem; vertical-align: middle;">
-            <button class="btn-sm" hx-get="/qr/@Model.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML">Show QR</button>
-        </span>
+        <partial name="Shared/_QrTrigger" model="@(new QrTriggerViewModel { ShortCode = Model.ShortCode, Label = "Show QR", WrapCssClass = "qr-wrap-inline" })" />
     </ins>
 }
 <section id="recent" hx-swap-oob="true">
-    <h2>Recent links</h2>
-    <table>
-        <thead>
-            <tr><th>Short URL</th><th>Original</th><th>Clicks</th><th>QR</th></tr>
-        </thead>
-        <tbody>
-            @foreach (var link in Model.RecentLinks)
-            {
-                <tr>
-                    <td><a href="@link.DisplayUrl()" target="_blank">@link.DisplayText()</a></td>
-                    <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">@link.LongUrl</td>
-                    <td>@link.ClickCount</td>
-                    <td>
-                        <span class="qr-wrap">
-                            <button class="btn-sm" hx-get="/qr/@link.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML">QR</button>
-                        </span>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <partial name="Shared/_RecentLinksTable" model="Model.RecentLinks" />
 </section>

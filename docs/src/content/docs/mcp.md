@@ -48,9 +48,10 @@ The MCP endpoint is at `https://your-shortnr.example.com/mcp`.
 
 | Tool | Description |
 |------|-------------|
-| `list_links` | List links with optional filter, tag, and sort parameters |
-| `get_link_stats` | Get click count, referrers, and geo/device breakdown for a specific link |
+| `list_links` | List links with optional filter, campaign, domain, status, and sort parameters |
+| `get_link_stats` | Get click count, referrers, geo/device breakdown, and campaign metadata for a specific link |
 | `get_top_links` | Get the most-clicked links for a given period |
+| `list_pixel_snippets` | List the retargeting pixel snippets available to attach to a link |
 | `list_bio_page_links` | List all links on your bio page |
 | `ping` | Health check &mdash; verify the MCP connection is working |
 
@@ -58,8 +59,8 @@ The MCP endpoint is at `https://your-shortnr.example.com/mcp`.
 
 | Tool | Description |
 |------|-------------|
-| `create_short_link` | Create a new short link with optional custom slug and domain |
-| `update_link` | Update a link's destination, slug, or domain |
+| `create_short_link` | Create a new short link, optionally with a custom slug/domain and campaign metadata (UTM params, retargeting pixel, iOS/Android deep links) — the natural way to spin up a distinct link per campaign |
+| `update_link` | Update a link's destination, slug, domain, or campaign metadata |
 | `delete_link` | Delete a short link |
 | `add_link_to_bio_page` | Add a link to your bio page |
 | `remove_link_from_bio_page` | Remove a link from your bio page |

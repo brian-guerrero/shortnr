@@ -1,2 +1,2 @@
 @model Shortnr.Web.Features.Authentication.ActiveWorkspaceContext
-<mark class="status-info preserve-case">Workspace: @Model.Name</mark>
+<partial name="Shared/_Badge" model="@(new BadgeViewModel { Kind = StatusKind.Info, Text = $"Workspace: {Model.Name}", PreserveCase = true })" />

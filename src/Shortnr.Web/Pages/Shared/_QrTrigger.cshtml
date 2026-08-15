@@ -1,0 +1,4 @@
+@model Shortnr.Web.Features.Infrastructure.QrTriggerViewModel
+<span class="qr-wrap @Model.WrapCssClass">
+    <button class="btn-sm" hx-get="/qr/@Model.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML">@Model.Label</button>
+</span>

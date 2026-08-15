@@ -4,7 +4,7 @@ using Shortnr.Data.Entities;
 
 namespace Shortnr.Web.Pages.Settings;
 
-public class WorkspacesModel : PageModel
+public class WorkspacesModel : PageModel, IStatusMessages
 {
     private readonly WorkspaceService _workspaceService;
     private readonly UserIdentityService _identity;

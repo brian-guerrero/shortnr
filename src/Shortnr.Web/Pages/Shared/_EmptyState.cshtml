@@ -1,0 +1,11 @@
+@model Shortnr.Web.Features.Infrastructure.EmptyStateViewModel
+@if (Model.Boxed)
+{
+    <article class="ai-activity">
+        <p>@Model.Message</p>
+    </article>
+}
+else
+{
+    <p class="@Model.CssClass" style="@Model.Style">@Model.Message</p>
+}

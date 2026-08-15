@@ -179,6 +179,12 @@ public static class ApiEndpoints
                 return Results.NotFound();
             }
 
+            if (link.ArchivedAtUtc is not null)
+            {
+                logger.LogInformation("Redirect suppressed for archived shortCode={ShortCode} host={Host}", shortCode, host);
+                return Results.StatusCode(StatusCodes.Status410Gone);
+            }
+
             var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
             var ip = !string.IsNullOrWhiteSpace(forwardedFor)
                 ? forwardedFor.Split(',')[0].Trim()

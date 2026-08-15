@@ -3,10 +3,7 @@
 @{
     ViewData["Title"] = "AI Insights";
 }
-<hgroup>
-    <h1>AI Insights</h1>
-    <p>Suggested tags based on your links' click patterns. Accept to apply a tag, or dismiss it.</p>
-</hgroup>
+<partial name="Shared/_PageHeader" model="@(new PageHeaderViewModel { Title = "AI Insights", Subtitle = "Suggested tags based on your links' click patterns. Accept to apply a tag, or dismiss it." })" />
 
 @if (Model.LlmEnabled)
 {

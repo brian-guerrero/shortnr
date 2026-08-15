@@ -5,7 +5,6 @@ using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
 using Shortnr.Data.Entities;
-using uaParserLibrary;
 
 namespace Shortnr.Web.Features.ClickTracking;
 
@@ -68,7 +67,7 @@ public class ClickBatchProcessor : BackgroundService
 
                     clickCountDelta[record.ShortenedUrlId] = clickCountDelta.GetValueOrDefault(record.ShortenedUrlId) + 1;
 
-                    var uaInfo = UAParser.GetClientInfo(record.UserAgent);
+                    var uaInfo = SafeUserAgentParser.Parse(record.UserAgent);
 
                     var clickEvent = new ClickEvent
                     {
@@ -77,13 +76,13 @@ public class ClickBatchProcessor : BackgroundService
                         UserAgent = record.UserAgent,
                         Referer = record.Referer,
                         ClickedAtUtc = now,
-                        DeviceFamily = uaInfo.Device.Type ?? uaInfo.Device.Model,
-                        OperatingSystem = uaInfo.OS.Name,
-                        OSVersion = uaInfo.OS.Version,
-                        Browser = uaInfo.Browser.Name,
-                        BrowserVersion = uaInfo.Browser.Major is not null
-                            ? uaInfo.Browser.Major + (uaInfo.Browser.Version is not null ? "." + uaInfo.Browser.Version : "")
-                            : uaInfo.Browser.Version
+                        DeviceFamily = uaInfo?.DeviceType ?? uaInfo?.DeviceModel,
+                        OperatingSystem = uaInfo?.OsName,
+                        OSVersion = uaInfo?.OsVersion,
+                        Browser = uaInfo?.BrowserName,
+                        BrowserVersion = uaInfo?.BrowserMajor is not null
+                            ? uaInfo.BrowserMajor + (uaInfo.BrowserVersion is not null ? "." + uaInfo.BrowserVersion : "")
+                            : uaInfo?.BrowserVersion
                     };
 
                     EnrichGeo(record.IpAddress, clickEvent);

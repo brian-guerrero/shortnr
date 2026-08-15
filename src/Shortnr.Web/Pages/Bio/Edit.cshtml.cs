@@ -6,7 +6,7 @@ using Shortnr.Data.Entities;
 
 namespace Shortnr.Web.Pages.Bio;
 
-public class EditModel : PageModel
+public class EditModel : PageModel, IStatusMessages
 {
     private readonly AppDbContext _db;
     private readonly UserIdentityService _identity;
@@ -156,11 +156,12 @@ public class EditModel : PageModel
             .MaxAsync() ?? -1;
 
         var title = (Request.Form["title"].FirstOrDefault() ?? "").Trim();
+        var defaultTitle = !string.IsNullOrWhiteSpace(link.Title) ? link.Title : link.ShortCode;
         _db.BioPageLinks.Add(new BioPageLink
         {
             BioPageId = bioPage.Id,
             ShortenedUrlId = link.Id,
-            Title = title.Length > 0 ? title : link.ShortCode,
+            Title = title.Length > 0 ? title : defaultTitle,
             SortOrder = maxOrder + 1,
             IsVisible = true
         });
@@ -168,6 +169,32 @@ public class EditModel : PageModel
 
         await LoadEditorAsync();
         StatusMessage = "Link added to your bio page.";
+        return Partial("Shared/_BioEditor", this);
+    }
+
+    public async Task<IActionResult> OnPostUpdateLinkTitle(long id, string title)
+    {
+        var gate = EnforceAccess();
+        if (gate is not null)
+            return gate;
+
+        var bioPage = await FindOwnedPageAsync();
+        if (bioPage is null)
+            return await EditorPartialAsync(error: "Create your bio page first.");
+
+        var entry = await _db.BioPageLinks.FirstOrDefaultAsync(b => b.Id == id && b.BioPageId == bioPage.Id);
+        if (entry is null)
+            return await EditorPartialAsync(error: "Link not found on your bio page.");
+
+        var trimmedTitle = (title ?? "").Trim();
+        if (trimmedTitle.Length == 0)
+            return await EditorPartialAsync(error: "Title can't be empty.");
+
+        entry.Title = trimmedTitle;
+        await _db.SaveChangesAsync();
+
+        await LoadEditorAsync();
+        StatusMessage = "Link title updated.";
         return Partial("Shared/_BioEditor", this);
     }
 
@@ -263,6 +290,7 @@ public class EditModel : PageModel
         BioPage = ownerUserId is null
             ? null
             : await _db.BioPages
+                .AsNoTracking()
                 .Include(b => b.Links)
                 .ThenInclude(l => l.ShortenedUrl)
                 .ThenInclude(s => s!.Domain)
@@ -282,7 +310,7 @@ public class EditModel : PageModel
         }
         else
         {
-            var linkQuery = _db.ShortenedUrls.Include(l => l.Domain).AsQueryable();
+            var linkQuery = _db.ShortenedUrls.AsNoTracking().Include(l => l.Domain).AsQueryable();
             if (workspaceId is not null)
                 linkQuery = linkQuery.Where(l => l.OwnerUserId == ownerUserId || l.WorkspaceId == workspaceId);
             else

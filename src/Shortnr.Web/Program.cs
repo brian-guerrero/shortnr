@@ -56,7 +56,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     var dbConnectionString = Shortnr.Data.DatabaseProviderHelper.ResolveConnectionString(builder.Configuration, dbProvider)
         ?? throw new InvalidOperationException(
             $"No connection string configured for database provider '{dbProvider}'. " +
-            $"Set 'Database:ConnectionString' or 'ConnectionStrings:DefaultConnection'.");
+            $"Set 'Database:ConnectionString'.");
     options.UseProvider(dbProvider, dbConnectionString);
 });
 
@@ -224,7 +224,7 @@ if (builder.Configuration.GetValue<bool>("Hosting:TrustForwardedHeaders", defaul
     };
     // The proxy hop isn't a fixed/known address on Fly's network, so clear the
     // default network/proxy allowlist rather than reject its headers.
-    forwardedHeadersOptions.KnownNetworks.Clear();
+    forwardedHeadersOptions.KnownIPNetworks.Clear();
     forwardedHeadersOptions.KnownProxies.Clear();
     app.UseForwardedHeaders(forwardedHeadersOptions);
 }

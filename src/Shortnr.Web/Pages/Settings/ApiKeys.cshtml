@@ -2,6 +2,15 @@
 @model Shortnr.Web.Pages.Settings.ApiKeysModel
 @{
     Layout = Model.IsHtmxRequest ? null : "_Layout";
+
+    var scopes = new CheckboxGroupViewModel
+    {
+        Legend = "Scopes",
+        InputName = "scope",
+        Options = Shortnr.Web.Features.Authentication.ApiKeyScopes.All,
+        IsChecked = s => Shortnr.Web.Features.Authentication.ApiKeyScopes.UiDefaults.Contains(s),
+        Help = @<text>Keys are scoped to what they can do. The <code>mcp:*</code> scopes cover the MCP server; <code>links:*</code> cover the REST API.</text>
+    };
 }
 <article>
     <header><h1>API keys</h1></header>
@@ -11,17 +20,7 @@
         @Html.AntiForgeryToken()
         <label for="api-key-label">Create an API key</label>
         <input type="text" name="label" id="api-key-label" placeholder="e.g. CI pipeline" required>
-        <fieldset>
-            <legend>Scopes</legend>
-            @foreach (var scope in Shortnr.Web.Features.Authentication.ApiKeyScopes.All)
-            {
-                <label>
-                    <input type="checkbox" name="scope" value="@scope" checked="@(Shortnr.Web.Features.Authentication.ApiKeyScopes.UiDefaults.Contains(scope))">
-                    <code>@scope</code>
-                </label>
-            }
-            <p><small>Keys are scoped to what they can do. The <code>mcp:*</code> scopes cover the MCP server; <code>links:*</code> cover the REST API.</small></p>
-        </fieldset>
+        <partial name="Shared/_CheckboxGroup" model="scopes" />
         <button type="submit">Create key</button>
     </form>
     <div id="api-keys-list">

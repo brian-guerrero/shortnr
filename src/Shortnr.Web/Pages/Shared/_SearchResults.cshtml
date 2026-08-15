@@ -1,30 +1,14 @@
 @model List<ShortenedUrl>
 @{
+    const string filters = "#search-input, #domain-filter, #status-filter";
     var linkSort = Context.Request.Query["linkSort"].FirstOrDefault() ?? "";
     var linkDir = Context.Request.Query["linkDir"].FirstOrDefault() ?? "";
-
-    var sortUrl = (string col, string dir) => "/dashboard?linkSort=" + col + "&linkDir=" + dir;
-
-    void SortableHeader(string col, string label)
-    {
-        var isActive = linkSort == col;
-        var isAsc = isActive && linkDir == "asc";
-        var nextDir = isAsc ? "desc" : "asc";
-        var ariaSort = !isActive ? "none" : isAsc ? "ascending" : "descending";
-        <th class="@(isActive ? "sorted" : null)" aria-sort="@ariaSort"
-            hx-get="@sortUrl(col, nextDir)" hx-target="#search-results" hx-swap="innerHTML"
-            hx-include="#search-input, #domain-filter">
-            @label
-            @if (isActive)
-            {
-                <span class="sort-indicator" aria-hidden="true">@(isAsc ? "▲" : "▼")</span>
-            }
-        </th>
-    }
+    var sort = TableSortState.FromQuery(
+        Context.Request, "linkSort", "linkDir", "/dashboard", "#search-results", filters);
 }
 @if (Model.Count == 0)
 {
-    <p style="text-align: center;">No results</p>
+    <partial name="Shared/_EmptyState" model="@(new EmptyStateViewModel { Message = "No results", CssClass = "empty-state-centered" })" />
 }
 else
 {
@@ -32,31 +16,49 @@ else
         <table class="sortable">
             <thead>
                 <tr>
-                    @{
-                        SortableHeader("shortCode", "Short URL");
-                        SortableHeader("domain", "Domain");
-                        SortableHeader("longUrl", "Original");
-                        SortableHeader("clickCount", "Clicks");
-                        SortableHeader("createdAtUtc", "Created");
-                    }
+                    <partial name="Shared/_SortableHeader" model="@sort.Header("shortCode", "Short URL")" />
+                    <partial name="Shared/_SortableHeader" model="@sort.Header("domain", "Domain")" />
+                    <partial name="Shared/_SortableHeader" model="@sort.Header("longUrl", "Original")" />
+                    <partial name="Shared/_SortableHeader" model="@sort.Header("clickCount", "Clicks")" />
+                    <partial name="Shared/_SortableHeader" model="@sort.Header("createdAtUtc", "Created")" />
                     <th>QR</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach (var link in Model)
                 {
-                    <tr>
+                    <tr class="@(link.IsArchived ? "archived-row" : null)">
                         <td>
                             <a href="@ShortUrlHelper.DisplayHref(Context.Request.Scheme, link.Domain?.Hostname, link.ShortCode)" target="_blank">@ShortUrlHelper.DisplayText(link.Domain?.Hostname, link.ShortCode)</a>
+                            @if (link.IsArchived)
+                            {
+                                <partial name="Shared/_Badge" model="@(new BadgeViewModel { Kind = StatusKind.Neutral, Text = "archived", CssClass = "badge-gap" })" />
+                            }
                         </td>
                         <td>@(link.Domain?.Hostname ?? "default")</td>
-                        <td style="max-width: 300px; word-break: break-all;">@link.LongUrl</td>
+                        <td class="break-all-300">@link.LongUrl</td>
                         <td>@link.ClickCount</td>
                         <td>@link.CreatedAtUtc.ToLocalTime().ToString("g")</td>
                         <td>
-                            <span class="qr-wrap">
-                                <button class="btn-sm" hx-get="/qr/@link.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML">QR</button>
-                            </span>
+                            <partial name="Shared/_QrTrigger" model="@(new QrTriggerViewModel { ShortCode = link.ShortCode })" />
+                        </td>
+                        <td>
+                            <button class="btn-sm" hx-get="/dashboard?handler=Edit&code=@link.Id" hx-target="#link-edit-region" hx-swap="innerHTML">Edit</button>
+                            <partial name="Shared/_ActionForm" model="@(new ActionFormViewModel
+                            {
+                                PostUrl = link.IsArchived ? "/dashboard?handler=Unarchive" : "/dashboard?handler=Archive",
+                                Target = "#search-results",
+                                HxInclude = filters,
+                                HiddenFields =
+                                {
+                                    ["code"] = link.Id.ToString(),
+                                    ["linkSort"] = linkSort,
+                                    ["linkDir"] = linkDir
+                                },
+                                ButtonLabel = link.IsArchived ? "Unarchive" : "Archive"
+                            })" />
+                            <button class="btn-sm" hx-get="/dashboard?handler=Transfer&code=@link.Id" hx-target="#link-edit-region" hx-swap="innerHTML">Transfer</button>
                         </td>
                     </tr>
                 }
