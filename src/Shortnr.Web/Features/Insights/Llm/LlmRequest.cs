@@ -8,6 +8,3 @@ public sealed record LlmRequest(
     string Model,
     double Temperature,
     int? MaxTokens);
-
-/// <summary>Normalized result of a successful provider call.</summary>
-public sealed record LlmCompletion(string Text, int PromptTokens, int CompletionTokens, string Model);

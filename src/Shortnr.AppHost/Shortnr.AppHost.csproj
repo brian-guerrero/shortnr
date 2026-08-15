@@ -15,6 +15,10 @@
     <PackageReference Include="Aspire.Hosting.AppHost" Version="13.4.6" />
     <PackageReference Include="Aspire.Hosting.JavaScript" Version="13.4.6" />
     <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.4.6" />
+    <!-- Community-maintained: there's no first-party Aspire.Hosting.Ollama package. Provisions
+         a local Ollama server + model for dev/manual LLM testing, see the "llm-provider"
+         conditional in Program.cs. -->
+    <PackageReference Include="CommunityToolkit.Aspire.Hosting.Ollama" Version="13.4.0" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 
 namespace Shortnr.Web.Features.Insights.Llm;
@@ -11,7 +12,7 @@ namespace Shortnr.Web.Features.Insights.Llm;
 /// Short-circuits (disabled, unconfigured, over budget) never hit the network.
 /// </summary>
 public class LlmInsightService(
-    ILlmClient client,
+    IChatClient chatClient,
     LlmUsageService usage,
     LlmPricing pricing,
     IOptions<LlmOptions> options,
@@ -49,14 +50,29 @@ public class LlmInsightService(
 
         try
         {
-            var completion = await client.CompleteAsync(request, ct);
+            var messages = new List<ChatMessage>
+            {
+                new(ChatRole.System, request.SystemPrompt),
+                new(ChatRole.User, request.UserPrompt)
+            };
+            var chatOptions = new ChatOptions
+            {
+                ModelId = request.Model,
+                Temperature = (float)request.Temperature,
+                MaxOutputTokens = request.MaxTokens
+            };
+            var response = await chatClient.GetResponseAsync(messages, chatOptions, ct);
 
-            var cost = pricing.EstimateCost(completion.PromptTokens, completion.CompletionTokens, completion.Model);
+            var promptTokens = (int)(response.Usage?.InputTokenCount ?? 0);
+            var completionTokens = (int)(response.Usage?.OutputTokenCount ?? 0);
+            var modelUsed = response.ModelId ?? request.Model;
+
+            var cost = pricing.EstimateCost(promptTokens, completionTokens, modelUsed);
             await usage.RecordAsync(new LlmUsageRecord(
-                Options.Provider.ToString(), completion.Model, request.Operation.ToString(),
-                completion.PromptTokens, completion.CompletionTokens, cost, true, null, ownerUserId), ct);
+                Options.Provider.ToString(), modelUsed, request.Operation.ToString(),
+                promptTokens, completionTokens, cost, true, null, ownerUserId), ct);
 
-            return new LlmInsightResult { Status = LlmInsightStatus.Success, Content = completion.Text };
+            return new LlmInsightResult { Status = LlmInsightStatus.Success, Content = response.Text };
         }
         catch (LlmException ex)
         {

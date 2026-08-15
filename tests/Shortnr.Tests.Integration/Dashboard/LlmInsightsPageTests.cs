@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -19,14 +20,18 @@ namespace Shortnr.Tests.Integration.Dashboard;
 /// endpoints (analyze, optimize-campaign, draft-social-copy, suggest-tags), owner
 /// scoping, auth enforcement, graceful degradation when the provider fails, cost
 /// tracking into LlmUsageLog, and monthly-budget enforcement. The LLM transport is
-/// stubbed with <see cref="FakeLlmClient"/> via ConfigureTestServices, so no real
+/// stubbed with <see cref="FakeChatClient"/> via ConfigureTestServices, so no real
 /// provider API is ever contacted.
 /// </summary>
 public class LlmInsightsPageTests : IAsyncLifetime
 {
-    private readonly StubLlmFactory _factory = new(() => new FakeLlmClient
+    private readonly StubLlmFactory _factory = new(() => new FakeChatClient
     {
-        Result = new LlmCompletion("Traffic spiked because of a Reddit post in r/selfhosted.", 100, 20, "gpt-4o-mini")
+        Result = new ChatResponse(new ChatMessage(ChatRole.Assistant, "Traffic spiked because of a Reddit post in r/selfhosted."))
+        {
+            ModelId = "gpt-4o-mini",
+            Usage = new UsageDetails { InputTokenCount = 100, OutputTokenCount = 20 }
+        }
     });
 
     private User _alice = null!;
@@ -278,7 +283,7 @@ public class LlmInsightsPageTests : IAsyncLifetime
     [Fact]
     public async Task ProviderRateLimited_ShowsFriendlyError_AndRecordsFailedUsage()
     {
-        using var factory = MakeStubFactory(new FakeLlmClient { Throw = new LlmException("rate limited", LlmErrorKind.RateLimit) });
+        using var factory = MakeStubFactory(new FakeChatClient { Throw = new LlmException("rate limited", LlmErrorKind.RateLimit) });
         var client = AuthenticatedClient(factory);
         var token = await GetAntiforgeryTokenAsync(client);
 
@@ -300,7 +305,7 @@ public class LlmInsightsPageTests : IAsyncLifetime
     [Fact]
     public async Task ProviderGenericFailure_ShowsFriendlyError()
     {
-        using var factory = MakeStubFactory(new FakeLlmClient { Throw = new InvalidOperationException("provider exploded") });
+        using var factory = MakeStubFactory(new FakeChatClient { Throw = new InvalidOperationException("provider exploded") });
         var client = AuthenticatedClient(factory);
         var token = await GetAntiforgeryTokenAsync(client);
 
@@ -343,7 +348,7 @@ public class LlmInsightsPageTests : IAsyncLifetime
     [Fact]
     public async Task BudgetExceeded_BlocksCallWithoutInvokingProvider()
     {
-        var client = new FakeLlmClient();
+        var client = new FakeChatClient();
         using var factory = MakeBudgetFactory(client, monthlyBudget: 0.0001m);
         var factoryClient = AuthenticatedClient(factory);
         var token = await GetAntiforgeryTokenAsync(factoryClient);
@@ -359,7 +364,7 @@ public class LlmInsightsPageTests : IAsyncLifetime
     [Fact]
     public async Task WithinBudget_AllowsCall()
     {
-        var client = new FakeLlmClient();
+        var client = new FakeChatClient();
         using var factory = MakeBudgetFactory(client, monthlyBudget: 100m);
         var factoryClient = AuthenticatedClient(factory);
         var token = await GetAntiforgeryTokenAsync(factoryClient);
@@ -378,12 +383,12 @@ public class LlmInsightsPageTests : IAsyncLifetime
         @"name=""__RequestVerificationToken""[^>]*value=""([^""]+)""",
         RegexOptions.Compiled);
 
-    private static StubLlmFactory MakeStubFactory(ILlmClient stub) => new(() => stub);
+    private static StubLlmFactory MakeStubFactory(IChatClient stub) => new(() => stub);
 
-    private static StubLlmFactory MakeBudgetFactory(ILlmClient stub, decimal monthlyBudget) =>
+    private static StubLlmFactory MakeBudgetFactory(IChatClient stub, decimal monthlyBudget) =>
         new(() => stub, monthlyBudget: monthlyBudget);
 
-    private sealed class StubLlmFactory(Func<ILlmClient> clientFactory, decimal? monthlyBudget = null, bool authEnabled = true)
+    private sealed class StubLlmFactory(Func<IChatClient> clientFactory, decimal? monthlyBudget = null, bool authEnabled = true)
         : ShortnrWebAppFactory(authEnabled, aiInsightsEnabled: true, llmEnabled: true)
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -407,23 +412,36 @@ public class LlmInsightsPageTests : IAsyncLifetime
 
             builder.ConfigureTestServices(services =>
             {
-                services.RemoveAll<ILlmClient>();
+                services.RemoveAll<IChatClient>();
                 services.AddSingleton(clientFactory());
             });
         }
     }
 
-    private sealed class FakeLlmClient : ILlmClient
+    private sealed class FakeChatClient : IChatClient
     {
         public int Calls { get; private set; }
-        public LlmCompletion Result { get; set; } = new("ok", 10, 5, "gpt-4o-mini");
+        public ChatResponse Result { get; set; } = new(new ChatMessage(ChatRole.Assistant, "ok"))
+        {
+            ModelId = "gpt-4o-mini",
+            Usage = new UsageDetails { InputTokenCount = 10, OutputTokenCount = 5 }
+        };
         public Exception? Throw { get; set; }
 
-        public Task<LlmCompletion> CompleteAsync(LlmRequest request, CancellationToken ct = default)
+        public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
         {
             Calls++;
             if (Throw is not null) throw Throw;
             return Task.FromResult(Result);
+        }
+
+        public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+        public void Dispose()
+        {
         }
     }
 }

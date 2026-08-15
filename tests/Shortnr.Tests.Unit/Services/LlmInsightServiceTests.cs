@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Shortnr.Data;
@@ -20,7 +21,7 @@ public class LlmInsightServiceTests : IDisposable
 
     public void Dispose() => _db.Dispose();
 
-    private LlmInsightService Build(LlmOptions options, FakeLlmClient client) =>
+    private LlmInsightService Build(LlmOptions options, FakeChatClient client) =>
         new(client,
             new LlmUsageService(_db, Options.Create(options), new LlmPricing(Options.Create(options)),
                 NullLogger<LlmUsageService>.Instance),
@@ -43,7 +44,14 @@ public class LlmInsightServiceTests : IDisposable
     [Fact]
     public async Task CompleteAsync_Success_ReturnsContentAndRecordsUsage()
     {
-        var client = new FakeLlmClient { Result = new LlmCompletion("Traffic spiked from Reddit.", 120, 30, "gpt-4o-mini") };
+        var client = new FakeChatClient
+        {
+            Result = new ChatResponse(new ChatMessage(ChatRole.Assistant, "Traffic spiked from Reddit."))
+            {
+                ModelId = "gpt-4o-mini",
+                Usage = new UsageDetails { InputTokenCount = 120, OutputTokenCount = 30 }
+            }
+        };
         var service = Build(EnabledOptions(), client);
 
         var result = await service.CompleteAsync(Req(), ownerUserId: 3);
@@ -63,7 +71,7 @@ public class LlmInsightServiceTests : IDisposable
     [Fact]
     public async Task CompleteAsync_WhenDisabled_ReturnsDisabledWithoutCallingProvider()
     {
-        var client = new FakeLlmClient();
+        var client = new FakeChatClient();
         var service = Build(new LlmOptions { Enabled = false }, client);
 
         var result = await service.CompleteAsync(Req(), ownerUserId: null);
@@ -76,7 +84,7 @@ public class LlmInsightServiceTests : IDisposable
     [Fact]
     public async Task CompleteAsync_WhenModelEmpty_ReturnsNotConfiguredWithoutCallingProvider()
     {
-        var client = new FakeLlmClient();
+        var client = new FakeChatClient();
         var service = Build(new LlmOptions { Enabled = true, Model = "" }, client);
 
         var result = await service.CompleteAsync(Req(), ownerUserId: null);
@@ -89,7 +97,7 @@ public class LlmInsightServiceTests : IDisposable
     [Fact]
     public async Task CompleteAsync_BudgetExceeded_ReturnsBudgetExceededWithoutCallingProvider()
     {
-        var client = new FakeLlmClient();
+        var client = new FakeChatClient();
         var service = Build(EnabledOptions(monthlyBudget: 1.00m), client);
         _db.LlmUsageLogs.Add(new LlmUsageLog { Provider = "OpenAI", Model = "m", Operation = "x", EstimatedCostUsd = 1.00m, CreatedAtUtc = DateTime.UtcNow });
         await _db.SaveChangesAsync();
@@ -103,7 +111,7 @@ public class LlmInsightServiceTests : IDisposable
     [Fact]
     public async Task CompleteAsync_LlmException_ReturnsFriendlyErrorAndRecordsFailedUsage()
     {
-        var client = new FakeLlmClient { Throw = new LlmException("rate limited", LlmErrorKind.RateLimit) };
+        var client = new FakeChatClient { Throw = new LlmException("rate limited", LlmErrorKind.RateLimit) };
         var service = Build(EnabledOptions(), client);
 
         var result = await service.CompleteAsync(Req(), ownerUserId: null);
@@ -120,7 +128,7 @@ public class LlmInsightServiceTests : IDisposable
     [Fact]
     public async Task CompleteAsync_GenericException_ReturnsFriendlyError()
     {
-        var client = new FakeLlmClient { Throw = new InvalidOperationException("boom") };
+        var client = new FakeChatClient { Throw = new InvalidOperationException("boom") };
         var service = Build(EnabledOptions(), client);
 
         var result = await service.CompleteAsync(Req(), ownerUserId: null);
@@ -129,17 +137,30 @@ public class LlmInsightServiceTests : IDisposable
         Assert.Contains("Something went wrong", result.FriendlyMessage);
     }
 
-    private sealed class FakeLlmClient : ILlmClient
+    private sealed class FakeChatClient : IChatClient
     {
         public int Calls { get; private set; }
-        public LlmCompletion Result { get; set; } = new("ok", 10, 5, "gpt-4o-mini");
+        public ChatResponse Result { get; set; } = new(new ChatMessage(ChatRole.Assistant, "ok"))
+        {
+            ModelId = "gpt-4o-mini",
+            Usage = new UsageDetails { InputTokenCount = 10, OutputTokenCount = 5 }
+        };
         public Exception? Throw { get; set; }
 
-        public Task<LlmCompletion> CompleteAsync(LlmRequest request, CancellationToken ct = default)
+        public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
         {
             Calls++;
             if (Throw is not null) throw Throw;
             return Task.FromResult(Result);
+        }
+
+        public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+        public void Dispose()
+        {
         }
     }
 }
