@@ -2,9 +2,7 @@
 <article class="edit-panel">
     @if (Model.ErrorMessage is not null)
     {
-        <mark class="banner status-error">
-            <strong>@Model.ErrorMessage</strong>
-        </mark>
+        <partial name="Shared/_Alert" model="@(new AlertViewModel { Kind = StatusKind.Error, Message = Model.ErrorMessage })" />
     }
     <form method="post" hx-post="/dashboard?handler=Edit"
           hx-target="#link-edit-region" hx-swap="innerHTML"

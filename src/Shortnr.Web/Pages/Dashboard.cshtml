@@ -3,10 +3,7 @@
 @{
     ViewData["Title"] = "Dashboard";
 }
-<hgroup>
-    <h1>Dashboard</h1>
-    <p>Real-time metrics for your shortened links. @if (Model.Workspace is not null) { @await Html.PartialAsync("Shared/_WorkspaceBadge", Model.Workspace) }</p>
-</hgroup>
+<partial name="Shared/_PageHeader" model="@(new PageHeaderViewModel { Title = "Dashboard", Subtitle = "Real-time metrics for your shortened links.", Workspace = Model.Workspace })" />
 
 <div sse-connect="/api/events">
     <div id="dashboard-data" hx-get="/dashboard" hx-trigger="load, sse:data-update" hx-swap="innerHTML">

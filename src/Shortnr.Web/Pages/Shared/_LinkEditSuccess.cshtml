@@ -1,12 +1,5 @@
 @model LinkEditSuccessViewModel
-@inject Microsoft.Extensions.Configuration.IConfiguration Config
-@{
-    var messageDisplayMs = Config.GetValue<int>("Dashboard:MessageDisplayMs", 5000);
-}
 <div id="search-results" hx-swap-oob="true">
     @await Html.PartialAsync("Shared/_SearchResults", Model.Links)
 </div>
-<mark class="banner status-success banner-dismissible" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, @messageDisplayMs)">
-    <strong>@Model.Message</strong>
-    <button type="button" class="banner-close" x-on:click="show = false" aria-label="Dismiss">&times;</button>
-</mark>
+<partial name="Shared/_Alert" model="@(new AlertViewModel { Kind = StatusKind.Success, Message = Model.Message, Dismissible = true })" />

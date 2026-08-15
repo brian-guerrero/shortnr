@@ -3,28 +3,13 @@
     var clickSort = Context.Request.Query["clickSort"].FirstOrDefault() ?? "";
     var clickDir = Context.Request.Query["clickDir"].FirstOrDefault() ?? "";
     var clickLimit = Context.Request.Query["clickLimit"].FirstOrDefault() ?? "5";
-
-    var sortUrl = (string col, string dir) => "/dashboard?clickSort=" + col + "&clickDir=" + dir + "&clickLimit=" + clickLimit;
-
-    void SortableHeader(string col, string label)
-    {
-        var isActive = clickSort == col;
-        var isAsc = isActive && clickDir == "asc";
-        var nextDir = isAsc ? "desc" : "asc";
-        var ariaSort = !isActive ? "none" : isAsc ? "ascending" : "descending";
-        <th class="@(isActive ? "sorted" : null)" aria-sort="@ariaSort"
-            hx-get="@sortUrl(col, nextDir)" hx-target="#recent-clicks" hx-swap="innerHTML">
-            @label
-            @if (isActive)
-            {
-                <span class="sort-indicator" aria-hidden="true">@(isAsc ? "▲" : "▼")</span>
-            }
-        </th>
-    }
+    var sort = TableSortState.FromQuery(
+        Context.Request, "clickSort", "clickDir", "/dashboard", "#recent-clicks",
+        extraQuery: new Dictionary<string, string?> { ["clickLimit"] = clickLimit });
 }
 @if (Model.Count == 0)
 {
-    <p style="text-align: center;">No clicks yet</p>
+    <partial name="Shared/_EmptyState" model="@(new EmptyStateViewModel { Message = "No clicks yet", CssClass = "empty-state-centered" })" />
 }
 else
 {
@@ -32,14 +17,12 @@ else
         <table class="sortable">
             <thead>
                 <tr>
-                    @{
-                        SortableHeader("shortCode", "Short URL");
-                        SortableHeader("countryCode", "Country");
-                        SortableHeader("browser", "Browser");
-                        SortableHeader("operatingSystem", "OS");
-                        SortableHeader("referer", "Referer");
-                        SortableHeader("clickedAtUtc", "Time");
-                    }
+                    <partial name="Shared/_SortableHeader" model="@sort.Header("shortCode", "Short URL")" />
+                    <partial name="Shared/_SortableHeader" model="@sort.Header("countryCode", "Country")" />
+                    <partial name="Shared/_SortableHeader" model="@sort.Header("browser", "Browser")" />
+                    <partial name="Shared/_SortableHeader" model="@sort.Header("operatingSystem", "OS")" />
+                    <partial name="Shared/_SortableHeader" model="@sort.Header("referer", "Referer")" />
+                    <partial name="Shared/_SortableHeader" model="@sort.Header("clickedAtUtc", "Time")" />
                 </tr>
             </thead>
             <tbody>
@@ -50,10 +33,10 @@ else
                         <td>@click.CountryCode</td>
                         <td>@click.Browser @click.BrowserVersion</td>
                         <td>@click.OperatingSystem @click.OSVersion</td>
-                        <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
-                            title="@click.Referer">@click.Referer</td>
+                        <td title="@click.Referer">@click.Referer</td>
                         <td>@click.ClickedAtUtc.ToLocalTime().ToString("g")</td>
                     </tr>
+                    @* Inline display is load-bearing: Dashboard.cshtml's toggle script selects on [style*="table-row"]. *@
                     <tr style="display: none;" class="detail-row" data-click-id="@click.Id">
                         <td colspan="6">
                             <strong>IP:</strong> @click.IpAddress |

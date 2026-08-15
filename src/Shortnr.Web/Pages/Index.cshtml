@@ -4,9 +4,7 @@
     Layout = Model.IsHtmxRequest ? null : "_Layout";
 }
 <article>
-    <header>
-        <h1>shortnr @if (Model.Workspace is not null) { @await Html.PartialAsync("Shared/_WorkspaceBadge", Model.Workspace) }</h1>
-    </header>
+    <partial name="Shared/_PageHeader" model="@(new PageHeaderViewModel { Title = "shortnr", Workspace = Model.Workspace })" />
     <form hx-post="/" hx-target="#result" hx-swap="innerHTML" x-data="{ showAdvanced: false, showPixel: false, pixelIsCustom: false }">
         @Html.AntiForgeryToken()
         <label for="url">Enter a long URL</label>
@@ -18,37 +16,9 @@
 </article>
 
 <section id="recent">
-    <h2>Recent links</h2>
-    <div class="overflow-auto">
-        <table>
-            <thead>
-                <tr>
-                    <th>Short URL</th>
-                    <th>Original</th>
-                    <th>Clicks</th>
-                    <th>QR</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var link in Model.RecentLinks)
-                {
-                    <tr>
-                        <td><a href="@link.DisplayUrl()" target="_blank">@link.DisplayText()</a></td>
-                        <td>
-                            @link.LongUrl</td>
-                            <td>@link.ClickCount</td>
-                            <td>
-                                <span class="qr-wrap">
-                                    <button class="btn-sm" hx-get="/qr/@link.ShortCode" hx-target="closest .qr-wrap" hx-swap="innerHTML">QR</button>
-                                </span>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    </section>
+    <partial name="Shared/_RecentLinksTable" model="Model.RecentLinks" />
+</section>
 
-    @section Scripts {
-        <script defer src="/lib/alpinejs/dist/cdn.min.js"></script>
-    }
+@section Scripts {
+    <script defer src="/lib/alpinejs/dist/cdn.min.js"></script>
+}

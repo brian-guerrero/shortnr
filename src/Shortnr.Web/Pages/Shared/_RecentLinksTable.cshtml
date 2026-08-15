@@ -1,0 +1,34 @@
+@model List<ShortenedUrl>
+@*
+    The one definition of the "Recent links" table body. Index.cshtml renders it on load and
+    _PostResult.cshtml swaps the same #recent section out-of-band after a shorten — before this
+    partial existed the two copies had drifted, so the table changed shape on the OOB swap.
+    The enclosing <section id="recent"> stays with each caller, because only _PostResult's copy
+    carries hx-swap-oob.
+*@
+<h2>Recent links</h2>
+<div class="overflow-auto">
+    <table>
+        <thead>
+            <tr>
+                <th>Short URL</th>
+                <th>Original</th>
+                <th>Clicks</th>
+                <th>QR</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var link in Model)
+            {
+                <tr>
+                    <td><a href="@link.DisplayUrl()" target="_blank">@link.DisplayText()</a></td>
+                    <td title="@link.LongUrl">@link.LongUrl</td>
+                    <td>@link.ClickCount</td>
+                    <td>
+                        <partial name="Shared/_QrTrigger" model="@(new QrTriggerViewModel { ShortCode = link.ShortCode })" />
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

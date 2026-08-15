@@ -16,7 +16,7 @@
 
 @if (Model.GeoBreakdown.Count == 0)
 {
-    <p style="text-align: center;">No geo data yet</p>
+    <partial name="Shared/_EmptyState" model="@(new EmptyStateViewModel { Message = "No geo data yet", CssClass = "empty-state-centered" })" />
 }
 else
 {

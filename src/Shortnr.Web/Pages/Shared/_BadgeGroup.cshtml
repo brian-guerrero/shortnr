@@ -1,0 +1,7 @@
+@model IEnumerable<Shortnr.Web.Features.Infrastructure.BadgeViewModel>
+<div class="badge-group">
+    @foreach (var badge in Model)
+    {
+        <partial name="Shared/_Badge" model="badge" />
+    }
+</div>

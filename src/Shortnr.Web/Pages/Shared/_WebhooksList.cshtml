@@ -1,81 +1,58 @@
 @model Shortnr.Web.Pages.Settings.WebhooksModel
-@if (Model.ErrorMessage is not null)
-{
-    <mark class="banner status-error">
-        <strong>@Model.ErrorMessage</strong>
-    </mark>
-}
-@if (Model.StatusMessage is not null)
-{
-    <mark class="banner status-success">
-        <strong>@Model.StatusMessage</strong>
-    </mark>
-}
+<partial name="Shared/_StatusMessages" model="Model" />
 @if (Model.CreatedSecret is not null)
 {
-    <mark class="banner status-info">
-        <strong>Copy this secret now — it cannot be recovered later:</strong>
-        <code style="display:block; margin-top: 0.5rem; word-break: break-all;">@Model.CreatedSecret</code>
-    </mark>
+    <partial name="Shared/_Alert" model="@(new AlertViewModel { Kind = StatusKind.Info, Message = "Copy this secret now — it cannot be recovered later:", Detail = Model.CreatedSecret })" />
 }
 @if (Model.Webhooks.Count == 0)
 {
-    <p>No webhooks yet. Create one above to start receiving event notifications.</p>
+    <partial name="Shared/_EmptyState" model="@(new EmptyStateViewModel { Message = "No webhooks yet. Create one above to start receiving event notifications." })" />
 }
 else
 {
-    <table class="stacked-table">
-        <thead>
-            <tr><th>URL</th><th>Events</th><th>Created</th><th>Status</th><th>Actions</th></tr>
-        </thead>
-        <tbody>
-            @foreach (var webhook in Model.Webhooks)
-            {
-                <tr>
-                    <td data-label="URL"><small style="word-break: break-all;">@webhook.Url</small></td>
-                    <td data-label="Events">
-                        <div class="badge-group">
-                            @foreach (var eventType in Shortnr.Web.Features.Webhooks.WebhookEventTypes.Parse(webhook.EventTypes))
+    <div class="overflow-auto">
+        <table class="stacked-table">
+            <thead>
+                <tr><th>URL</th><th>Events</th><th>Created</th><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var webhook in Model.Webhooks)
+                {
+                    <tr>
+                        <td data-label="URL"><small class="break-all">@webhook.Url</small></td>
+                        <td data-label="Events">
+                            <partial name="Shared/_BadgeGroup" model="@(Shortnr.Web.Features.Webhooks.WebhookEventTypes.Parse(webhook.EventTypes).Select(e => new BadgeViewModel { Kind = StatusKind.Info, Text = e }))" />
+                        </td>
+                        <td data-label="Created"><small>@webhook.CreatedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</small></td>
+                        <td data-label="Status">
+                            <partial name="Shared/_Badge" model="@(webhook.IsActive
+                                ? new BadgeViewModel { Kind = StatusKind.Success, Text = "active" }
+                                : new BadgeViewModel { Kind = StatusKind.Error, Text = "disabled" })" />
+                            @if (!webhook.IsActive && webhook.FailureCount > 0)
                             {
-                                <mark class="status-info">@eventType</mark>
+                                <small class="block">@webhook.FailureCount failures</small>
                             }
-                        </div>
-                    </td>
-                    <td data-label="Created"><small>@webhook.CreatedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</small></td>
-                    <td data-label="Status">
-                        @if (!webhook.IsActive)
-                        {
-                            <mark class="status-error">disabled</mark>
-                            @if (webhook.FailureCount > 0)
-                            {
-                                <small style="display:block;">@webhook.FailureCount failures</small>
-                            }
-                        }
-                        else
-                        {
-                            <mark class="status-success">active</mark>
-                        }
-                    </td>
-                    <td data-label="Actions">
-                        @if (webhook.IsActive)
-                        {
-                            <form hx-post="/settings/webhooks?handler=Revoke" hx-target="#webhooks-list" hx-swap="innerHTML" style="display:inline;">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="id" value="@webhook.Id">
-                                <button type="submit" class="secondary btn-sm">Disable</button>
-                            </form>
-                        }
-                        else
-                        {
-                            <form hx-post="/settings/webhooks?handler=Activate" hx-target="#webhooks-list" hx-swap="innerHTML" style="display:inline;">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="id" value="@webhook.Id">
-                                <button type="submit" class="secondary btn-sm">Re-enable</button>
-                            </form>
-                        }
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
+                        </td>
+                        <td data-label="Actions">
+                            <partial name="Shared/_ActionForm" model="@(webhook.IsActive
+                                ? new ActionFormViewModel
+                                {
+                                    PostUrl = "/settings/webhooks?handler=Revoke",
+                                    Target = "#webhooks-list",
+                                    HiddenFields = { ["id"] = webhook.Id.ToString() },
+                                    ButtonLabel = "Disable"
+                                }
+                                : new ActionFormViewModel
+                                {
+                                    PostUrl = "/settings/webhooks?handler=Activate",
+                                    Target = "#webhooks-list",
+                                    HiddenFields = { ["id"] = webhook.Id.ToString() },
+                                    ButtonLabel = "Re-enable"
+                                })" />
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 }

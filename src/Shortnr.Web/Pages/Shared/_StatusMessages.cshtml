@@ -1,0 +1,10 @@
+@model Shortnr.Web.Features.Infrastructure.IStatusMessages
+@using Shortnr.Web.Features.Infrastructure
+@if (Model.ErrorMessage is not null)
+{
+    <partial name="Shared/_Alert" model="@(new AlertViewModel { Kind = StatusKind.Error, Message = Model.ErrorMessage })" />
+}
+@if (Model.StatusMessage is not null)
+{
+    <partial name="Shared/_Alert" model="@(new AlertViewModel { Kind = StatusKind.Success, Message = Model.StatusMessage })" />
+}
