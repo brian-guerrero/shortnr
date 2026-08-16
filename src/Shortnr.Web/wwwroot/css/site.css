@@ -1126,3 +1126,314 @@ details.dropdown.user-menu[open] > summary {
   white-space: nowrap;
   border: 0;
 }
+
+/* ============================================================
+   PRD-019: bulk link actions
+   ============================================================ */
+/* Toolbar above the search-results table. Hidden until at least one row's
+   checkbox is checked; the count + clear button lead the action group. */
+.bulk-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sn-space-2);
+  padding: var(--sn-space-2) var(--sn-space-3);
+  margin-bottom: var(--sn-space-3);
+  border: var(--sn-border-width-heavy) solid var(--sn-line);
+  background: var(--sn-surface);
+  box-shadow: var(--sn-shadow-offset-sm);
+  max-height: 0;
+  overflow: hidden;
+  padding-top: 0;
+  padding-bottom: 0;
+  opacity: 0;
+  border-width: 0;
+  transition: max-height 0.15s ease-out, opacity 0.15s ease-out,
+              padding 0.15s ease-out, border-width 0.15s ease-out, margin 0.15s ease-out;
+}
+.bulk-toolbar.is-active {
+  max-height: 4rem;
+  opacity: 1;
+  padding-top: var(--sn-space-2);
+  padding-bottom: var(--sn-space-2);
+  border-width: var(--sn-border-width-heavy);
+  margin-bottom: var(--sn-space-3);
+}
+.bulk-count { font-weight: 700; margin-right: var(--sn-space-1); }
+.bulk-actions {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sn-space-2);
+}
+.bulk-workspace-select { max-width: 10rem; }
+.bulk-tag-form input { max-width: 8rem; }
+.bulk-delete { margin-left: auto; }
+/* A checked row reads as "queued for a bulk action", so the row itself stays
+   readable while its selection stands out from the surrounding rows. */
+input[data-select-row]:checked,
+input[data-select-all]:checked {
+  accent-color: var(--sn-accent);
+}
+.select-col { width: 1.5rem; text-align: center; }
+
+/* ============================================================
+   PRD-019: bulk-action toast (out-of-band)
+   ============================================================ */
+#bulk-toast-wrap { position: fixed; right: var(--sn-space-6); bottom: var(--sn-space-6); z-index: 40; }
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--sn-space-3);
+  min-width: 18rem;
+  max-width: 24rem;
+  padding: var(--sn-space-3) var(--sn-space-4);
+  border: var(--sn-border-width-heavy) solid var(--sn-line);
+  box-shadow: var(--sn-shadow-offset);
+  background: var(--sn-surface);
+  color: var(--sn-ink);
+  animation: sn-toast-in 0.2s ease-out;
+}
+.toast-body { display: flex; align-items: center; gap: var(--sn-space-3); }
+.toast-message { font-size: var(--sn-text-small); }
+.toast-undo { margin-left: 0; white-space: nowrap; }
+.toast-close { font-size: 1.1rem; }
+.toast.status-error {
+  box-shadow: inset 3px 0 0 var(--sn-status-error), var(--sn-shadow-offset);
+}
+.toast.status-success {
+  box-shadow: inset 3px 0 0 var(--sn-status-success), var(--sn-shadow-offset);
+}
+.toast.status-info {
+  box-shadow: inset 3px 0 0 var(--sn-status-info), var(--sn-shadow-offset);
+}
+.toast.status-neutral {
+  box-shadow: inset 3px 0 0 var(--sn-status-neutral), var(--sn-shadow-offset);
+}
+@keyframes sn-toast-in {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+/* ============================================================
+   PRD-019: link-detail modal
+   ============================================================ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--sn-ink) 60%, transparent);
+  padding: var(--sn-space-6);
+}
+.modal {
+  width: 100%;
+  max-width: 720px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--sn-paper);
+  border: var(--sn-border-width-heavy) solid var(--sn-line);
+  box-shadow: var(--sn-shadow-offset-lg);
+  animation: sn-modal-in 0.15s ease-out;
+}
+.modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sn-space-3);
+  padding: var(--sn-space-4);
+  border-bottom: var(--sn-border-width-heavy) solid var(--sn-line);
+  background: var(--sn-accent);
+}
+.modal-head h3 { margin: 0; color: var(--sn-accent-ink); }
+.modal-url {
+  margin: 0;
+  font-size: var(--sn-text-small);
+  word-break: break-all;
+  color: var(--sn-accent-ink);
+  opacity: 0.8;
+}
+.modal-body { padding: var(--sn-space-4); }
+.modal-body h3 { margin: 0 0 var(--sn-space-2); font-size: var(--sn-text-h3); }
+.detail-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: var(--sn-space-3);
+  margin-bottom: var(--sn-space-4);
+}
+.detail-meta-item {
+  border: var(--sn-border-width) solid var(--sn-line);
+  padding: var(--sn-space-2) var(--sn-space-3);
+  background: var(--sn-surface);
+}
+.detail-meta-item span,
+.detail-meta-item strong { display: block; }
+.detail-meta-item strong { font-size: var(--sn-text-h3); }
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sn-space-4);
+  margin-bottom: var(--sn-space-4);
+}
+.detail-panel { border: var(--sn-border-width) solid var(--sn-line); padding: var(--sn-space-3); background: var(--sn-surface); }
+.detail-panel table { margin-bottom: 0; }
+.detail-utmtags {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sn-space-2);
+  margin-bottom: var(--sn-space-4);
+}
+.detail-cities { font-size: var(--sn-text-small); margin: var(--sn-space-2) 0 0; }
+.detail-footer { margin: 0; font-size: var(--sn-text-small); }
+@keyframes sn-modal-in {
+  from { transform: translateY(10px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+/* The archived row keeps its data dense but its state legible in a glance. */
+.archived-row .muted,
+.archived-row td:not(.select-col) { opacity: 0.55; }
+
+/* ============================================================
+   PRD-019: command palette (Cmd+K)
+   ============================================================ */
+.palette {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+}
+.palette-backdrop {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--sn-ink) 55%, transparent);
+}
+.palette-panel {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  background: var(--sn-paper);
+  border: var(--sn-border-width-heavy) solid var(--sn-line);
+  box-shadow: var(--sn-shadow-offset-lg);
+  animation: sn-palette-in 0.15s ease-out;
+}
+@keyframes sn-palette-in {
+  from { transform: translateY(-8px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+.palette-search {
+  display: flex;
+  align-items: center;
+  gap: var(--sn-space-3);
+  padding: var(--sn-space-3) var(--sn-space-4);
+  border-bottom: var(--sn-border-width-heavy) solid var(--sn-line);
+  background: var(--sn-accent);
+}
+.palette-kbd {
+  font-family: var(--sn-font-mono);
+  font-size: var(--sn-text-small);
+  color: var(--sn-accent-ink);
+  opacity: 0.8;
+}
+.palette-input {
+  flex: 1;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: var(--sn-accent-ink);
+  font-size: var(--sn-text-body);
+}
+.palette-input::placeholder { color: var(--sn-accent-ink); opacity: 0.7; }
+.palette-search .banner-close { color: var(--sn-accent-ink); }
+.palette-groups {
+  max-height: 50vh;
+  overflow-y: auto;
+  padding: var(--sn-space-2);
+}
+.palette-group { margin-bottom: var(--sn-space-2); }
+.palette-group-label {
+  margin: var(--sn-space-1) var(--sn-space-3);
+  font-size: var(--sn-text-small);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sn-mid-gray);
+}
+.palette-item-form { margin: 0; display: block; }
+.palette-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sn-space-3);
+  padding: var(--sn-space-2) var(--sn-space-3);
+  width: 100%;
+  text-align: left;
+  font-size: var(--sn-text-body);
+  color: var(--sn-ink);
+  background: transparent;
+  border: none;
+  border-left: var(--sn-border-width) solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+}
+.palette-item kbd {
+  font-family: var(--sn-font-mono);
+  font-size: var(--sn-text-small);
+  border: var(--sn-border-width) solid var(--sn-line);
+  border-radius: var(--sn-border-radius);
+  padding: 0 var(--sn-space-1);
+  min-width: 1.4rem;
+  text-align: center;
+  background: var(--sn-surface);
+}
+.palette-item:hover { background: var(--sn-surface-muted); }
+.palette-item.is-highlighted {
+  background: var(--sn-accent);
+  color: var(--sn-accent-ink);
+}
+.palette-item.is-highlighted .muted { color: var(--sn-accent-ink); opacity: 0.7; }
+.palette-item.is-highlighted kbd { background: var(--sn-surface); }
+.palette-item.is-active .muted { font-size: var(--sn-text-small); }
+.palette-empty { padding: var(--sn-space-4); text-align: center; color: var(--sn-mid-gray); }
+.palette-footer {
+  display: flex;
+  gap: var(--sn-space-4);
+  padding: var(--sn-space-2) var(--sn-space-4);
+  border-top: var(--sn-border-width) solid var(--sn-line);
+  font-size: var(--sn-text-small);
+  color: var(--sn-mid-gray);
+}
+.palette-footer kbd {
+  font-family: var(--sn-font-mono);
+  font-size: 0.75rem;
+  border: var(--sn-border-width) solid var(--sn-line);
+  background: var(--sn-surface);
+  padding: 0 var(--sn-space-1);
+}
+.inline-form.palette-item-form { display: block; }
+.nav-palette-opener {
+  --sn-btn-lift: var(--sn-shadow-offset-sm);
+  --sn-btn-press: 1px;
+  background: var(--sn-surface);
+  color: var(--sn-ink);
+  border-width: var(--sn-border-width);
+  font-family: var(--sn-font-mono);
+}
+
+/* ============================================================
+   PRD-019: motion — CSS-only, token-coloured, reduced-motion aware
+   ============================================================ */
+@media (prefers-reduced-motion: no-preference) {
+  /* Row-in fade is deliberately subtle: bulk/search swaps re-render the whole
+     table, so a heavy animation would strobe on every keystroke. */
+  .sortable tbody tr {
+    animation: sn-row-in 0.12s ease-out;
+  }
+  @keyframes sn-row-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+}
