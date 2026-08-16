@@ -756,7 +756,6 @@ mark {
   margin-top: var(--sn-space-4);
 }
 
-
 /* htmx ships the .htmx-indicator/.htmx-request class toggling behavior but not the CSS to
    act on it -- this is htmx's own documented pattern, not something core.js injects. Used by
    the /insights "Ask AI" busy indicator (hx-indicator="#llm-busy") so a slow LLM call shows
