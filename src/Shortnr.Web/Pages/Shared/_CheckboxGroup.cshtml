@@ -1,0 +1,15 @@
+@model Shortnr.Web.Features.Infrastructure.CheckboxGroupViewModel
+<fieldset>
+    <legend>@Model.Legend</legend>
+    @foreach (var option in Model.Options)
+    {
+        <label>
+            <input type="checkbox" name="@Model.InputName" value="@option" checked="@Model.IsChecked(option)">
+            <code>@option</code>
+        </label>
+    }
+    @if (Model.Help is not null)
+    {
+        <p><small>@Model.Help(null)</small></p>
+    }
+</fieldset>

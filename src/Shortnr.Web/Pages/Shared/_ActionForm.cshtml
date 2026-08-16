@@ -1,0 +1,10 @@
+@model Shortnr.Web.Features.Infrastructure.ActionFormViewModel
+<form class="inline-form" hx-post="@Model.PostUrl" hx-target="@Model.Target" hx-swap="innerHTML"
+      hx-include="@Model.HxInclude" hx-confirm="@Model.ResolvedConfirm">
+    @Html.AntiForgeryToken()
+    @foreach (var (name, value) in Model.HiddenFields)
+    {
+        <input type="hidden" name="@name" value="@value">
+    }
+    <button type="submit" class="@Model.ButtonClasses">@Model.ButtonLabel</button>
+</form>

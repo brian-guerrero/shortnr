@@ -4,7 +4,7 @@
     Layout = Model.IsHtmxRequest ? null : "_Layout";
 }
 <article>
-    <header><h1>Bio page @if (Model.Workspace is not null) { @await Html.PartialAsync("Shared/_WorkspaceBadge", Model.Workspace) }</h1></header>
+    <partial name="Shared/_PageHeader" model="@(new PageHeaderViewModel { Title = "Bio page", Workspace = Model.Workspace })" />
     <div id="bio-editor">
         @await Html.PartialAsync("Shared/_BioEditor", Model)
     </div>

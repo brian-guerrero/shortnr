@@ -1,0 +1,32 @@
+@model Shortnr.Web.Features.Infrastructure.PageHeaderViewModel
+@*
+    Two shapes, matching what each surface already rendered: a bare <hgroup> for
+    standalone pages with a subtitle, and a <header><h1> for the ones inside an
+    <article>. The workspace badge trails the subtitle when there is one, otherwise
+    the title.
+*@
+@if (Model.Subtitle is not null)
+{
+    <hgroup>
+        <h1>@Model.Title</h1>
+        <p>
+            @Model.Subtitle
+            @if (Model.Workspace is not null)
+            {
+                <partial name="Shared/_WorkspaceBadge" model="Model.Workspace" />
+            }
+        </p>
+    </hgroup>
+}
+else
+{
+    <header>
+        <h1>
+            @Model.Title
+            @if (Model.Workspace is not null)
+            {
+                <partial name="Shared/_WorkspaceBadge" model="Model.Workspace" />
+            }
+        </h1>
+    </header>
+}

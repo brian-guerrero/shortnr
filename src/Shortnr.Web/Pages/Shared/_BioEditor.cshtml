@@ -1,16 +1,5 @@
 @model Shortnr.Web.Pages.Bio.EditModel
-@if (Model.ErrorMessage is not null)
-{
-    <mark class="banner status-error">
-        <strong>@Model.ErrorMessage</strong>
-    </mark>
-}
-@if (Model.StatusMessage is not null)
-{
-    <mark class="banner status-success">
-        <strong>@Model.StatusMessage</strong>
-    </mark>
-}
+<partial name="Shared/_StatusMessages" model="Model" />
 @if (Model.BioPage is null)
 {
     <p>Your bio page is one shareable URL that fans out to your links. It is powered by real short links, so every button gets click tracking and a QR code for free.</p>
@@ -103,7 +92,7 @@ else
 
     @if (Model.BioPage.Links.Count == 0)
     {
-        <p>No links yet. Add your first one above.</p>
+        <partial name="Shared/_EmptyState" model="@(new EmptyStateViewModel { Message = "No links yet. Add your first one above." })" />
     }
     else
     {
@@ -117,7 +106,7 @@ else
                         <th>Clicks</th>
                         <th>Visible</th>
                         <th>Order</th>
-                        <th></th>
+                        <th>Remove</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -129,12 +118,13 @@ else
                             <td data-label="Title">
                                 @if (!entry.IsVisible)
                                 {
-                                    <mark>hidden</mark>
+                                    <partial name="Shared/_Badge" model="@(new BadgeViewModel { Kind = StatusKind.Plain, Text = "hidden" })" />
                                 }
                                 @if (link?.IsArchived == true)
                                 {
-                                    <mark class="status-error">archived — hidden from your live page</mark>
+                                    <partial name="Shared/_Badge" model="@(new BadgeViewModel { Kind = StatusKind.Error, Text = "archived — hidden from your live page" })" />
                                 }
+                                @* Keeps its own markup: carries an inline title input, not just a button. *@
                                 <form hx-post="/bio/edit?handler=UpdateLinkTitle" hx-target="#bio-editor" hx-swap="innerHTML" class="title-edit-form">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="id" value="@entry.Id">
@@ -150,40 +140,44 @@ else
                             </td>
                             <td data-label="Clicks">@(link?.ClickCount ?? 0)</td>
                             <td data-label="Visible">
-                                <form hx-post="/bio/edit?handler=ToggleLink" hx-target="#bio-editor" hx-swap="innerHTML" style="display:inline;">
-                                    @Html.AntiForgeryToken()
-                                    <input type="hidden" name="id" value="@entry.Id">
-                                    <button type="submit" class="secondary btn-sm">
-                                        @(entry.IsVisible ? "Hide" : "Show")
-                                    </button>
-                                </form>
+                                <partial name="Shared/_ActionForm" model="@(new ActionFormViewModel
+                                {
+                                    PostUrl = "/bio/edit?handler=ToggleLink",
+                                    Target = "#bio-editor",
+                                    HiddenFields = { ["id"] = entry.Id.ToString() },
+                                    ButtonLabel = entry.IsVisible ? "Hide" : "Show"
+                                })" />
                             </td>
                             <td data-label="Order">
                                 @if (i > 0)
                                 {
-                                    <form hx-post="/bio/edit?handler=MoveLink" hx-target="#bio-editor" hx-swap="innerHTML" style="display:inline;">
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="id" value="@entry.Id">
-                                        <input type="hidden" name="direction" value="up">
-                                        <button type="submit" class="secondary btn-sm">↑</button>
-                                    </form>
+                                    <partial name="Shared/_ActionForm" model="@(new ActionFormViewModel
+                                    {
+                                        PostUrl = "/bio/edit?handler=MoveLink",
+                                        Target = "#bio-editor",
+                                        HiddenFields = { ["id"] = entry.Id.ToString(), ["direction"] = "up" },
+                                        ButtonLabel = "↑"
+                                    })" />
                                 }
                                 @if (i < bioLinks.Count - 1)
                                 {
-                                    <form hx-post="/bio/edit?handler=MoveLink" hx-target="#bio-editor" hx-swap="innerHTML" style="display:inline;">
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="id" value="@entry.Id">
-                                        <input type="hidden" name="direction" value="down">
-                                        <button type="submit" class="secondary btn-sm">↓</button>
-                                    </form>
+                                    <partial name="Shared/_ActionForm" model="@(new ActionFormViewModel
+                                    {
+                                        PostUrl = "/bio/edit?handler=MoveLink",
+                                        Target = "#bio-editor",
+                                        HiddenFields = { ["id"] = entry.Id.ToString(), ["direction"] = "down" },
+                                        ButtonLabel = "↓"
+                                    })" />
                                 }
                             </td>
                             <td data-label="Remove">
-                                <form hx-post="/bio/edit?handler=RemoveLink" hx-target="#bio-editor" hx-swap="innerHTML" style="display:inline;">
-                                    @Html.AntiForgeryToken()
-                                    <input type="hidden" name="id" value="@entry.Id">
-                                    <button type="submit" class="secondary btn-sm">Remove</button>
-                                </form>
+                                <partial name="Shared/_ActionForm" model="@(new ActionFormViewModel
+                                {
+                                    PostUrl = "/bio/edit?handler=RemoveLink",
+                                    Target = "#bio-editor",
+                                    HiddenFields = { ["id"] = entry.Id.ToString() },
+                                    ButtonLabel = "Remove"
+                                })" />
                             </td>
                         </tr>
                     }

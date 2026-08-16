@@ -1,91 +1,84 @@
 @model Shortnr.Web.Pages.Settings.DomainsModel
-@if (Model.ErrorMessage is not null)
-{
-    <mark class="banner status-error">
-        <strong>@Model.ErrorMessage</strong>
-    </mark>
-}
-@if (Model.StatusMessage is not null)
-{
-    <mark class="banner status-success">
-        <strong>@Model.StatusMessage</strong>
-    </mark>
-}
+<partial name="Shared/_StatusMessages" model="Model" />
 @if (Model.Domains.Count == 0)
 {
-    <p>No custom domains yet. Add one above to start using branded short links.</p>
+    <partial name="Shared/_EmptyState" model="@(new EmptyStateViewModel { Message = "No custom domains yet. Add one above to start using branded short links." })" />
 }
 else
 {
-    <table class="stacked-table">
-        <thead>
-            <tr><th>Domain</th><th>Status</th><th>Verification token</th><th>Actions</th></tr>
-        </thead>
-        <tbody>
-            @foreach (var domain in Model.Domains)
-            {
-                <tr>
-                    <td data-label="Domain">
-                        <code>@domain.Hostname</code>
-                        @if (domain.IsDefault)
-                        {
-                            <mark class="status-info" style="margin-left: var(--sn-space-2);">default</mark>
-                        }
-                    </td>
-                    <td data-label="Status">
-                        @if (domain.IsVerified)
-                        {
-                            <mark class="status-success">verified</mark>
-                        }
-                        else
-                        {
-                            <mark class="status-neutral">unverified</mark>
-                        }
-                    </td>
-                    <td data-label="Verification token">
-                        @if (domain.IsVerified)
-                        {
-                            <small>—</small>
-                        }
-                        else
-                        {
-                            <code style="font-size: 0.75rem;">@domain.VerificationToken</code>
-                            <div style="font-size: 0.75rem; margin-top: 0.25rem;">
-                                <strong>File:</strong> /.well-known/shortnr-verify.txt
-                                <br>
-                                <strong>DNS TXT:</strong> _shortnr-verify.@(domain.Hostname)
-                            </div>
-                        }
-                    </td>
-                    <td data-label="Actions">
-                        @if (!domain.IsVerified)
-                        {
-                            <form hx-post="/settings/domains?handler=Verify" hx-target="#domains-list" hx-swap="innerHTML" style="display:inline;">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="id" value="@domain.Id">
-                                <select name="method" class="input-inline" title="Verification method">
-                                    <option value="file">Verify via file</option>
-                                    <option value="txt">Verify via DNS TXT</option>
-                                </select>
-                                <button type="submit" class="btn-sm">Verify</button>
-                            </form>
-                        }
-                        @if (domain.IsVerified && !domain.IsDefault)
-                        {
-                            <form hx-post="/settings/domains?handler=SetDefault" hx-target="#domains-list" hx-swap="innerHTML" style="display:inline;">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="id" value="@domain.Id">
-                                <button type="submit" class="secondary btn-sm">Make default</button>
-                            </form>
-                        }
-                        <form hx-post="/settings/domains?handler=Delete" hx-target="#domains-list" hx-swap="innerHTML" style="display:inline;">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="id" value="@domain.Id">
-                            <button type="submit" class="danger btn-sm">Delete</button>
-                        </form>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <div class="overflow-auto">
+        <table class="stacked-table">
+            <thead>
+                <tr><th>Domain</th><th>Status</th><th>Verification token</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var domain in Model.Domains)
+                {
+                    <tr>
+                        <td data-label="Domain">
+                            <code>@domain.Hostname</code>
+                            @if (domain.IsDefault)
+                            {
+                                <partial name="Shared/_Badge" model="@(new BadgeViewModel { Kind = StatusKind.Info, Text = "default", CssClass = "badge-gap" })" />
+                            }
+                        </td>
+                        <td data-label="Status">
+                            <partial name="Shared/_Badge" model="@(domain.IsVerified
+                                ? new BadgeViewModel { Kind = StatusKind.Success, Text = "verified" }
+                                : new BadgeViewModel { Kind = StatusKind.Neutral, Text = "unverified" })" />
+                        </td>
+                        <td data-label="Verification token">
+                            @if (domain.IsVerified)
+                            {
+                                <small>—</small>
+                            }
+                            else
+                            {
+                                <code class="token-text">@domain.VerificationToken</code>
+                                <div class="token-help">
+                                    <strong>File:</strong> /.well-known/shortnr-verify.txt
+                                    <br>
+                                    <strong>DNS TXT:</strong> _shortnr-verify.@(domain.Hostname)
+                                </div>
+                            }
+                        </td>
+                        <td data-label="Actions">
+                            @* Keeps its own markup: the method <select> makes this more than a one-button form. *@
+                            @if (!domain.IsVerified)
+                            {
+                                <form class="inline-form" hx-post="/settings/domains?handler=Verify" hx-target="#domains-list" hx-swap="innerHTML">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@domain.Id">
+                                    <select name="method" class="input-inline" title="Verification method">
+                                        <option value="file">Verify via file</option>
+                                        <option value="txt">Verify via DNS TXT</option>
+                                    </select>
+                                    <button type="submit" class="btn-sm">Verify</button>
+                                </form>
+                            }
+                            @if (domain.IsVerified && !domain.IsDefault)
+                            {
+                                <partial name="Shared/_ActionForm" model="@(new ActionFormViewModel
+                                {
+                                    PostUrl = "/settings/domains?handler=SetDefault",
+                                    Target = "#domains-list",
+                                    HiddenFields = { ["id"] = domain.Id.ToString() },
+                                    ButtonLabel = "Make default"
+                                })" />
+                            }
+                            <partial name="Shared/_ActionForm" model="@(new ActionFormViewModel
+                            {
+                                PostUrl = "/settings/domains?handler=Delete",
+                                Target = "#domains-list",
+                                HiddenFields = { ["id"] = domain.Id.ToString() },
+                                ButtonLabel = "Delete",
+                                ButtonStyle = ActionButtonStyle.Danger,
+                                ConfirmMessage = $"Delete the domain '{domain.Hostname}'? Links on it will stop resolving."
+                            })" />
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 }

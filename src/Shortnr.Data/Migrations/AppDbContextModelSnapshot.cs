@@ -514,6 +514,96 @@ namespace Shortnr.Data.Migrations
                     b.ToTable("Domains");
                 });
 
+            modelBuilder.Entity("Shortnr.Data.Entities.LlmInsightRun", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Content")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FriendlyMessage")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("InputSummary")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("OwnerUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Success")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerUserId", "CreatedAtUtc");
+
+                    b.ToTable("LlmInsightRuns");
+                });
+
+            modelBuilder.Entity("Shortnr.Data.Entities.LlmUsageLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CompletionTokens")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ErrorKind")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("EstimatedCostUsd")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("OwnerUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("PromptTokens")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Success")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAtUtc");
+
+                    b.HasIndex("OwnerUserId");
+
+                    b.ToTable("LlmUsageLogs");
+                });
+
             modelBuilder.Entity("Shortnr.Data.Entities.PixelSnippet", b =>
                 {
                     b.Property<long>("Id")
@@ -1005,6 +1095,26 @@ namespace Shortnr.Data.Migrations
                     b.Navigation("Owner");
 
                     b.Navigation("Workspace");
+                });
+
+            modelBuilder.Entity("Shortnr.Data.Entities.LlmInsightRun", b =>
+                {
+                    b.HasOne("Shortnr.Data.Entities.User", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Owner");
+                });
+
+            modelBuilder.Entity("Shortnr.Data.Entities.LlmUsageLog", b =>
+                {
+                    b.HasOne("Shortnr.Data.Entities.User", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Owner");
                 });
 
             modelBuilder.Entity("Shortnr.Data.Entities.ShortenedUrl", b =>

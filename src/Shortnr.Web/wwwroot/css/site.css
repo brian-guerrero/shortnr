@@ -698,6 +698,106 @@ mark {
   opacity: 0.7;
 }
 
+/* Secret payload inside a banner (API key / webhook secret reveal) — one-shot
+   values that must wrap rather than overflow their banner. */
+.banner-detail {
+  display: block;
+  margin-top: var(--sn-space-2);
+  word-break: break-all;
+}
+
+/* Empty-state copy shown in place of a list or table. */
+.empty-state-centered {
+  text-align: center;
+}
+
+/* ── Layout utilities ────────────────────────────────────────────────────────
+   Small, single-purpose classes replacing inline style attributes that were
+   repeated verbatim across views. Prefer these over a new `style="…"`. */
+
+/* A form that is only a button (or a select), sitting inline in a table cell. */
+.inline-form {
+  display: inline;
+  margin: 0;
+}
+
+/* Long URLs in a fixed-width table cell: one line, ellipsised. */
+.truncate {
+  display: inline-block;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+/* Long URLs that may wrap instead of ellipsising. */
+.break-all {
+  word-break: break-all;
+}
+.break-all-300 {
+  max-width: 300px;
+  word-break: break-all;
+}
+
+/* A badge trailing other content in the same cell. */
+.badge-gap {
+  margin-left: var(--sn-space-2);
+}
+
+.block {
+  display: block;
+}
+
+.stack-sm {
+  margin-top: var(--sn-space-2);
+}
+.stack-md {
+  margin-top: var(--sn-space-4);
+}
+
+/* htmx ships the .htmx-indicator/.htmx-request class toggling behavior but not the CSS to
+   act on it -- this is htmx's own documented pattern, not something core.js injects. Used by
+   the /insights "Ask AI" busy indicator (hx-indicator="#llm-busy") so a slow LLM call shows
+   visible feedback instead of the form just sitting there. */
+.htmx-indicator {
+  display: none;
+}
+.htmx-request.htmx-indicator,
+.htmx-request .htmx-indicator {
+  display: block;
+}
+
+/* One persisted "Ask AI" run on /insights -- badge + input summary + timestamp on one line,
+   generated text or error banner below. */
+.llm-history-item-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sn-space-2);
+  margin-bottom: var(--sn-space-2);
+}
+.llm-history-item-header time {
+  margin-left: auto;
+  color: var(--pico-muted-color);
+  font-size: 0.875em;
+}
+
+/* QR trigger sitting after the short URL on the shorten result line. */
+.qr-wrap-inline {
+  display: inline-block;
+  margin-left: var(--sn-space-3);
+  vertical-align: middle;
+}
+
+/* Domain verification token and its accompanying instructions. */
+.token-text {
+  font-size: 0.75rem;
+}
+.token-help {
+  font-size: 0.75rem;
+  margin-top: var(--sn-space-1);
+}
+
 /* Inline title-edit form inside the bio-page links table — a text input
    and Save button on one line instead of Pico's full-width, stacked
    default for form controls. */

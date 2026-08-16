@@ -8,7 +8,7 @@ using Shortnr.Data.Entities;
 
 namespace Shortnr.Web.Pages.Settings;
 
-public partial class DomainsModel : PageModel
+public partial class DomainsModel : PageModel, IStatusMessages
 {
     [GeneratedRegex(@"^(?=.{1,253}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$")]
     private static partial Regex HostnamePattern();
