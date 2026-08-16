@@ -1,0 +1,33 @@
+@model Shortnr.Web.Features.ClickTracking.BulkActionResultViewModel
+@* PRD-019 bulk actions. The search-results table is the swapped target; the
+   confirmation toast travels out-of-band into the layout's #bulk-toast-wrap
+   region so a destructive-action confirmation never lives inside the table
+   markup. Sort state is carried over hidden inputs so undo and refetches keep
+   the current sort (see TableSortState). *@
+@{
+    var linkSort = Context.Request.Query["linkSort"].FirstOrDefault() ?? "";
+    var linkDir = Context.Request.Query["linkDir"].FirstOrDefault() ?? "";
+}
+<partial name="Shared/_SearchResults" model="Model.Links" />
+<div id="bulk-toast-wrap" hx-swap-oob="true">
+    <div class="toast @Model.Kind.ToCssClass()" role="status" data-toast>
+        <div class="toast-body">
+            <span class="toast-message">@Model.Message</span>
+            @if (!string.IsNullOrEmpty(Model.UndoToken))
+            {
+                <form class="inline-form"
+                      hx-post="/dashboard?handler=Undo"
+                      hx-target="#search-results"
+                      hx-swap="innerHTML"
+                      hx-include="#search-input, #domain-filter, #status-filter">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="token" value="@Model.UndoToken">
+                    <input type="hidden" name="linkSort" value="@linkSort">
+                    <input type="hidden" name="linkDir" value="@linkDir">
+                    <button type="submit" class="btn-sm toast-undo">Undo</button>
+                </form>
+            }
+        </div>
+        <button type="button" class="banner-close toast-close" data-toast-dismiss aria-label="Dismiss">×</button>
+    </div>
+</div>

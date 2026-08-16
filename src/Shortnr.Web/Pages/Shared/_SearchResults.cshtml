@@ -1,10 +1,15 @@
-@model List<ShortenedUrl>
+@model List<Shortnr.Web.Features.ClickTracking.LinkRowViewModel>
+@inject Shortnr.Web.Features.Authentication.IUserIdentityService _admIdentity
+@inject Shortnr.Web.Features.Workspaces.WorkspaceService _admWorkspaces
 @{
     const string filters = "#search-input, #domain-filter, #status-filter";
+    var selected = "[name='selected']:checked";
     var linkSort = Context.Request.Query["linkSort"].FirstOrDefault() ?? "";
     var linkDir = Context.Request.Query["linkDir"].FirstOrDefault() ?? "";
     var sort = TableSortState.FromQuery(
         Context.Request, "linkSort", "linkDir", "/dashboard", "#search-results", filters);
+    var admOwnerId = await _admIdentity.ResolveOwnerUserIdAsync(User);
+    var workspaceOptions = admOwnerId is null ? [] : await _admWorkspaces.GetWorkspacesForUserAsync(admOwnerId.Value);
 }
 @if (Model.Count == 0)
 {
@@ -12,15 +17,60 @@
 }
 else
 {
+    <div class="bulk-toolbar" data-bulk-toolbar>
+        <span class="bulk-count" data-bulk-count>0 selected</span>
+        <button type="button" class="btn-sm" data-bulk-clear>Clear</button>
+        <span class="bulk-actions">
+            <form class="inline-form" hx-post="/dashboard?handler=BulkArchive" hx-target="#search-results" hx-swap="innerHTML" hx-include="@(selected + ", " + filters)">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn-sm">Archive</button>
+            </form>
+            <form class="inline-form" hx-post="/dashboard?handler=BulkUnarchive" hx-target="#search-results" hx-swap="innerHTML" hx-include="@(selected + ", " + filters)">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn-sm">Unarchive</button>
+            </form>
+            <form class="inline-form" hx-post="/dashboard?handler=BulkMove" hx-target="#search-results" hx-swap="innerHTML" hx-include="@(selected + ", " + filters)">
+                @Html.AntiForgeryToken()
+                <select name="workspace" class="input-inline bulk-workspace-select" aria-label="Move to workspace">
+                    <option value="">Move to…</option>
+                    @foreach (var ws in workspaceOptions)
+                    {
+                        <option value="@ws.Slug">@ws.Name</option>
+                    }
+                </select>
+                <button type="submit" class="btn-sm">Move</button>
+            </form>
+            <form class="inline-form bulk-tag-form" hx-post="/dashboard?handler=BulkTag" hx-target="#search-results" hx-swap="innerHTML" hx-include="@(selected + ", " + filters)">
+                @Html.AntiForgeryToken()
+                <input type="text" name="tags" class="input-inline" placeholder="Add tag…" aria-label="Add tag to selected links">
+                <button type="submit" class="btn-sm">Tag</button>
+            </form>
+            <form class="inline-form" hx-post="/dashboard?handler=BulkUntag" hx-target="#search-results" hx-swap="innerHTML" hx-include="@(selected + ", " + filters)">
+                @Html.AntiForgeryToken()
+                <input type="text" name="tags" class="input-inline" placeholder="Remove tag…" aria-label="Remove tag from selected links">
+                <button type="submit" class="btn-sm">Untag</button>
+            </form>
+        </span>
+        <form class="inline-form bulk-delete" hx-post="/dashboard?handler=BulkDelete" hx-target="#search-results" hx-swap="innerHTML"
+              hx-include="@(selected + ", " + filters)" hx-confirm="Delete the selected links?">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn-sm danger">Delete</button>
+        </form>
+    </div>
     <div class="overflow-auto">
         <table class="sortable">
             <thead>
                 <tr>
+                    <th class="select-col">
+                        <input type="checkbox" id="select-all" data-select-all aria-label="Select all links">
+                    </th>
                     <partial name="Shared/_SortableHeader" model="@sort.Header("shortCode", "Short URL")" />
                     <partial name="Shared/_SortableHeader" model="@sort.Header("domain", "Domain")" />
                     <partial name="Shared/_SortableHeader" model="@sort.Header("longUrl", "Original")" />
+                    <th>Tags</th>
                     <partial name="Shared/_SortableHeader" model="@sort.Header("clickCount", "Clicks")" />
                     <partial name="Shared/_SortableHeader" model="@sort.Header("createdAtUtc", "Created")" />
+                    <th>Last Clicked</th>
                     <th>QR</th>
                     <th>Actions</th>
                 </tr>
@@ -29,21 +79,45 @@ else
                 @foreach (var link in Model)
                 {
                     <tr class="@(link.IsArchived ? "archived-row" : null)">
+                        <td class="select-col">
+                            <input type="checkbox" name="selected" value="@link.Id" data-select-row aria-label="Select @link.ShortCode">
+                        </td>
                         <td>
-                            <a href="@ShortUrlHelper.DisplayHref(Context.Request.Scheme, link.Domain?.Hostname, link.ShortCode)" target="_blank">@ShortUrlHelper.DisplayText(link.Domain?.Hostname, link.ShortCode)</a>
+                            <a href="@ShortUrlHelper.DisplayHref(Context.Request.Scheme, link.DomainHostname, link.ShortCode)" target="_blank">@link.DisplayText</a>
                             @if (link.IsArchived)
                             {
                                 <partial name="Shared/_Badge" model="@(new BadgeViewModel { Kind = StatusKind.Neutral, Text = "archived", CssClass = "badge-gap" })" />
                             }
                         </td>
-                        <td>@(link.Domain?.Hostname ?? "default")</td>
+                        <td>@(link.DomainHostname.Length > 0 ? link.DomainHostname : "default")</td>
                         <td class="break-all-300">@link.LongUrl</td>
+                        <td>
+                            @if (link.Tags.Count > 0)
+                            {
+                                <span class="badge-group">
+                                    @foreach (var tag in link.Tags.Take(3))
+                                    {
+                                        <partial name="Shared/_Badge" model="@(new BadgeViewModel { Kind = StatusKind.Plain, Text = tag, PreserveCase = true })" />
+                                    }
+                                    @if (link.Tags.Count > 3)
+                                    {
+                                        <span class="muted badge-more">+@(link.Tags.Count - 3)</span>
+                                    }
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="muted">—</span>
+                            }
+                        </td>
                         <td>@link.ClickCount</td>
                         <td>@link.CreatedAtUtc.ToLocalTime().ToString("g")</td>
+                        <td>@(link.LastClickedAtUtc?.ToLocalTime().ToString("g") ?? "—")</td>
                         <td>
                             <partial name="Shared/_QrTrigger" model="@(new QrTriggerViewModel { ShortCode = link.ShortCode })" />
                         </td>
                         <td>
+                            <button class="btn-sm" hx-get="/dashboard?handler=Detail&code=@link.Id" hx-target="#link-detail" hx-swap="innerHTML" aria-label="View stats for @link.ShortCode">Stats</button>
                             <button class="btn-sm" hx-get="/dashboard?handler=Edit&code=@link.Id" hx-target="#link-edit-region" hx-swap="innerHTML">Edit</button>
                             <partial name="Shared/_ActionForm" model="@(new ActionFormViewModel
                             {
