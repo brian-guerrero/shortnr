@@ -29,6 +29,10 @@ public static class McpToolGuard
 
     public static string Json(object value) => JsonSerializer.Serialize(value, JsonOptions);
 
+    /// <summary>Serializes a <c>{"error": "..."}</c> payload for resources that must
+    /// surface an error inside a successful read (mirrors the bio resource's shape).</summary>
+    public static string JsonError(string message) => Json(new { error = message });
+
     /// <summary>True when the current request's principal carries the given scope.</summary>
     public static bool HasScope<T>(RequestContext<T> context, string scope) =>
         context.User is not null && ApiKeyScopes.HasScope(context.User, scope);
@@ -106,6 +110,23 @@ public static class McpToolGuard
             return workspaceMatches.FirstOrDefault();
 
         return workspaceMatches.FirstOrDefault(l => l.DomainId == null) ?? workspaceMatches[0];
+    }
+
+    /// <summary>
+    /// Queryable over every link the caller can see: their personal links plus links
+    /// in any workspace they're a member of (mirrors <see cref="ResolveAccessibleLinkAsync"/>,
+    /// but set-based so it can be further filtered and paginated). Used by read
+    /// resources and streaming analytics aggregation.
+    /// </summary>
+    public static IQueryable<ShortenedUrl> AccessibleLinksQuery(AppDbContext db, long ownerUserId)
+    {
+        var memberWorkspaceIds = db.WorkspaceMembers
+            .Where(m => m.UserId == ownerUserId && m.JoinedAtUtc != null)
+            .Select(m => m.WorkspaceId);
+
+        return db.ShortenedUrls
+            .Where(l => l.OwnerUserId == ownerUserId ||
+                        (l.WorkspaceId != null && memberWorkspaceIds.Contains(l.WorkspaceId.Value)));
     }
 
     /// <summary>Enqueues an audit entry for an AI/MCP-initiated change (never blocks the call).</summary>

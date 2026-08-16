@@ -19,7 +19,8 @@ public static class McpModule
         })
         .WithHttpTransport(options => options.Stateless = true)
         .WithToolsFromAssembly()
-        .WithResourcesFromAssembly();
+        .WithResourcesFromAssembly()
+        .WithPromptsFromAssembly();
 
         return services;
     }
