@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
+using Shortnr.Data;
 using Shortnr.Data.Entities;
+using Shortnr.Web.Features.ShortLinks;
 
 namespace Shortnr.Web.Pages.Settings;
 
@@ -8,6 +11,7 @@ public class WorkspacesModel : PageModel
 {
     private readonly WorkspaceService _workspaceService;
     private readonly UserIdentityService _identity;
+    private readonly AppDbContext _db;
 
     public List<Workspace> Workspaces { get; set; } = [];
     public string? StatusMessage { get; set; }
@@ -15,10 +19,11 @@ public class WorkspacesModel : PageModel
     public bool IsHtmxRequest { get; set; }
     public string? ExpandedWorkspace { get; set; }
 
-    public WorkspacesModel(WorkspaceService workspaceService, UserIdentityService identity)
+    public WorkspacesModel(WorkspaceService workspaceService, UserIdentityService identity, AppDbContext db)
     {
         _workspaceService = workspaceService;
         _identity = identity;
+        _db = db;
     }
 
     public async Task<IActionResult> OnGet()
@@ -146,6 +151,29 @@ public class WorkspacesModel : PageModel
         return await DetailPartialAsync(id, status: "Invitation resent.");
     }
 
+    public async Task<IActionResult> OnPostSetTheme(long id, string? previewTheme)
+    {
+        var gate = EnforceAccess();
+        if (gate is not null)
+            return gate;
+
+        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        if (ownerUserId is null)
+            return await DetailPartialAsync(id, error: "Unable to determine your account.");
+
+        var workspace = await _db.Workspaces.FirstOrDefaultAsync(w => w.Id == id);
+        if (workspace is null)
+            return await DetailPartialAsync(id, error: "Workspace not found.");
+
+        if (workspace.OwnerUserId != ownerUserId)
+            return await DetailPartialAsync(id, error: "Only the workspace owner can change settings.");
+
+        workspace.DefaultPreviewTheme = PreviewThemes.IsValid(previewTheme) ? previewTheme : null;
+        await _db.SaveChangesAsync();
+
+        return await DetailPartialAsync(id, status: "Default preview theme updated.");
+    }
+
     public async Task<IActionResult> OnGetDetail(long id)
     {
         var gate = EnforceAccess();
@@ -166,6 +194,7 @@ public class WorkspacesModel : PageModel
         {
             WorkspaceId = id,
             WorkspaceSlug = workspace.Slug,
+            DefaultPreviewTheme = workspace.DefaultPreviewTheme,
             Members = members
         });
     }

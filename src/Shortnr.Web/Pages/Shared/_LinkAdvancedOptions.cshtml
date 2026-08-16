@@ -88,4 +88,18 @@
             </div>
         </div>
     </fieldset>
+
+    <fieldset class="field-section">
+        <legend>Preview theme</legend>
+        <div class="field">
+            <label for="preview_theme">Redirect preview style <small>(shown when visitors click the link)</small></label>
+            <select name="preview_theme" id="preview_theme">
+                <option value="" selected="@(Model.PreviewTheme == "")">Default (none)</option>
+                <option value="minimal" selected="@(Model.PreviewTheme == "minimal")">Minimal</option>
+                <option value="brutal" selected="@(Model.PreviewTheme == "brutal")">Brutal</option>
+                <option value="corporate" selected="@(Model.PreviewTheme == "corporate")">Corporate</option>
+                <option value="dark" selected="@(Model.PreviewTheme == "dark")">Dark</option>
+            </select>
+        </div>
+    </fieldset>
 </div>

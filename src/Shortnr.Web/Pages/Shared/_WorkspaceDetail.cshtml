@@ -1,9 +1,11 @@
 @using Shortnr.Data.Entities
+@using Shortnr.Web.Features.ShortLinks
 @model Shortnr.Web.Pages.Settings.WorkspaceDetailViewModel
 @{
     var members = Model.Members;
     var workspaceId = Model.WorkspaceId;
     var workspaceSlug = Model.WorkspaceSlug;
+    var currentTheme = Model.DefaultPreviewTheme ?? "";
 }
 <table class="stacked-table">
     <thead>
@@ -32,7 +34,7 @@
             <div class="grid">
                 <label>
                     Email
-                    <input type="email" name="email" placeholder="colleague@example.com" required>
+                    <input type="email" name="email" placeholder="colleague@@example.com" required>
                 </label>
                 <label>
                     Role
@@ -43,6 +45,24 @@
                 </label>
             </div>
             <button type="submit">Invite</button>
+        </form>
+    </details>
+
+    <details style="margin-top: 0.5rem;">
+        <summary role="button" class="secondary" style="width: auto;">Default preview theme</summary>
+        <form hx-post="/settings/workspaces?handler=SetTheme&id=@workspaceId" hx-target="#workspaces-list" hx-swap="innerHTML">
+            @Html.AntiForgeryToken()
+            <label>
+                Theme for links without an explicit theme
+                <select name="previewTheme">
+                    <option value="" selected="@(currentTheme == "")">None (direct redirect)</option>
+                    <option value="minimal" selected="@(currentTheme == "minimal")">Minimal</option>
+                    <option value="brutal" selected="@(currentTheme == "brutal")">Brutal</option>
+                    <option value="corporate" selected="@(currentTheme == "corporate")">Corporate</option>
+                    <option value="dark" selected="@(currentTheme == "dark")">Dark</option>
+                </select>
+            </label>
+            <button type="submit">Save</button>
         </form>
     </details>
 }

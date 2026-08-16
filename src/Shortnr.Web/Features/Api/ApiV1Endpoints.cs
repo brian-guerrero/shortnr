@@ -194,6 +194,7 @@ public static class ApiV1Endpoints
             DomainId = domainId,
             OwnerUserId = workspaceId is not null ? null : ownerUserId,
             WorkspaceId = workspaceId,
+            PreviewTheme = PreviewThemes.IsValid(body.PreviewTheme) ? body.PreviewTheme : null,
             CreatedAtUtc = DateTime.UtcNow
         };
 
@@ -386,6 +387,9 @@ public static class ApiV1Endpoints
 
         if (body.Description is not null)
             link.Description = string.IsNullOrWhiteSpace(body.Description) ? null : body.Description.Trim();
+
+        if (body.PreviewTheme is not null)
+            link.PreviewTheme = PreviewThemes.IsValid(body.PreviewTheme) ? body.PreviewTheme.Trim() : null;
 
         // Campaign metadata: unlike the fields above, each sub-field independently
         // follows the omit-keeps/empty-clears convention, merged against whatever
@@ -741,6 +745,7 @@ public static class ApiV1Endpoints
             link.Tags?.Select(t => t.Name).OrderBy(n => n).ToList(),
             link.Title,
             link.Description,
+            link.PreviewTheme,
             link.ArchivedAtUtc,
             link.UpdatedAtUtc,
             metadata);
