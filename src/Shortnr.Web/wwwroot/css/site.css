@@ -207,6 +207,7 @@ blockquote {
 }
 
 img { max-width: 100%; height: auto; }
+canvas { max-width: 100%; }
 
 ul, ol { margin-bottom: 1rem; padding-left: 1.5rem; }
 li { margin-bottom: 0.35rem; }
@@ -1152,7 +1153,10 @@ details.dropdown.user-menu[open] > summary {
               padding 0.15s ease-out, border-width 0.15s ease-out, margin 0.15s ease-out;
 }
 .bulk-toolbar.is-active {
-  max-height: 4rem;
+  /* Generous enough for the count/clear line plus the action-form line
+     wrapping onto a second (or third, on narrow screens) row without
+     clipping any button — see PRD-019 bulk-toolbar review notes. */
+  max-height: 10rem;
   opacity: 1;
   padding-top: var(--sn-space-2);
   padding-bottom: var(--sn-space-2);
@@ -1174,6 +1178,15 @@ details.dropdown.user-menu[open] > summary {
 input[data-select-row]:checked,
 input[data-select-all]:checked {
   accent-color: var(--sn-accent);
+}
+/* The native checkbox render size is too small and its default border too
+   faint to read against the table's dark surface, so the select column
+   gets an explicit, higher-contrast box. */
+.select-col input[type="checkbox"] {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-right: 0;
+  border: var(--sn-border-width) solid var(--sn-line);
 }
 .select-col { width: 1.5rem; text-align: center; }
 
@@ -1277,8 +1290,24 @@ input[data-select-all]:checked {
   gap: var(--sn-space-4);
   margin-bottom: var(--sn-space-4);
 }
-.detail-panel { border: var(--sn-border-width) solid var(--sn-line); padding: var(--sn-space-3); background: var(--sn-surface); }
+@media (max-width: 768px) {
+  .detail-grid { grid-template-columns: 1fr; }
+}
+/* min-width: 0 lets a grid item shrink below its content's intrinsic
+   size — without it, the canvas's default 300px width holds this panel's
+   grid track wider than the modal, forcing a horizontal scrollbar. */
+.detail-panel { border: var(--sn-border-width) solid var(--sn-line); padding: var(--sn-space-3); background: var(--sn-surface); min-width: 0; }
 .detail-panel table { margin-bottom: 0; }
+/* The generic `article > header` rule bleeds a negative margin sized to
+   the base article's padding (--sn-space-6), which overshoots this
+   panel's own tighter --sn-space-3 padding and pushes the header past the
+   card's border — overflowing the two-column grid. Reset it to match. */
+.detail-panel > header {
+  margin: 0 0 var(--sn-space-2);
+  padding: 0 0 var(--sn-space-2);
+  border-bottom: var(--sn-border-width) solid var(--sn-line);
+  background: none;
+}
 .detail-utmtags {
   display: flex;
   flex-direction: column;
