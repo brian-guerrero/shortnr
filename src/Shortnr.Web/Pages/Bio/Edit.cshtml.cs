@@ -379,7 +379,7 @@ public class EditModel : PageModel, IStatusMessages
     }
 
     private static string NormaliseTheme(string? theme) =>
-        BioThemes.IsValid(theme) ? theme! : "default";
+        ThemeCatalog.Resolve(theme).Id;
 
     private static string? CleanUrl(string? url)
     {

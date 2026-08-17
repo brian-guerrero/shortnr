@@ -58,9 +58,9 @@
                 Theme for links without an explicit theme
                 <select name="previewTheme">
                     <option value="" selected="@(currentTheme == "")">None (direct redirect)</option>
-                    @foreach (var theme in Shortnr.Web.Features.ShortLinks.PreviewThemes.All)
+                    @foreach (var theme in ThemeCatalog.All)
                     {
-                        <option value="@theme" selected="@(currentTheme == theme)">@theme</option>
+                        <option value="@theme.Id" selected="@(currentTheme == theme.Id)">@theme.Label</option>
                     }
                 </select>
             </label>

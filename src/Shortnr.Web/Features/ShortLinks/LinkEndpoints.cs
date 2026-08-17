@@ -218,7 +218,7 @@ public static class ApiEndpoints
             }
 
             var resolvedTheme = link.PreviewTheme ?? link.Workspace?.DefaultPreviewTheme;
-            if (resolvedTheme is not null && PreviewThemes.IsValid(resolvedTheme))
+            if (resolvedTheme is not null && ThemeCatalog.IsValid(resolvedTheme))
             {
                 var destHost = new Uri(destination).Host;
                 var previewUrl = $"/preview?url={Uri.EscapeDataString(destination)}&theme={Uri.EscapeDataString(resolvedTheme)}&host={Uri.EscapeDataString(destHost)}";

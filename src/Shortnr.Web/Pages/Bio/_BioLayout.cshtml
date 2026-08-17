@@ -1,5 +1,5 @@
 @{
-    var theme = (string?)ViewData["BioTheme"] ?? "default";
+    var theme = ThemeCatalog.Resolve((string?)ViewData["BioTheme"]).Id;
     var title = (string?)ViewData["BioTitle"] ?? "shortnr";
 }
 @* Bio pages opt out of the app's dark scheme: the theme here is the page

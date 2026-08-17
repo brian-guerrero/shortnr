@@ -234,7 +234,7 @@ public async Task<IActionResult> OnPostEdit(long code, string url, string slug, 
         link.ShortCode = trimmedSlug;
         link.Title = string.IsNullOrWhiteSpace(title) ? null : title.Trim();
         link.Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
-        link.PreviewTheme = PreviewThemes.IsValid(previewTheme) ? previewTheme : null;
+        link.PreviewTheme = ThemeCatalog.IsValid(previewTheme) ? previewTheme : null;
         link.UpdatedAtUtc = DateTime.UtcNow;
 
         var tagNames = (tags ?? "")

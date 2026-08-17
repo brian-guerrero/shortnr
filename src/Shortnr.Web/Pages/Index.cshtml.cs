@@ -111,7 +111,7 @@ public class IndexModel : PageModel
             CreatedAtUtc = DateTime.UtcNow,
             OwnerUserId = workspaceId is not null ? null : ownerUserId,
             WorkspaceId = workspaceId,
-            PreviewTheme = PreviewThemes.IsValid(previewTheme) ? previewTheme : null
+            PreviewTheme = ThemeCatalog.IsValid(previewTheme) ? previewTheme : null
         };
         if (utm is not null && !utm.IsEmpty || pixelSnippetId is not null || iosDeepLink is not null && iosDeepLink.Length > 0 || androidDeepLink is not null && androidDeepLink.Length > 0)
         {
