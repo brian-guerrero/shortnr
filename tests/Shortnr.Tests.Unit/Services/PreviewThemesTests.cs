@@ -3,7 +3,7 @@ namespace Shortnr.Tests.Unit.Services;
 public class PreviewThemesTests
 {
     [Theory]
-    [InlineData("none")]
+    [InlineData("default")]
     [InlineData("sunset")]
     [InlineData("ocean")]
     [InlineData("forest")]
@@ -34,8 +34,8 @@ public class PreviewThemesTests
     }
 
     [Fact]
-    public void Default_IsNone()
+    public void Default_IsDefault()
     {
-        Assert.Equal("none", PreviewThemes.Default);
+        Assert.Equal("default", PreviewThemes.Default);
     }
 }
