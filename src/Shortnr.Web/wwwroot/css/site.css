@@ -778,7 +778,7 @@ mark {
 }
 .llm-history-item-header time {
   margin-left: auto;
-  color: var(--pico-muted-color);
+  color: var(--sn-mid-gray);
   font-size: 0.875em;
 }
 

@@ -21,6 +21,7 @@ public class LinkEditViewModel
     public string PixelSnippetHtml { get; init; } = "";
     public string IosDeepLink { get; init; } = "";
     public string AndroidDeepLink { get; init; } = "";
+    public string PreviewTheme { get; init; } = "";
     public List<PixelSnippet> PixelSnippets { get; init; } = [];
     public string? ErrorMessage { get; init; }
 
@@ -30,7 +31,7 @@ public class LinkEditViewModel
     public bool HasAdvancedData =>
         UtmSource.Length > 0 || UtmMedium.Length > 0 || UtmCampaign.Length > 0 ||
         UtmTerm.Length > 0 || UtmContent.Length > 0 || PixelSnippetId is not null ||
-        IosDeepLink.Length > 0 || AndroidDeepLink.Length > 0;
+        IosDeepLink.Length > 0 || AndroidDeepLink.Length > 0 || PreviewTheme.Length > 0;
 
     /// <summary>Projection of the advanced-option fields plus the pixel-snippet
     /// catalog into the shared <see cref="LinkAdvancedOptionsViewModel"/> that
@@ -52,6 +53,7 @@ public class LinkEditViewModel
         PixelSnippetHtml = PixelSnippetHtml,
         IosDeepLink = IosDeepLink,
         AndroidDeepLink = AndroidDeepLink,
+        PreviewTheme = PreviewTheme,
         PixelSnippets = PixelSnippets
     };
 
@@ -78,6 +80,7 @@ public class LinkEditViewModel
             PixelSnippetHtml = isCustomPixel ? metadata?.PixelId ?? "" : "",
             IosDeepLink = metadata?.IosDeepLink ?? "",
             AndroidDeepLink = metadata?.AndroidDeepLink ?? "",
+            PreviewTheme = link.PreviewTheme ?? "",
             PixelSnippets = pixelSnippets ?? [],
             ErrorMessage = errorMessage
         };
@@ -110,6 +113,7 @@ public class LinkAdvancedOptionsViewModel
     public string PixelSnippetHtml { get; init; } = "";
     public string IosDeepLink { get; init; } = "";
     public string AndroidDeepLink { get; init; } = "";
+    public string PreviewTheme { get; init; } = "";
 
     public List<PixelSnippet> PixelSnippets { get; init; } = [];
 
@@ -120,7 +124,7 @@ public class LinkAdvancedOptionsViewModel
     public bool HasAdvancedData =>
         UtmSource.Length > 0 || UtmMedium.Length > 0 || UtmCampaign.Length > 0 ||
         UtmTerm.Length > 0 || UtmContent.Length > 0 || PixelSnippetId is not null ||
-        IosDeepLink.Length > 0 || AndroidDeepLink.Length > 0;
+        IosDeepLink.Length > 0 || AndroidDeepLink.Length > 0 || PreviewTheme.Length > 0;
 }
 
 public class LinkEditSuccessViewModel

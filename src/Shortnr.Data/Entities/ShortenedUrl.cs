@@ -23,6 +23,10 @@ public class ShortenedUrl
     /// <summary>Last edit timestamp; null until the first edit (PRD-024).</summary>
     public DateTime? UpdatedAtUtc { get; set; }
 
+    /// <summary>Preview theme for the redirect interstitial (PRD-022). Null means
+    /// "fall back to workspace default, then 'minimal'".</summary>
+    public string? PreviewTheme { get; set; }
+
     public ICollection<ClickEvent> ClickEvents { get; set; } = [];
     public ICollection<ShortenedUrlTag> Tags { get; set; } = [];
     public ICollection<TagSuggestion> TagSuggestions { get; set; } = [];

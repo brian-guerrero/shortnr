@@ -170,6 +170,7 @@ public static class ApiEndpoints
                 .AsNoTracking()
                 .Include(l => l.Metadata)
                 .ThenInclude(m => m.PixelSnippet)
+                .Include(l => l.Workspace)
                 .Where(l => l.DomainId == domainId && l.ShortCode == shortCode)
                 .FirstOrDefaultAsync();
 
@@ -214,6 +215,15 @@ public static class ApiEndpoints
                     logger.LogInformation("Serving pixel interstitial shortCode={ShortCode} host={Host} ip={Ip}", shortCode, host, ip);
                     return Results.Content(html, "text/html");
                 }
+            }
+
+            var resolvedTheme = link.PreviewTheme ?? link.Workspace?.DefaultPreviewTheme;
+            if (resolvedTheme is not null && PreviewThemes.IsValid(resolvedTheme))
+            {
+                var destHost = new Uri(destination).Host;
+                var previewUrl = $"/preview?url={Uri.EscapeDataString(destination)}&theme={Uri.EscapeDataString(resolvedTheme)}&host={Uri.EscapeDataString(destHost)}";
+                logger.LogInformation("Preview redirect shortCode={ShortCode} host={Host} theme={Theme}", shortCode, host, resolvedTheme);
+                return Results.Redirect(previewUrl);
             }
 
             logger.LogInformation("Redirect shortCode={ShortCode} host={Host} ip={Ip}", shortCode, host, ip);

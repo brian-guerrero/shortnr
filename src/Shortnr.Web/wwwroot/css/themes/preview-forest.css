@@ -1,0 +1,12 @@
+/*
+ * preview-forest.css — shared with Bio's "forest" theme.
+ */
+
+:root {
+    --pv-bg: #dcead9;
+    --pv-fg: #2f4a2e;
+    --pv-card: #f2f8f1;
+    --pv-muted: #557754;
+    --pv-accent: #3a7d3f;
+    --pv-accent-fg: #ffffff;
+}

@@ -1,0 +1,13 @@
+/*
+ * preview-minimal.css — clean, low-contrast light theme.
+ * WCAG 2.1 AA: #37352f on #faf9f7 ≈ 10.2:1 (normal text ✓).
+ */
+
+:root {
+    --pv-bg: #faf9f7;
+    --pv-fg: #37352f;
+    --pv-card: #ffffff;
+    --pv-muted: #7d7a74;
+    --pv-accent: #2383e2;
+    --pv-accent-fg: #ffffff;
+}

@@ -1,0 +1,13 @@
+/*
+ * preview-dark.css — dark-mode variant of minimal.
+ * WCAG 2.1 AA: #e4e4e7 on #1a1b1e ≈ 12.5:1 (normal text ✓).
+ */
+
+:root {
+    --pv-bg: #1a1b1e;
+    --pv-fg: #e4e4e7;
+    --pv-card: #27272a;
+    --pv-muted: #a1a1aa;
+    --pv-accent: #60a5fa;
+    --pv-accent-fg: #1a1b1e;
+}

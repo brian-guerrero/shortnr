@@ -58,6 +58,7 @@ public class IndexModel : PageModel
             Request.Form["pixel_snippet"].FirstOrDefault());
         var iosDeepLink = Request.Form["ios_deep_link"].FirstOrDefault()?.Trim() ?? "";
         var androidDeepLink = Request.Form["android_deep_link"].FirstOrDefault()?.Trim() ?? "";
+        var previewTheme = Request.Form["preview_theme"].FirstOrDefault()?.Trim() ?? "";
 
         var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
         Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
@@ -80,7 +81,7 @@ public class IndexModel : PageModel
             if (collides)
                 return await ErrorResultAsync($"The custom code '{slug}' is already taken.", ownerUserId, workspaceId);
 
-            return await CreateAsync(url, slug, defaultDomain, ownerUserId, workspaceId, utm, pixelSnippetId, pixelValue, iosDeepLink, androidDeepLink);
+            return await CreateAsync(url, slug, defaultDomain, ownerUserId, workspaceId, utm, pixelSnippetId, pixelValue, iosDeepLink, androidDeepLink, previewTheme);
         }
 
         var hasSmartLinkMetadata = !utm.IsEmpty || pixelSnippetId is not null
@@ -97,10 +98,10 @@ public class IndexModel : PageModel
         }
 
         return await CreateAsync(url, await ShortLinkCodes.GenerateUniqueCodeAsync(code =>
-            _db.ShortenedUrls.AnyAsync(l => l.DomainId == domainId && l.ShortCode == code)), defaultDomain, ownerUserId, workspaceId, utm, pixelSnippetId, pixelValue, iosDeepLink, androidDeepLink);
+            _db.ShortenedUrls.AnyAsync(l => l.DomainId == domainId && l.ShortCode == code)), defaultDomain, ownerUserId, workspaceId, utm, pixelSnippetId, pixelValue, iosDeepLink, androidDeepLink, previewTheme);
     }
 
-    private async Task<IActionResult> CreateAsync(string url, string shortCode, Domain? defaultDomain, long? ownerUserId, long? workspaceId, UtmParameters? utm = null, long? pixelSnippetId = null, string? pixelValue = null, string? iosDeepLink = null, string? androidDeepLink = null)
+    private async Task<IActionResult> CreateAsync(string url, string shortCode, Domain? defaultDomain, long? ownerUserId, long? workspaceId, UtmParameters? utm = null, long? pixelSnippetId = null, string? pixelValue = null, string? iosDeepLink = null, string? androidDeepLink = null, string? previewTheme = null)
     {
         var shortened = new ShortenedUrl
         {
@@ -109,7 +110,8 @@ public class IndexModel : PageModel
             DomainId = defaultDomain?.Id,
             CreatedAtUtc = DateTime.UtcNow,
             OwnerUserId = workspaceId is not null ? null : ownerUserId,
-            WorkspaceId = workspaceId
+            WorkspaceId = workspaceId,
+            PreviewTheme = PreviewThemes.IsValid(previewTheme) ? previewTheme : null
         };
         if (utm is not null && !utm.IsEmpty || pixelSnippetId is not null || iosDeepLink is not null && iosDeepLink.Length > 0 || androidDeepLink is not null && androidDeepLink.Length > 0)
         {

@@ -705,6 +705,10 @@ namespace Shortnr.Data.Postgres.Migrations
                     b.Property<long?>("OwnerUserId")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("PreviewTheme")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
                     b.Property<string>("ShortCode")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -956,6 +960,10 @@ namespace Shortnr.Data.Postgres.Migrations
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DefaultPreviewTheme")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<string>("Name")
                         .IsRequired()

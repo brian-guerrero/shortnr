@@ -18,32 +18,73 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="/css/site.css">
     <style>
+        /* All bio themes use brutalist styling: sharp corners, hard shadows,
+           bold borders. Each theme has its own color palette but shares the
+           same structural treatment (DSG-002 §5). */
         [data-bio-theme="default"] {
-            --bio-bg: #faf9f7; --bio-fg: #37352f; --bio-accent: #2383e2;
-            --bio-card: #ffffff; --bio-muted: #7d7a74; --bio-accent-fg: #ffffff;
+            --bio-bg: var(--sn-paper);
+            --bio-fg: var(--sn-ink);
+            --bio-accent: var(--sn-accent);
+            --bio-card: var(--sn-surface);
+            --bio-muted: var(--sn-mid-gray);
+            --bio-accent-fg: var(--sn-accent-ink);
         }
         [data-bio-theme="sunset"] {
-            --bio-bg: #f9e3cf; --bio-fg: #5a3d2b; --bio-accent: #e85d3f;
-            --bio-card: #fff7ef; --bio-muted: #9a6b4a; --bio-accent-fg: #ffffff;
+            --bio-bg: #f9e3cf;
+            --bio-fg: #5a3d2b;
+            --bio-accent: #e85d3f;
+            --bio-card: #fff7ef;
+            --bio-muted: #9a6b4a;
+            --bio-accent-fg: #ffffff;
         }
         [data-bio-theme="ocean"] {
-            --bio-bg: #d9eaf5; --bio-fg: #1f3a5f; --bio-accent: #1d6fa5;
-            --bio-card: #f2f9fd; --bio-muted: #4a6886; --bio-accent-fg: #ffffff;
+            --bio-bg: #d9eaf5;
+            --bio-fg: #1f3a5f;
+            --bio-accent: #1d6fa5;
+            --bio-card: #f2f9fd;
+            --bio-muted: #4a6886;
+            --bio-accent-fg: #ffffff;
         }
         [data-bio-theme="forest"] {
-            --bio-bg: #dcead9; --bio-fg: #2f4a2e; --bio-accent: #3a7d3f;
-            --bio-card: #f2f8f1; --bio-muted: #557754; --bio-accent-fg: #ffffff;
+            --bio-bg: #dcead9;
+            --bio-fg: #2f4a2e;
+            --bio-accent: #3a7d3f;
+            --bio-card: #f2f8f1;
+            --bio-muted: #557754;
+            --bio-accent-fg: #ffffff;
         }
         [data-bio-theme="midnight"] {
-            --bio-bg: #1e2229; --bio-fg: #e6e9ef; --bio-accent: #7aa2f7;
-            --bio-card: #2a303b; --bio-muted: #9aa4b2; --bio-accent-fg: #10141a;
+            --bio-bg: #1e2229;
+            --bio-fg: #e6e9ef;
+            --bio-accent: #7aa2f7;
+            --bio-card: #2a303b;
+            --bio-muted: #9aa4b2;
+            --bio-accent-fg: #10141a;
         }
-        /* The sixth, neo-brutalist theme (DSG-002 §5). Same custom-property
-           mechanism as the five soft themes above; the shell overrides below
-           are scoped to it so the others keep their rounded/soft treatment. */
-        [data-bio-theme="brutal"] {
-            --bio-bg: #faf9f5; --bio-fg: #111111; --bio-accent: #ffd23f;
-            --bio-card: #ffffff; --bio-muted: #8a8578; --bio-accent-fg: #111111;
+        /* Shared with the redirect-preview page's themes of the same name. */
+        [data-bio-theme="minimal"] {
+            --bio-bg: #faf9f7;
+            --bio-fg: #37352f;
+            --bio-accent: #2383e2;
+            --bio-card: #ffffff;
+            --bio-muted: #7d7a74;
+            --bio-accent-fg: #ffffff;
+        }
+        [data-bio-theme="corporate"] {
+            --bio-bg: #f5f6f8;
+            --bio-fg: #1a1a2e;
+            --bio-accent: #2563eb;
+            --bio-card: #ffffff;
+            --bio-muted: #64748b;
+            --bio-accent-fg: #ffffff;
+        }
+        [data-bio-theme="dark"] {
+            --bio-bg: #1a1b1e;
+            --bio-fg: #e4e4e7;
+            --bio-accent: #60a5fa;
+            --bio-card: #27272a;
+            --bio-muted: #a1a1aa;
+            --bio-accent-fg: #1a1b1e;
         }
 
         body {
@@ -51,6 +92,7 @@
             color: var(--bio-fg);
             margin: 0;
             min-height: 100vh;
+            font-family: var(--sn-font-body);
         }
         .bio-shell {
             display: flex;
@@ -61,21 +103,24 @@
             background: var(--bio-card);
             width: 100%;
             max-width: 480px;
-            border-radius: 1rem;
+            border: var(--sn-border-width-heavy) solid var(--bio-fg);
+            border-radius: 0;
             padding: 2rem;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+            box-shadow: var(--sn-shadow-offset-lg);
         }
         .bio-avatar {
             width: 88px;
             height: 88px;
-            border-radius: 50%;
+            border: var(--sn-border-width-heavy) solid var(--bio-fg);
+            border-radius: 0;
             object-fit: cover;
             display: block;
             margin: 0 auto 1rem;
         }
         .bio-name {
             text-align: center;
-            font-size: 1.5rem;
+            font-family: var(--sn-font-display);
+            font-size: var(--sn-text-h1);
             margin: 0 0 0.25rem;
             color: var(--bio-fg);
         }
@@ -99,47 +144,32 @@
             background: var(--bio-accent);
             color: var(--bio-accent-fg);
             text-decoration: none;
-            border-radius: 0.5rem;
-            font-weight: 600;
-        }
-        .bio-links a:hover {
-            opacity: 0.9;
-            /* site.css turns links violet on hover; each theme keeps its own
-               on-accent text colour instead. */
-            color: var(--bio-accent-fg);
-        }
-        .bio-404 {
-            text-align: center;
-        }
-
-        [data-bio-theme="brutal"] .bio-card {
-            border: var(--sn-border-width-heavy) solid var(--sn-line);
-            border-radius: 0;
-            box-shadow: var(--sn-shadow-offset-lg);
-        }
-        [data-bio-theme="brutal"] .bio-avatar {
-            border: var(--sn-border-width-heavy) solid var(--sn-line);
-            border-radius: 0;
-        }
-        [data-bio-theme="brutal"] .bio-name {
-            font-family: var(--sn-font-display);
-            font-size: var(--sn-text-h1);
-        }
-        [data-bio-theme="brutal"] .bio-links a {
-            border: var(--sn-border-width-heavy) solid var(--sn-line);
+            border: var(--sn-border-width-heavy) solid var(--bio-fg);
             border-radius: 0;
             box-shadow: var(--sn-shadow-offset);
             font-weight: 700;
             transition: transform 0.1s, box-shadow 0.1s;
         }
-        [data-bio-theme="brutal"] .bio-links a:hover {
-            opacity: 1;
+        .bio-links a:hover {
             transform: translate(1px, 1px);
-            box-shadow: 3px 3px 0 var(--sn-ink);
+            box-shadow: 3px 3px 0 var(--bio-fg);
+            color: var(--bio-accent-fg);
         }
-        [data-bio-theme="brutal"] .bio-links a:active {
+        .bio-links a:active {
             transform: translate(3px, 3px);
             box-shadow: var(--sn-shadow-active);
+        }
+        .brand-footer {
+            font-size: 0.75rem;
+            color: var(--bio-muted);
+            margin-top: 1.5rem;
+        }
+        .brand-footer a {
+            color: var(--bio-muted);
+            text-decoration: underline;
+        }
+        .bio-404 {
+            text-align: center;
         }
     </style>
 </head>
