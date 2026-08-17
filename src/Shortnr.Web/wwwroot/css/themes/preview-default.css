@@ -1,8 +1,7 @@
 /*
- * preview-none.css — the shared neutral/base palette (same colors as Bio's
- * "default" theme; the redirect-preview page calls it "none" instead since
- * PreviewTheme also has a separate empty-string "skip the preview page
- * entirely" option, and "default" would be ambiguous next to that).
+ * preview-default.css — the shared neutral/base palette (same colors and same
+ * name as Bio's "default" theme). Distinct from the empty-string PreviewTheme
+ * option, which means "no preview page at all" rather than a themed one.
  * WCAG 2.1 AA: #111111 on #faf9f5 ≈ 16.5:1 (normal text ✓).
  *             #111111 on #ffd23f ≈ 12.3:1 (button text ✓).
  */

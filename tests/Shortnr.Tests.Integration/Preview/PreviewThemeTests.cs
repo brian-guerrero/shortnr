@@ -56,7 +56,7 @@ public class PreviewThemeTests : IAsyncLifetime
             {
                 LongUrl = "https://example.com/target",
                 ShortCode = "themed1",
-                PreviewTheme = "none",
+                PreviewTheme = "default",
                 CreatedAtUtc = DateTime.UtcNow
             });
             await db.SaveChangesAsync();
@@ -67,7 +67,7 @@ public class PreviewThemeTests : IAsyncLifetime
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var link = await db.ShortenedUrls.FirstOrDefaultAsync(l => l.ShortCode == "themed1");
             Assert.NotNull(link);
-            Assert.Equal("none", link.PreviewTheme);
+            Assert.Equal("default", link.PreviewTheme);
         }
     }
 
@@ -112,7 +112,7 @@ public class PreviewThemeTests : IAsyncLifetime
             {
                 LongUrl = "https://example.com/destination",
                 ShortCode = "preview1",
-                PreviewTheme = "none",
+                PreviewTheme = "default",
                 CreatedAtUtc = DateTime.UtcNow
             });
             await db.SaveChangesAsync();
@@ -124,7 +124,7 @@ public class PreviewThemeTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         var location = response.Headers.Location?.ToString() ?? "";
         Assert.Contains("/preview?", location);
-        Assert.Contains("theme=none", location);
+        Assert.Contains("theme=default", location);
         Assert.Contains("url=https", location);
     }
 
@@ -231,7 +231,7 @@ public class PreviewThemeTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData("none")]
+    [InlineData("default")]
     [InlineData("sunset")]
     [InlineData("ocean")]
     [InlineData("forest")]
@@ -254,17 +254,17 @@ public class PreviewThemeTests : IAsyncLifetime
     public async Task PreviewPage_RendersWithTheme()
     {
         var client = _factory.CreateClient();
-        var response = await client.GetAsync("/preview?url=https%3A%2F%2Fexample.com%2Fdest&theme=none&host=example.com");
+        var response = await client.GetAsync("/preview?url=https%3A%2F%2Fexample.com%2Fdest&theme=default&host=example.com");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var content = await response.Content.ReadAsStringAsync();
-        Assert.Contains("data-preview-theme=\"none\"", content);
-        Assert.Contains("preview-none.css", content);
+        Assert.Contains("data-preview-theme=\"default\"", content);
+        Assert.Contains("preview-default.css", content);
         Assert.Contains("example.com", content);
     }
 
     [Theory]
-    [InlineData("none")]
+    [InlineData("default")]
     [InlineData("sunset")]
     [InlineData("ocean")]
     [InlineData("forest")]
@@ -287,13 +287,13 @@ public class PreviewThemeTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task PreviewPage_InvalidTheme_FallsBackToNone()
+    public async Task PreviewPage_InvalidTheme_FallsBackToDefault()
     {
         var client = _factory.CreateClient();
         var response = await client.GetAsync("/preview?url=https%3A%2F%2Fexample.com%2Fdest&theme=invalid&host=example.com");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var content = await response.Content.ReadAsStringAsync();
-        Assert.Contains("data-preview-theme=\"none\"", content);
+        Assert.Contains("data-preview-theme=\"default\"", content);
     }
 }

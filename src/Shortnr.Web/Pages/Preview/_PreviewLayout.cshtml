@@ -1,5 +1,5 @@
 @{
-    var theme = (string?)ViewData["PreviewTheme"] ?? "minimal";
+    var theme = (string?)ViewData["PreviewTheme"] ?? PreviewThemes.Default;
     var title = (string?)ViewData["PreviewTitle"] ?? "Redirecting…";
     var themeFile = $"css/themes/preview-{theme}.css";
 }
