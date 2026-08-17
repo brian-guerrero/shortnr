@@ -94,11 +94,11 @@
         <div class="field">
             <label for="preview_theme">Redirect preview style <small>(shown when visitors click the link)</small></label>
             <select name="preview_theme" id="preview_theme">
-                <option value="" selected="@(Model.PreviewTheme == "")">Default (none)</option>
-                <option value="minimal" selected="@(Model.PreviewTheme == "minimal")">Minimal</option>
-                <option value="brutal" selected="@(Model.PreviewTheme == "brutal")">Brutal</option>
-                <option value="corporate" selected="@(Model.PreviewTheme == "corporate")">Corporate</option>
-                <option value="dark" selected="@(Model.PreviewTheme == "dark")">Dark</option>
+                <option value="" selected="@(Model.PreviewTheme == "")">No preview</option>
+                @foreach (var theme in Shortnr.Web.Features.ShortLinks.PreviewThemes.All)
+                {
+                    <option value="@theme" selected="@(Model.PreviewTheme == theme)">@theme</option>
+                }
             </select>
         </div>
     </fieldset>

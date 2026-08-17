@@ -3,8 +3,12 @@ namespace Shortnr.Tests.Unit.Services;
 public class PreviewThemesTests
 {
     [Theory]
+    [InlineData("none")]
+    [InlineData("sunset")]
+    [InlineData("ocean")]
+    [InlineData("forest")]
+    [InlineData("midnight")]
     [InlineData("minimal")]
-    [InlineData("brutal")]
     [InlineData("corporate")]
     [InlineData("dark")]
     public void IsValid_KnownThemes_ReturnsTrue(string theme)
@@ -16,21 +20,22 @@ public class PreviewThemesTests
     [InlineData("unknown")]
     [InlineData("")]
     [InlineData(null)]
-    [InlineData("BRUTAL")]
+    [InlineData("brutal")]
+    [InlineData("NONE")]
     public void IsValid_UnknownThemes_ReturnsFalse(string? theme)
     {
         Assert.False(PreviewThemes.IsValid(theme));
     }
 
     [Fact]
-    public void All_ContainsFourThemes()
+    public void All_ContainsEightThemes()
     {
-        Assert.Equal(4, PreviewThemes.All.Count);
+        Assert.Equal(8, PreviewThemes.All.Count);
     }
 
     [Fact]
-    public void Default_IsMinimal()
+    public void Default_IsNone()
     {
-        Assert.Equal("minimal", PreviewThemes.Default);
+        Assert.Equal("none", PreviewThemes.Default);
     }
 }

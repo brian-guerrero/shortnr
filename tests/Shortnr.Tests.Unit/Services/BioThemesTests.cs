@@ -8,16 +8,19 @@ public class BioThemesTests
     [InlineData("ocean")]
     [InlineData("forest")]
     [InlineData("midnight")]
+    [InlineData("minimal")]
+    [InlineData("corporate")]
+    [InlineData("dark")]
     public void IsValid_AcceptsEveryPresetTheme(string theme)
     {
         Assert.True(BioThemes.IsValid(theme));
     }
 
     [Fact]
-    public void All_ContainsFiveThemes()
+    public void All_ContainsEightThemes()
     {
         Assert.Equal(
-            ["default", "sunset", "ocean", "forest", "midnight"],
+            ["default", "sunset", "ocean", "forest", "midnight", "minimal", "corporate", "dark"],
             BioThemes.All);
     }
 

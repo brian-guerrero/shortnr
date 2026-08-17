@@ -7,7 +7,7 @@ public class PreviewModel : PageModel
 {
     public string DestinationUrl { get; set; } = "";
     public string DestinationHost { get; set; } = "";
-    public string Theme { get; set; } = "minimal";
+    public string Theme { get; set; } = PreviewThemes.Default;
 
     public IActionResult OnGet(string? url, string? theme, string? host)
     {
@@ -16,7 +16,7 @@ public class PreviewModel : PageModel
 
         DestinationUrl = url;
         DestinationHost = host ?? uri.Host;
-        Theme = PreviewThemes.IsValid(theme) ? theme! : "minimal";
+        Theme = PreviewThemes.IsValid(theme) ? theme! : PreviewThemes.Default;
         return Page();
     }
 }

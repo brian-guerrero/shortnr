@@ -58,10 +58,10 @@
                 Theme for links without an explicit theme
                 <select name="previewTheme">
                     <option value="" selected="@(currentTheme == "")">None (direct redirect)</option>
-                    <option value="minimal" selected="@(currentTheme == "minimal")">Minimal</option>
-                    <option value="brutal" selected="@(currentTheme == "brutal")">Brutal</option>
-                    <option value="corporate" selected="@(currentTheme == "corporate")">Corporate</option>
-                    <option value="dark" selected="@(currentTheme == "dark")">Dark</option>
+                    @foreach (var theme in Shortnr.Web.Features.ShortLinks.PreviewThemes.All)
+                    {
+                        <option value="@theme" selected="@(currentTheme == theme)">@theme</option>
+                    }
                 </select>
             </label>
             <button type="submit">Save</button>

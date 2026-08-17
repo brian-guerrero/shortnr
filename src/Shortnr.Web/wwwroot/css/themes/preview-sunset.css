@@ -1,0 +1,12 @@
+/*
+ * preview-sunset.css — shared with Bio's "sunset" theme.
+ */
+
+:root {
+    --pv-bg: #f9e3cf;
+    --pv-fg: #5a3d2b;
+    --pv-card: #fff7ef;
+    --pv-muted: #9a6b4a;
+    --pv-accent: #e85d3f;
+    --pv-accent-fg: #ffffff;
+}

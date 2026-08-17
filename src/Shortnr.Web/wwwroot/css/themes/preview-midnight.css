@@ -1,0 +1,12 @@
+/*
+ * preview-midnight.css — shared with Bio's "midnight" theme.
+ */
+
+:root {
+    --pv-bg: #1e2229;
+    --pv-fg: #e6e9ef;
+    --pv-card: #2a303b;
+    --pv-muted: #9aa4b2;
+    --pv-accent: #7aa2f7;
+    --pv-accent-fg: #10141a;
+}

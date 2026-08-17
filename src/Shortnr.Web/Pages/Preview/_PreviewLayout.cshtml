@@ -4,7 +4,7 @@
     var themeFile = $"css/themes/preview-{theme}.css";
 }
 <!DOCTYPE html>
-<html lang="en" data-preview-theme="@theme" data-color-scheme="@(theme == "dark" ? "dark" : "light")">
+<html lang="en" data-preview-theme="@theme" data-color-scheme="@(theme is "dark" or "midnight" ? "dark" : "light")">
 
 <head>
     <meta charset="utf-8" />
