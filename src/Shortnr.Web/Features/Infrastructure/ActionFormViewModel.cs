@@ -1,6 +1,6 @@
 namespace Shortnr.Web.Features.Infrastructure;
 
-/// <summary>Button treatment for a <see cref="ActionFormViewModel"/>; maps to Pico/site button classes.</summary>
+/// <summary>Button treatment for a <see cref="ActionFormViewModel"/>; maps to <c>site.css</c> button classes.</summary>
 public enum ActionButtonStyle
 {
     Primary,

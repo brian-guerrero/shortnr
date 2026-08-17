@@ -86,10 +86,12 @@ Managed by [LibMan](https://learn.microsoft.com/en-us/aspnet/core/client-side/li
 
 | Package | Version | Local path |
 |---------|---------|------------|
-| Pico CSS | 2.1.1 | `wwwroot/lib/pico/css/pico.min.css` |
 | htmx | 2.0.4 | `wwwroot/lib/htmx/dist/htmx.min.js` |
+| htmx-ext-sse | 2.2.4 | `wwwroot/lib/htmx-ext-sse/dist/sse.min.js` |
 | Chart.js | 4.4.9 | `wwwroot/lib/chartjs/dist/chart.umd.min.js` |
 | Alpine.js | 3.14.9 | `wwwroot/lib/alpinejs/dist/cdn.min.js` |
+
+There is no CSS framework. Styling comes entirely from `wwwroot/css/site.css`, the neo-brutalist design system whose `:root` tokens are kept identical to the docs site's `src/styles/global.css`.
 
 ## Database
 
