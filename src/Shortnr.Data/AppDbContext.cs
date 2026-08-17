@@ -96,6 +96,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.ShortCode).IsRequired().HasMaxLength(64);
             entity.Property(e => e.Title).HasMaxLength(256);
             entity.Property(e => e.Description).HasMaxLength(2000);
+            entity.Property(e => e.PreviewTheme).HasMaxLength(32);
             entity.HasIndex(e => new { e.DomainId, e.ShortCode })
                 .IsUnique()
                 .HasFilter("\"DomainId\" IS NOT NULL");
@@ -316,6 +317,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired().HasMaxLength(128);
             entity.Property(e => e.Slug).IsRequired().HasMaxLength(32);
+            entity.Property(e => e.DefaultPreviewTheme).HasMaxLength(32);
             entity.HasIndex(e => e.Slug).IsUnique();
 
             entity.HasOne(e => e.Owner)

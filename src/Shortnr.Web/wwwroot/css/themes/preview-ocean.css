@@ -1,0 +1,12 @@
+/*
+ * preview-ocean.css — shared with Bio's "ocean" theme.
+ */
+
+:root {
+    --pv-bg: #d9eaf5;
+    --pv-fg: #1f3a5f;
+    --pv-card: #f2f9fd;
+    --pv-muted: #4a6886;
+    --pv-accent: #1d6fa5;
+    --pv-accent-fg: #ffffff;
+}

@@ -1,0 +1,21 @@
+@page
+@model Shortnr.Web.Pages.Preview.PreviewModel
+@{
+    Layout = "_PreviewLayout";
+    ViewData["PreviewTheme"] = Model.Theme;
+    ViewData["PreviewTitle"] = "Redirecting…";
+    var destinationJson = System.Text.Json.JsonSerializer.Serialize(Model.DestinationUrl);
+}
+<div class="pv-card">
+    <p class="pv-domain">@Model.DestinationHost</p>
+    <p class="pv-destination">@Model.DestinationUrl</p>
+    <a href="@Model.DestinationUrl" class="pv-proceed" rel="noopener">Continue to site &rarr;</a>
+    <p class="pv-muted">You will be redirected automatically.</p>
+    @await Html.PartialAsync("Shared/_BrandFooter")
+</div>
+<noscript><meta http-equiv="refresh" content="0;url=@Model.DestinationUrl"></noscript>
+<script>
+    setTimeout(function () {
+        window.location.replace(@Html.Raw(destinationJson));
+    }, 1500);
+</script>

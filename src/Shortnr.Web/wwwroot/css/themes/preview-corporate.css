@@ -1,0 +1,13 @@
+/*
+ * preview-corporate.css — subdued, professional, muted palette.
+ * WCAG 2.1 AA: #1a1a2e on #f5f6f8 ≈ 14.5:1 (normal text ✓).
+ */
+
+:root {
+    --pv-bg: #f5f6f8;
+    --pv-fg: #1a1a2e;
+    --pv-card: #ffffff;
+    --pv-muted: #64748b;
+    --pv-accent: #2563eb;
+    --pv-accent-fg: #ffffff;
+}

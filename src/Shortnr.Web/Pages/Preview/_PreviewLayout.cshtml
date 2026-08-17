@@ -1,0 +1,109 @@
+@{
+    var theme = (string?)ViewData["PreviewTheme"] ?? PreviewThemes.Default;
+    var title = (string?)ViewData["PreviewTitle"] ?? "Redirecting…";
+    var themeFile = $"css/themes/preview-{theme}.css";
+}
+<!DOCTYPE html>
+<html lang="en" data-preview-theme="@theme" data-color-scheme="@(theme is "dark" or "midnight" ? "dark" : "light")">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex">
+    <title>@title</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="/css/site.css">
+    <link rel="stylesheet" href="/@themeFile">
+    <style>
+        body {
+            background: var(--pv-bg);
+            color: var(--pv-fg);
+            margin: 0;
+            min-height: 100vh;
+            font-family: var(--sn-font-body);
+        }
+        .pv-shell {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 3rem 1rem;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        .pv-card {
+            background: var(--pv-card);
+            width: 100%;
+            max-width: 480px;
+            border: var(--sn-border-width-heavy) solid var(--pv-fg);
+            border-radius: 0;
+            padding: 2rem;
+            box-shadow: var(--sn-shadow-offset-lg);
+            text-align: center;
+        }
+        .pv-destination {
+            word-break: break-all;
+            font-size: 1.125rem;
+            margin: 0 0 1rem;
+            color: var(--pv-fg);
+            font-family: var(--sn-font-display);
+        }
+        .pv-domain {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background: var(--pv-accent);
+            color: var(--pv-accent-fg);
+            border: var(--sn-border-width-heavy) solid var(--pv-fg);
+            border-radius: 0;
+            font-family: var(--sn-font-display);
+            font-size: 0.875rem;
+            font-weight: 900;
+            margin-bottom: 1.5rem;
+        }
+        .pv-proceed {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: var(--pv-accent);
+            color: var(--pv-accent-fg);
+            text-decoration: none;
+            border: var(--sn-border-width-heavy) solid var(--pv-fg);
+            border-radius: 0;
+            box-shadow: var(--sn-shadow-offset);
+            font-family: var(--sn-font-display);
+            font-weight: 900;
+            font-size: 1rem;
+            margin-top: 0.5rem;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .pv-proceed:hover {
+            transform: translate(1px, 1px);
+            box-shadow: 3px 3px 0 var(--pv-fg);
+        }
+        .pv-proceed:active {
+            transform: translate(3px, 3px);
+            box-shadow: var(--sn-shadow-active);
+        }
+        .pv-muted {
+            color: var(--pv-muted);
+            font-size: 0.875rem;
+            margin-top: 1rem;
+        }
+        .brand-footer {
+            font-size: 0.75rem;
+            color: var(--pv-muted);
+            margin-top: 1.5rem;
+        }
+        .brand-footer a {
+            color: var(--pv-muted);
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="pv-shell">
+        @RenderBody()
+    </div>
+</body>
+
+</html>

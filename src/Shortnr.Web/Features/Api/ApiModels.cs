@@ -46,6 +46,7 @@ public record CreateLinkRequest
     public string? Slug { get; init; }
     public string? Domain { get; init; }
     public string? Workspace { get; init; }
+    public string? PreviewTheme { get; init; }
     public LinkMetadataRequest? Metadata { get; init; }
 }
 
@@ -59,6 +60,7 @@ public record UpdateLinkRequest
     public IReadOnlyList<string>? Tags { get; init; }
     public string? Title { get; init; }
     public string? Description { get; init; }
+    public string? PreviewTheme { get; init; }
     public LinkMetadataRequest? Metadata { get; init; }
 }
 
@@ -79,6 +81,7 @@ public record LinkResponse(
     IReadOnlyList<string>? Tags = null,
     string? Title = null,
     string? Description = null,
+    string? PreviewTheme = null,
     DateTime? ArchivedAtUtc = null,
     DateTime? UpdatedAtUtc = null,
     LinkMetadataResponse? Metadata = null);

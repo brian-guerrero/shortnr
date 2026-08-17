@@ -8,17 +8,19 @@ public class BioThemesTests
     [InlineData("ocean")]
     [InlineData("forest")]
     [InlineData("midnight")]
-    [InlineData("brutal")]
+    [InlineData("minimal")]
+    [InlineData("corporate")]
+    [InlineData("dark")]
     public void IsValid_AcceptsEveryPresetTheme(string theme)
     {
         Assert.True(BioThemes.IsValid(theme));
     }
 
     [Fact]
-    public void All_KeepsTheFiveSoftThemesAlongsideBrutal()
+    public void All_ContainsEightThemes()
     {
         Assert.Equal(
-            ["default", "sunset", "ocean", "forest", "midnight", "brutal"],
+            ["default", "sunset", "ocean", "forest", "midnight", "minimal", "corporate", "dark"],
             BioThemes.All);
     }
 
@@ -26,6 +28,7 @@ public class BioThemesTests
     public void IsValid_RejectsUnknownTheme()
     {
         Assert.False(BioThemes.IsValid("neon"));
+        Assert.False(BioThemes.IsValid("brutal"));
         Assert.False(BioThemes.IsValid(null));
     }
 }

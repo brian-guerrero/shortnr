@@ -237,11 +237,13 @@ public async Task<IActionResult> OnPostEdit(long code, string url, string slug, 
             Request.Form["pixel_snippet"].FirstOrDefault());
         var trimmedIosDeepLink = (Request.Form["ios_deep_link"].FirstOrDefault() ?? "").Trim();
         var trimmedAndroidDeepLink = (Request.Form["android_deep_link"].FirstOrDefault() ?? "").Trim();
+        var previewTheme = (Request.Form["preview_theme"].FirstOrDefault() ?? "").Trim();
 
         link.LongUrl = trimmedUrl;
         link.ShortCode = trimmedSlug;
         link.Title = string.IsNullOrWhiteSpace(title) ? null : title.Trim();
         link.Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+        link.PreviewTheme = PreviewThemes.IsValid(previewTheme) ? previewTheme : null;
         link.UpdatedAtUtc = DateTime.UtcNow;
 
         var tagNames = (tags ?? "")

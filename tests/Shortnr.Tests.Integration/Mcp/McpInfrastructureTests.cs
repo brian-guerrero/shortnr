@@ -47,7 +47,7 @@ public class McpInfrastructureTests : McpTestBase
         var tools = json.RootElement.GetProperty("result").GetProperty("tools");
         var names = tools.EnumerateArray().Select(t => t.GetProperty("name").GetString()).ToArray();
         Assert.Contains("ping", names);
-        Assert.Equal(17, tools.GetArrayLength());
+        Assert.Equal(19, tools.GetArrayLength());
     }
 
     [Fact]
