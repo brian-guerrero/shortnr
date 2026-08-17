@@ -259,6 +259,25 @@ public class PreviewThemeTests : IAsyncLifetime
         Assert.Contains("example.com", content);
     }
 
+    [Theory]
+    [InlineData("minimal")]
+    [InlineData("brutal")]
+    [InlineData("corporate")]
+    [InlineData("dark")]
+    public async Task PreviewPage_AppliesBrutalistStylingRegardlessOfTheme(string theme)
+    {
+        var client = _factory.CreateClient();
+        var response = await client.GetAsync($"/preview?url=https%3A%2F%2Fexample.com%2Fdest&theme={theme}&host=example.com");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var content = await response.Content.ReadAsStringAsync();
+        Assert.Contains($"data-preview-theme=\"{theme}\"", content);
+        Assert.Contains("border-radius: 0", content);
+        Assert.Contains("var(--sn-shadow-offset-lg)", content);
+        Assert.Contains("Powered by", content);
+        Assert.Contains("class=\"brand-footer\"", content);
+    }
+
     [Fact]
     public async Task PreviewPage_InvalidTheme_FallsBackToMinimal()
     {

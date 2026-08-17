@@ -10,9 +10,4 @@
     --pv-muted: #a1a1aa;
     --pv-accent: #60a5fa;
     --pv-accent-fg: #1a1b1e;
-    --pv-border: #3f3f46;
-    --pv-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-    --pv-radius: 0.75rem;
-    --pv-font-heading: "Space Grotesk", "Inter", system-ui, sans-serif;
-    --pv-font-body: "Space Grotesk", "Inter", system-ui, sans-serif;
 }

@@ -132,6 +132,20 @@ public class BioPublicTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task PublicPage_ShowsBrandFooter()
+    {
+        var ownerId = await SeedUserAsync("alice");
+        var pageId = await SeedBioPageAsync(ownerId, "alicebio", "Alice", "default");
+        var linkId = await SeedLinkAsync(ownerId, "abc123", "https://example.com/one");
+        await SeedBioPageLinkAsync(pageId, linkId, "Link", 0, true);
+
+        var body = await _factory.CreateClient().GetStringAsync("/bio/alicebio");
+
+        Assert.Contains("Powered by", body);
+        Assert.Contains("class=\"brand-footer\"", body);
+    }
+
+    [Fact]
     public async Task PublicPage_LinkRoutesThroughRedirect()
     {
         var ownerId = await SeedUserAsync("alice");

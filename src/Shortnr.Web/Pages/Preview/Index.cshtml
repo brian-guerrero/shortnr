@@ -11,7 +11,7 @@
     <p class="pv-destination">@Model.DestinationUrl</p>
     <a href="@Model.DestinationUrl" class="pv-proceed" rel="noopener">Continue to site &rarr;</a>
     <p class="pv-muted">You will be redirected automatically.</p>
-    <p class="pv-brand">Powered by <a href="/" target="_blank" rel="noopener">shortnr</a></p>
+    @await Html.PartialAsync("Shared/_BrandFooter")
 </div>
 <noscript><meta http-equiv="refresh" content="0;url=@Model.DestinationUrl"></noscript>
 <script>

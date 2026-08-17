@@ -12,12 +12,4 @@
     --pv-accent: #ffd23f;
     --pv-accent-fg: #111111;
     --pv-accent-secondary: #7c5cff;
-    --pv-border: #111111;
-    --pv-border-width: 3px;
-    --pv-shadow: 4px 4px 0 #111111;
-    --pv-shadow-lg: 8px 8px 0 #111111;
-    --pv-shadow-active: 1px 1px 0 #111111;
-    --pv-radius: 0px;
-    --pv-font-heading: "Archivo Black", "Arial Black", sans-serif;
-    --pv-font-body: "Space Grotesk", "Inter", system-ui, sans-serif;
 }
