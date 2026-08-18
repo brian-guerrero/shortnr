@@ -10,7 +10,7 @@ shortnr includes a built-in [Model Context Protocol](https://modelcontextprotoco
 
 ## Overview
 
-The MCP server exposes 12 tools across read, write, and system categories. It supports both API key authentication (for local/self-hosted clients) and OAuth 2.1 (for cloud-hosted MCP clients).
+The MCP server exposes 19 tools, 5 resource templates, and 2 prompts across read, write, system, and streaming categories. It supports both API key authentication (for local/self-hosted clients) and OAuth 2.1 (for cloud-hosted MCP clients).
 
 ## Connection methods
 
@@ -59,14 +59,41 @@ The MCP endpoint is at `https://your-shortnr.example.com/mcp`.
 
 | Tool | Description |
 |------|-------------|
-| `create_short_link` | Create a new short link, optionally with a custom slug/domain and campaign metadata (UTM params, retargeting pixel, iOS/Android deep links) — the natural way to spin up a distinct link per campaign |
+| `create_short_link` | Create a new short link, optionally with a custom slug/domain and campaign metadata (UTM params, retargeting pixel, iOS/Android deep links) &mdash; the natural way to spin up a distinct link per campaign |
 | `update_link` | Update a link's destination, slug, domain, or campaign metadata |
+| `archive_link` | Archive a short link (hides it from the dashboard and index without deleting) |
+| `unarchive_link` | Restore an archived short link |
+| `transfer_link` | Transfer ownership of a link to another workspace member |
 | `delete_link` | Delete a short link |
 | `add_link_to_bio_page` | Add a link to your bio page |
 | `remove_link_from_bio_page` | Remove a link from your bio page |
 | `reorder_bio_page` | Reorder links on your bio page |
 | `set_bio_page_theme` | Change your bio page theme (default, sunset, ocean, forest, midnight, minimal, corporate, dark) |
 | `set_bio_page_text` | Update your bio page display text |
+
+### Streaming tools
+
+| Tool | Scope | Description |
+|------|-------|-------------|
+| `import_links` | `mcp:write` | Bulk-import short links from CSV; streams back a progress update every 10 rows |
+| `aggregate_analytics` | `mcp:read` | Aggregate click analytics across multiple links; streams back results as they're computed |
+
+### Resources
+
+| URI template | Description |
+|--------------|-------------|
+| `shortnr://links{?limit,offset,workspace,tag}` | All links as a list resource |
+| `shortnr://links/{code}` | A single short link |
+| `shortnr://analytics/{code}{?from,to}` | Click analytics for a specific link |
+| `shortnr://workspaces` | User's workspaces and roles |
+| `shortnr://bio` | The user's bio page content and links |
+
+### Prompts
+
+| Name | Description |
+|------|-------------|
+| `getting_started` | A guided walkthrough of shortnr MCP capabilities and recommended next steps |
+| `create_bio_page` | Generates a themed link-in-bio page from a list of links and a target theme |
 
 ### Destructive action confirmation
 
@@ -87,6 +114,8 @@ Once connected, you can manage your links conversationally:
 - "Show me the stats for the `repo` link"
 - "Add my three most-clicked links to my bio page"
 - "Change my bio page theme to sunset"
+- "Archive the link with code `aB3xY7`"
+- "Transfer the link with code `aB3xY7` to the marketing workspace"
 - "Delete the link with code `aB3xY7`"
 
 ## AI Activity dashboard
@@ -96,6 +125,10 @@ All MCP tool actions are logged and visible in the AI Activity dashboard at `/da
 ## Architecture
 
 The MCP server is implemented as a stateless HTTP transport at `/mcp`. It uses the `[McpServerTool]` attribute pattern and shares the same `ApiKeyScopes` system as the REST API, so scope-check logic is uniform regardless of whether the call came from an API key or an OAuth token.
+
+The two streaming tools (`import_links` and `aggregate_analytics`) return `IAsyncEnumerable<CallToolResponse>` — the MCP library maps these to SSE streaming responses, so progress updates arrive incrementally rather than in a single batch.
+
+Resource templates and prompts are served from `.resourceresourcetype` and `McpPrompts`/`McpResourceTools` respectively under `Features/Mcp/McpTools/`.
 
 The confirmation flow is implemented in `McpToolGuard.ResolveConfirmation`, which handles three cases:
 

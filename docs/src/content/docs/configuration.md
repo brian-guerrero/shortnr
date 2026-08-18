@@ -87,7 +87,49 @@ When configured, shortnr downloads the GeoLite2 City database from MaxMind and u
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `Hosting__TrustForwardedHeaders` | `false` | When `true`, trust `X-Forwarded-For`/`X-Forwarded-Proto` for the request scheme/host (needed so the OIDC handler builds `https://` callback URLs when TLS is terminated at a reverse proxy). Only enable this when a proxy you control is guaranteed to overwrite these headers on every request — otherwise a client can spoof `X-Forwarded-Proto: https` to bypass HTTPS-only checks. |
+| `Hosting__TrustForwardedHeaders` | `false` | When `true`, trust `X-Forwarded-For`/`X-Forwarded-Proto` for the request scheme/host (needed so the OIDC handler builds `https://` callback URLs when TLS is terminated at a reverse proxy). Only enable this when a proxy you control is guaranteed to overwrite these headers on every request &mdash; otherwise a client can spoof `X-Forwarded-Proto: https` to bypass HTTPS-only checks. |
+
+## Data Protection
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `DataProtection__KeyPath` | *(empty)* | Filesystem path to persist the Data Protection key ring. Without this, keys regenerate on every container restart, silently invalidating all auth cookies and OIDC correlation cookies on each cold start. |
+
+In Docker, mount a volume at a stable path and set this so users stay logged in across restarts:
+
+```bash
+docker run -v shortnr-data:/data -e DataProtection__KeyPath="/data/dp" \
+  -e Database__ConnectionString="Data Source=/data/shortnr.db" \
+  ghcr.io/brian-guerrero/shortnr:latest
+```
+
+## SMTP (email)
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `Smtp__Host` | `localhost` | SMTP server host. Waved by `Shortnr.AppHost` to MailPit during local dev. |
+| `Smtp__Port` | `1025` | SMTP server port. MailPit's default inbound port. |
+
+Used by the Email feature module for workspace invite emails. Fire-and-forget via MailKit; failures are logged but never block the request path.
+
+## AI Insights
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `AiInsights__Enabled` | `false` | Master switch for the AI insights background analysis. When `false`, no hosted service is registered and `/insights` is hidden. |
+| `AiInsights__AnalysisIntervalHours` | `24` | How often the analysis pass runs (minimum 1 hour enforced at runtime). |
+| `AiInsights__MinClicksForAnalysis` | `10` | Links with fewer clicks than this are skipped by heuristics. |
+| `AiInsights__Llm__Enabled` | `false` | Enables the optional LLM analysis layer on top of deterministic heuristics. |
+| `AiInsights__Llm__Provider` | `OpenAI` | AI provider: `OpenAI`, `Anthropic`, `OpenRouter`, or `Ollama`. |
+| `AiInsights__Llm__ApiKey` | *(empty)* | API key for the selected provider. Not needed for a local Ollama instance. |
+| `AiInsights__Llm__Model` | *(empty)* | Model name (e.g. `gpt-4o-mini`, `claude-3-5-sonnet`, `llama3.1`). Empty disables AI analysis with a friendly message. |
+| `AiInsights__Llm__BaseUrl` | *(empty)* | Base URL override for local OpenAI-compatible servers and Ollama (default `http://localhost:11434`). |
+| `AiInsights__Llm__MonthlyBudget` | `0` | Maximum estimated spend per calendar month in USD. `0` means unlimited. |
+| `AiInsights__Llm__TimeoutSeconds` | `60` | Per-request timeout for LLM calls. |
+| `AiInsights__Llm__InputPricePerMillion` | `0` | Optional override for USD per 1M input tokens. `0` falls back to the built-in price table. |
+| `AiInsights__Llm__OutputPricePerMillion` | `0` | Optional override for USD per 1M output tokens. `0` falls back to the built-in price table. |
+
+| `Dashboard__MessageDisplayMs` | `5000` | How long (ms) auto-dismissing success banners stay visible. |
 
 ## Rate limiting
 

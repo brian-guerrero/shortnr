@@ -95,9 +95,9 @@
             <label for="preview_theme">Redirect preview style <small>(shown when visitors click the link)</small></label>
             <select name="preview_theme" id="preview_theme">
                 <option value="" selected="@(Model.PreviewTheme == "")">No preview</option>
-                @foreach (var theme in Shortnr.Web.Features.ShortLinks.PreviewThemes.All)
+                @foreach (var theme in ThemeCatalog.All)
                 {
-                    <option value="@theme" selected="@(Model.PreviewTheme == theme)">@theme</option>
+                    <option value="@theme.Id" selected="@(Model.PreviewTheme == theme.Id)">@theme.Label</option>
                 }
             </select>
         </div>

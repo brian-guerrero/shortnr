@@ -4,19 +4,27 @@ A URL shortener with a real-time dashboard. Built with ASP.NET Core Razor Pages,
 
 ## Features
 
-- Shorten any URL to a 6-character code
+- Shorten any URL to a 6-character code, or use a custom vanity slug
 - Duplicate URL detection — shortening the same URL returns the existing code
 - Click tracking with IP, user agent, referrer, and geographic enrichment (async batch processing)
 - Real-time dashboard with metrics, sortable link/click tables, and Chart.js charts
-- QR code generation — inline on index page, shareable page at `/qr/{shortCode}`, downloadable PNG at `/api/qr/{shortCode}`
+- QR code generation — inline on index page, shareable page at `/qr/{shortCode}`, downloadable PNG at `/api/qr/{code}`
+- Smart Links — attach UTM campaign metadata, retargeting pixel snippets (Meta Pixel, Google Ads), and iOS/Android deep links to any short link
+- Link preview interstitial — optional branded redirect page with theme support
+- Link archiving and unarchiving, plus workspace transfer
+- Link titles and descriptions for dashboard readability
+- Tags and AI-suggested tags — click-pattern heuristics propose tags for your links
 - Link-in-bio pages — personal bio page with theme picker, link reordering, and avatar support
 - Optional OIDC authentication via Dex (or any OIDC provider); disable entirely with one config flag
 - Per-user dashboard — when auth is enabled, dashboard and `/api/metrics` show only the signed-in user's links
 - Team workspaces — create workspaces, invite members by email, assign roles (Owner/Editor/Viewer), and switch between workspaces to scope dashboards and link creation
-- Branded domains — add and verify custom domains for vanity links
+- Branded domains — add and verify custom domains via DNS TXT record or well-known file for vanity links
+- Webhooks — HMAC-signed event delivery for `link.created`, `link.clicked`, and `link.deleted`
 - REST API v1 — create, list, update, and delete links with API keys at `/api/v1`
 - CLI (`shortnr-cli`) — manage links from the command line, wraps the `/api/v1` API
-- MCP server — AI agents can manage links and bio pages via the Model Context Protocol
+- MCP server — AI agents can manage links and bio pages via the Model Context Protocol, with tools, resources, prompts, streaming imports, and OAuth 2.1 auth
+- AI insights — scheduled click-data analysis with tag suggestions and an optional LLM layer ("Ask AI" on `/insights`)
+- AI activity audit trail at `/dashboard/activity`
 - User menu with Gravatar avatar, workspace switcher, and sign-out dropdown
 - Bring your own database — SQLite by default (zero-config), Postgres for scale, selected with one config setting
 - Docker-ready with a persistent SQLite volume; prebuilt image on ghcr.io
@@ -34,7 +42,8 @@ shortnr/
 │   │   │                      #   ShortLinks, ClickTracking, Authentication, Domains,
 │   │   │                      #   Workspaces, BioPages, Api, Mcp, OAuth, Webhooks, Email,
 │   │   │                      #   GeoIp, AiActivity, Insights, Infrastructure
-│   │   ├── Pages/             # Index, Dashboard, QR, Bio, Settings pages + Shared partials
+│   │   ├── Pages/             # Index, Dashboard (+Activity), Insights, QR, Bio, Preview,
+│   │   │                      #   Settings pages + Shared partials
 │   │   ├── wwwroot/           # Static files (lib/ is gitignored, restored by LibMan)
 │   │   ├── libman.json        # Frontend dependency manifest
 │   │   └── Program.cs         # App setup, feature-module wiring, minimal API endpoints
@@ -71,7 +80,7 @@ dotnet run --project src/Shortnr.Web/Shortnr.Web.csproj
 
 Open `http://localhost:5156`.
 
-> `dotnet build` triggers `Microsoft.Web.LibraryManager.Build`, which downloads Pico CSS, htmx, Chart.js, and Alpine.js into `wwwroot/lib/` automatically. No manual `libman restore` needed.
+> `dotnet build` triggers `Microsoft.Web.LibraryManager.Build`, which downloads htmx, htmx-ext-sse, Chart.js, and Alpine.js into `wwwroot/lib/` automatically. No manual `libman restore` needed. Styling is provided by `wwwroot/css/site.css` &mdash; no external CSS framework is bundled.
 
 Running this way starts the app **without authentication** — the dashboard is freely accessible and all data is shared. To run with full auth, either disable it explicitly (see below) or start under Aspire with a live Dex instance:
 
@@ -161,11 +170,16 @@ web app automatically.
 | `Database__Provider` | `Sqlite` | Database engine: `Sqlite` or `Postgres`. See [Multi-database support](#multi-database-support). |
 | `Database__ConnectionString` | *(empty)* | Connection string for the selected provider. Defaults to `Data Source=shortnr.db` for `Sqlite`; required for `Postgres`. |
 | `ASPNETCORE_URLS` | `http://+:5000` (dev) / `http://+:8080` (Docker) | Listening address. |
+| `DataProtection__KeyPath` | *(empty)* | Filesystem path to persist the Data Protection key ring so auth cookies and OIDC correlation cookies survive redeploy. Set in Docker to `/data/dataprotection-keys`. |
 | `Authentication__Enabled` | `true` | Set to `false` to disable OIDC entirely — no login UI, no access control, dashboard shows all data. |
 | `Authentication__Oidc__Authority` | `http://localhost:5556/dex` | OpenID Connect issuer URL. Set automatically by `Shortnr.AppHost` when running under Aspire. |
 | `Authentication__Oidc__ClientId` / `Authentication__Oidc__ClientSecret` | `shortnr-web` / dev-only value | Must match `staticClients` in `dex/config.yaml`. |
 | `OAuth__Issuer` / `OAuth__Resource` | `http://localhost:5156` / `http://localhost:5156/mcp` | OAuth 2.1 issuer + MCP resource URI for AI clients. `Issuer` must be the real `https://` URL in production. |
-| `OAuth__SigningCertificate` / `OAuth__EncryptionCertificate` | *(dev certs auto-generated)* | Base64 PKCS#12 certs required outside `Development` — see [MCP server docs](https://brian-guerrero.github.io/shortnr/docs/mcp/#deploying-the-oauth-server) for generation steps and key-usage requirements. |
+| `OAuth__AccessTokenLifetimeMinutes` | `60` | Access token lifetime for the OAuth 2.1 server. |
+| `OAuth__RefreshTokenLifetimeDays` | `14` | Refresh token lifetime for the OAuth 2.1 server. |
+| `OAuth__SigningCertificate` / `OAuth__SigningCertificatePassword` | *(dev certs auto-generated)* | Base64 PKCS#12 cert (Digital Signature key usage) used to sign OAuth tokens. Required outside `Development`. |
+| `OAuth__EncryptionCertificate` / `OAuth__EncryptionCertificatePassword` | *(dev certs auto-generated)* | Base64 PKCS#12 cert (Key Encipherment key usage) used to encrypt OAuth tokens. Required outside `Development`. See [MCP server docs](https://brian-guerrero.github.io/shortnr/docs/mcp/#deploying-the-oauth-server) for generation steps and key-usage requirements. |
+| `Smtp__Host` / `Smtp__Port` | `localhost` / `1025` | SMTP host/port for outbound email (invite notifications). Set automatically by `Shortnr.AppHost` to the MailPit container. |
 | `GeoIp__MaxMindAccountId` | *(empty)* | MaxMind account ID. **GeoIP enrichment is disabled until both account ID and license key are set.** |
 | `GeoIp__MaxMindLicenseKey` | *(empty)* | MaxMind license key. Enables downloading GeoLite2-City from MaxMind's official endpoint on startup + Wed/Sat 12:00 UTC. |
 | `GeoIp__DatabasePath` | `wwwroot/data/GeoLite2-City.mmdb` | Where the downloaded database is stored. |
@@ -175,6 +189,15 @@ web app automatically.
 | `RateLimiting__Shorten__PerDay` | `200` | Per-IP daily cap for the shorten form. |
 | `RateLimiting__Redirect__PerMinute` | `300` | Per-IP request cap per minute for the redirect endpoint (`GET /{shortCode}`). Deliberately generous — add proxy/CDN limiting for very high redirect volume. |
 | `RateLimiting__Redirect__PerDay` | `10000` | Per-IP daily cap for the redirect endpoint. |
+| `AiInsights__Enabled` | `false` | Set to `true` (or `--Parameters:ai-insights=true` under Aspire) to enable the background AI insights analysis pass. When off, `/insights` returns 404. |
+| `AiInsights__AnalysisIntervalHours` | `24` | How often the insights analysis pass runs (minimum 1 hour). |
+| `AiInsights__MinClicksForAnalysis` | `10` | Links with fewer clicks than this are skipped by the insights analysis. |
+| `AiInsights__Llm__Enabled` | `false` | Set to `true` (or `--Parameters:llm-enabled=true` under Aspire) to enable the LLM-powered "Ask AI" layer on `/insights`. |
+| `AiInsights__Llm__Provider` | `OpenAI` | LLM provider: `OpenAI`, `Anthropic`, `OpenRouter`, or `Ollama`. |
+| `AiInsights__Llm__ApiKey` | *(empty)* | Provider API key (not needed for local Ollama). |
+| `AiInsights__Llm__Model` | *(empty)* | Model name (e.g. `gpt-4o-mini`, `claude-3-5-sonnet`, `llama3.1`). Empty disables LLM analysis. |
+| `AiInsights__Llm__BaseUrl` | *(empty)* | Base URL override for the LLM API endpoint. Leave empty for provider defaults; set for local OpenAI-compatible servers. |
+| `AiInsights__Llm__MonthlyBudget` | `0` | Maximum estimated USD spend per calendar month. `0` means unlimited. |
 
 ### GeoIP / MaxMind attribution
 
@@ -220,20 +243,29 @@ dotnet run --project src/Shortnr.Web -- \
 ### Request flow
 
 - **`/`** — Index page. POST shortens a URL and returns an HTMX partial with the short URL, a "Show QR" button, and an OOB swap of the recent links table.
-- **`/{shortCode}`** — Redirect endpoint (minimal API). Writes a `ClickRecord` to an in-memory channel and returns `302` immediately.
+- **`/{shortCode}`** — Redirect endpoint (minimal API). Looks up the link by `(host, shortCode)`, writes a `ClickRecord` to an in-memory channel, and returns `302` immediately. May serve a pixel interstitial (if the link has a retargeting pixel) or a preview interstitial (if the link has a preview theme) before redirecting.
+- **`/preview`** — Preview interstitial page rendered when a link has a `PreviewTheme`. Themed redirect page with an optional timer. Theme CSS lives in `wwwroot/css/themes/`.
 - **`/dashboard`** — Dashboard page. When auth is enabled, requires authentication. Metrics, sortable search results, and recent clicks are all scoped to the signed-in user or active workspace.
 - **`/dashboard/activity`** — AI activity dashboard showing MCP tool actions performed on behalf of the user.
+- **`/insights`** — AI insights page. Shows tag suggestions from click-pattern heuristics and an "Ask AI" section powered by the optional LLM layer. Only registered when `AiInsights:Enabled` is `true`.
 - **`/bio/edit`** — Bio page editor with link management and theme picker.
 - **`/bio/{slug}`** — Public bio page with the owner's links rendered as buttons.
-- **`/settings/domains`** — Branded domain management (add, verify via file or DNS TXT record, set default, delete).
+- **`/settings/domains`** — Branded domain management (add, verify via well-known file or DNS TXT record, set default, delete).
 - **`/settings/workspaces`** — Team workspace management (create, invite members, manage roles, delete).
 - **`/settings/api-keys`** — API key creation and revocation.
+- **`/settings/webhooks`** — Webhook management (create, test, revoke, deactivate after repeated failures).
 - **`/qr/{shortCode}`** — Full shareable QR page with download link.
 - **`/api/qr/{shortCode}`** — Raw PNG download endpoint.
 - **`/api/metrics`** — JSON endpoint consumed by the Chart.js dashboard chart. Scoped to current user/workspace when auth is enabled; returns zeros for anonymous requests.
+- **`/api/events`** — Server-Sent Events (SSE) endpoint that broadcasts `data-update` events when click data changes, enabling live dashboard updates.
 - **`/api/v1/links`** — Versioned REST CRUD for short links with API-key auth and rate limiting.
+- **`/api/v1/pixel-snippets`** — List available retargeting pixel snippets for use with Smart Links.
+- **`/mcp`** — MCP server endpoint for AI agent integration. Requires `mcp:read` or `mcp:write` scope.
+- **`/connect/authorize`** / **`/connect/token`** / **`/connect/register`** — OAuth 2.1 endpoints for MCP clients using OAuth (requires `Authentication:Enabled`).
 - **`/account/login`** / **`/account/logout`** — OIDC challenge / cookie sign-out. Only registered when `Authentication:Enabled` is `true`.
 - **`/workspace/switch`** — POST endpoint that sets the active workspace cookie.
+- **`/.well-known/shortnr-verify.txt`** — Serves the domain verification token for DNS/file-based domain verification.
+- **`/api/docs`** — Interactive Scalar UI for the OpenAPI spec (restricted to `api/v1*` paths).
 
 ### CLI (`shortnr-cli`)
 
@@ -267,10 +299,10 @@ AOT compilation is enabled in the project file for minimal binary size, but requ
 
 ### Authentication
 
-Auth wiring follows SRP via two extension classes:
+Auth wiring follows SRP via two extension classes, both in `Features/Authentication/`:
 
-- `Extensions/AuthenticationServiceExtensions.cs` — `AddOidcAuthentication()`: registers cookie + OIDC schemes and the `OnTokenValidated` user-provisioning queue write.
-- `Extensions/AuthenticationEndpointExtensions.cs` — `MapAuthenticationEndpoints()`: registers `/account/login` and `/account/logout`.
+- `Features/Authentication/AuthenticationServiceExtensions.cs` — `AddOidcAuthentication()`: registers cookie + OIDC schemes and the `OnTokenValidated` user-provisioning queue write.
+- `Features/Authentication/AuthenticationEndpointExtensions.cs` — `MapAuthenticationEndpoints()`: registers `/account/login`, `/account/logout`, and `/workspace/switch`.
 
 Both are no-ops when `Authentication:Enabled` is `false`.
 
@@ -297,6 +329,8 @@ Public endpoints are rate limited per client IP, stacking a per-minute burst win
 - The shorten form (`POST /`) enforces `RateLimiting:Shorten:PerMinute` / `RateLimiting:Shorten:PerDay` and rejects over-limit requests with `429`.
 - The redirect endpoint (`GET /{shortCode}`) enforces `RateLimiting:Redirect:PerMinute` / `RateLimiting:Redirect:PerDay`, deliberately far more generous than the shorten limits so legitimate traffic (including viral spikes) is never throttled.
 
+Authenticated endpoints (REST API + MCP) use a chained rate limiter per API key: 60 requests/minute burst + 1000/day cap for the REST API, and 120 requests/minute burst + 5000/day cap for MCP tools. Both share the same per-key partition so REST and MCP calls count against a single budget.
+
 Operators expecting very high redirect volume should configure additional limiting at the reverse proxy or CDN edge. Set `RateLimiting:TrustForwardedFor` to `true` when the app is behind a proxy that forwards the client IP in `X-Forwarded-For`.
 
 ### QR codes
@@ -305,12 +339,14 @@ Operators expecting very high redirect volume should configure additional limiti
 
 ## Frontend dependencies
 
-Managed by [LibMan](https://learn.microsoft.com/en-us/aspnet/core/client-side/libman/) via `src/Shortnr.Web/libman.json`. All assets are served from `wwwroot/lib/` (gitignored). No npm, no bundler.
+Managed by [LibMan](https://learn.microsoft.com/en-us/aspnetcore/client-side/libman/) via `src/Shortnr.Web/libman.json`. All assets are served from `wwwroot/lib/` (gitignored). No npm, no bundler in the web app (npm is only used by `docs/`).
+
+The styling is a custom CSS system (`wwwroot/css/site.css`) that replaces Pico entirely — it defines design tokens, layout helpers, button tiers, table styles, and status marks that mirror the docs site's design system. No CSS framework is loaded from `wwwroot/lib/`.
 
 | Package | Version | Local path |
 |---------|---------|------------|
-| Pico CSS | 2.1.1 | `wwwroot/lib/pico/css/pico.min.css` |
 | htmx | 2.0.4 | `wwwroot/lib/htmx/dist/htmx.min.js` |
+| htmx SSE extension | 2.2.4 | `wwwroot/lib/htmx-ext-sse/dist/sse.min.js` |
 | Chart.js | 4.4.9 | `wwwroot/lib/chartjs/dist/chart.umd.min.js` |
 | Alpine.js | 3.14.9 | `wwwroot/lib/alpinejs/dist/cdn.min.js` |
 

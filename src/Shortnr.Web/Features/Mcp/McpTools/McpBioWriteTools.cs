@@ -186,8 +186,8 @@ public static class McpBioWriteTools
             if (!McpToolGuard.HasScope(context, ApiKeyScopes.McpWrite)) return McpToolGuard.WriteScopeError;
 
             var normalized = theme.Trim().ToLowerInvariant();
-            if (!BioThemes.IsValid(normalized))
-                return $"Error: unknown theme '{theme}'. Valid themes: {string.Join(", ", BioThemes.All)}.";
+            if (!ThemeCatalog.IsValid(normalized))
+                return $"Error: unknown theme '{theme}'. Valid themes: {string.Join(", ", ThemeCatalog.Ids)}.";
 
             var bioPage = await db.BioPages.FirstOrDefaultAsync(b => b.OwnerUserId == ownerUserId, ct);
             if (bioPage is null)

@@ -16,9 +16,9 @@
         <textarea name="bioText" id="bio-text" rows="3" maxlength="2000"></textarea>
         <label for="bio-theme">Theme</label>
         <select name="theme" id="bio-theme">
-            @foreach (var theme in Shortnr.Web.Features.BioPages.BioThemes.All)
+            @foreach (var theme in ThemeCatalog.All)
             {
-                <option value="@theme">@theme</option>
+                <option value="@theme.Id">@theme.Label</option>
             }
         </select>
         <button type="submit">Create bio page</button>
@@ -43,9 +43,9 @@ else
                 <textarea name="bioText" id="bio-text" rows="3" maxlength="2000">@Model.BioPage.BioText</textarea>
                 <label for="bio-theme">Theme</label>
                 <select name="theme" id="bio-theme">
-                    @foreach (var theme in Shortnr.Web.Features.BioPages.BioThemes.All)
+                    @foreach (var theme in ThemeCatalog.All)
                     {
-                        <option value="@theme" selected="@(Model.BioPage.Theme == theme)">@theme</option>
+                        <option value="@theme.Id" selected="@(Model.BioPage.Theme == theme.Id)">@theme.Label</option>
                     }
                 </select>
                 <button type="submit">Save settings</button>
