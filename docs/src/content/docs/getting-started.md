@@ -55,7 +55,7 @@ dotnet run --project src/Shortnr.Web/Shortnr.Web.csproj
 
 Open `http://localhost:5156`.
 
-> `dotnet build` triggers `Microsoft.Web.LibraryManager.Build`, which downloads Pico CSS, htmx, Chart.js, and Alpine.js into `wwwroot/lib/` automatically. No manual `libman restore` needed.
+> `dotnet build` triggers `Microsoft.Web.LibraryManager.Build`, which downloads htmx, htmx-ext-sse, Chart.js, and Alpine.js into `wwwroot/lib/` automatically. No manual `libman restore` needed. Styling is provided by `wwwroot/css/site.css` &mdash; no external CSS framework is bundled.
 
 ## Choosing a database
 
