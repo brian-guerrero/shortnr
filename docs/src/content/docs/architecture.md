@@ -125,7 +125,7 @@ Managed by [LibMan](https://learn.microsoft.com/en-us/aspnet/core/client-side/li
 |---------|---------|------------|
 | site.css (custom) | n/a | `wwwroot/css/site.css` |
 | htmx | 2.0.4 | `wwwroot/lib/htmx/dist/htmx.min.js` |
-| htmx-ext-sse | 2.2.4 | `wwwroot/lib/htmx-ext-sse/dist/sse.ext.js` |
+| htmx-ext-sse | 2.2.4 | `wwwroot/lib/htmx-ext-sse/dist/sse.min.js` |
 | Chart.js | 4.4.9 | `wwwroot/lib/chartjs/dist/chart.umd.min.js` |
 | Alpine.js | 3.14.9 | `wwwroot/lib/alpinejs/dist/cdn.min.js` |
 

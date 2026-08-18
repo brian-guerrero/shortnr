@@ -1000,7 +1000,7 @@ mark {
 }
 
 /* ============================================================
-   Dropdown (Pico's <details class="dropdown"> in the user menu)
+   Dropdown (the <details class="dropdown"> in the user menu)
    ============================================================ */
 details.dropdown {
   position: relative;

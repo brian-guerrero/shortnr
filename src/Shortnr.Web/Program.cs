@@ -73,6 +73,7 @@ builder.Services
     .AddDomainsFeature()
     .AddWorkspacesFeature()
     .AddBioPagesFeature()
+    .AddThemingFeature()
     .AddWebhooksFeature()
     .AddApiFeature()
     .AddMcpFeature()

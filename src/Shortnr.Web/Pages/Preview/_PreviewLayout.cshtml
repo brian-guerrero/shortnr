@@ -1,10 +1,9 @@
 @{
-    var theme = (string?)ViewData["PreviewTheme"] ?? PreviewThemes.Default;
+    var theme = ThemeCatalog.Resolve((string?)ViewData["PreviewTheme"]);
     var title = (string?)ViewData["PreviewTitle"] ?? "Redirecting…";
-    var themeFile = $"css/themes/preview-{theme}.css";
 }
 <!DOCTYPE html>
-<html lang="en" data-preview-theme="@theme" data-color-scheme="@(theme is "dark" or "midnight" ? "dark" : "light")">
+<html lang="en" data-preview-theme="@theme.Id" data-color-scheme="@(theme.IsDark ? "dark" : "light")">
 
 <head>
     <meta charset="utf-8" />
@@ -14,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="/css/site.css">
-    <link rel="stylesheet" href="/@themeFile">
+    <link rel="stylesheet" href="/@theme.PreviewStylesheetPath">
     <style>
         body {
             background: var(--pv-bg);

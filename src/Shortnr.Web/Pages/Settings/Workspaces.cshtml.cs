@@ -168,7 +168,7 @@ public class WorkspacesModel : PageModel, IStatusMessages
         if (workspace.OwnerUserId != ownerUserId)
             return await DetailPartialAsync(id, error: "Only the workspace owner can change settings.");
 
-        workspace.DefaultPreviewTheme = PreviewThemes.IsValid(previewTheme) ? previewTheme : null;
+        workspace.DefaultPreviewTheme = ThemeCatalog.IsValid(previewTheme) ? previewTheme : null;
         await _db.SaveChangesAsync();
 
         return await DetailPartialAsync(id, status: "Default preview theme updated.");
