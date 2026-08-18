@@ -7,5 +7,16 @@ namespace Shortnr.Web.Features.Theming;
 /// </summary>
 public static class ThemingModule
 {
-    public static IServiceCollection AddThemingFeature(this IServiceCollection services) => services;
+    public static IServiceCollection AddThemingFeature(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.Configure<ThemeCatalogOptions>(configuration.GetSection(ThemeCatalogOptions.SectionName));
+        services.AddHttpClient<ICommunityThemeCatalog, CommunityThemeCatalog>(client =>
+        {
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("shortnr-theme-loader/1.0");
+            client.Timeout = TimeSpan.FromSeconds(10);
+        });
+        return services;
+    }
 }
