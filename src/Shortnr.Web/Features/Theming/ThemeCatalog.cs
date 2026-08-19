@@ -3,19 +3,23 @@ namespace Shortnr.Web.Features.Theming;
 /// <summary>
 /// The single source of truth for shortnr's preset themes. Bio pages and the
 /// redirect-preview page both read this catalog; each surface used to keep its
-/// own hand-mirrored copy of the name list, so every new theme had to be added
-/// twice and the two could silently drift.
+/// own hand-mirrored copy of the name list (and, until the palettes were
+/// unified onto shared <c>--pv-*</c> custom properties, its own hand-mirrored
+/// copy of every color too), so every new theme had to be added twice and the
+/// two could silently drift.
 /// <para>
-/// Adding, renaming or removing a theme is a one-place edit here plus its two
-/// palettes: <c>wwwroot/css/themes/preview-&lt;id&gt;.css</c> and the
-/// <c>[data-bio-theme="&lt;id&gt;"]</c> block in <c>Pages/Bio/_BioLayout.cshtml</c>.
-/// <c>ThemeCatalogTests</c> fails the build's test run if either is missing.
+/// Adding, renaming or removing a theme is a one-place edit here plus its
+/// palette: <c>wwwroot/css/themes/preview-&lt;id&gt;.css</c> (see
+/// <see cref="Theme.PreviewStylesheetPath"/>), linked unconditionally by both
+/// <c>_BioLayout.cshtml</c> and <c>_PreviewLayout.cshtml</c> — one file, not
+/// one per surface. <c>ThemeCatalogTests</c> fails the build's test run if
+/// it's missing.
 /// </para>
 /// All themes share the brutalist structural treatment (DSG-002 §5) — sharp
 /// corners, hard offset shadows, bold borders, Archivo Black headings — and
 /// differ only in palette.
 /// </summary>
-public static class ThemeCatalog
+public sealed class ThemeCatalog : IThemeCatalog
 {
     /// <summary>
     /// Id of the shared neutral/base palette. Distinct from the empty-string
@@ -48,4 +52,26 @@ public static class ThemeCatalog
 
     /// <summary>The named theme, or <see cref="Default"/> when the id is missing or unknown.</summary>
     public static Theme Resolve(string? id) => Find(id) ?? Default;
+
+    /// <summary>
+    /// Adapts this static catalog to <see cref="IThemeCatalog"/> so DI
+    /// consumers can resolve <c>IEnumerable&lt;IThemeCatalog&gt;</c> alongside
+    /// <see cref="CommunityThemeCatalog"/> without special-casing "the static
+    /// one". Purely additive — every member above keeps working exactly as
+    /// today for all existing static call sites.
+    /// </summary>
+    public static readonly IThemeCatalog Instance = new ThemeCatalog();
+
+    private ThemeCatalog() { }
+
+    Task<IReadOnlyList<Theme>> IThemeCatalog.GetThemesAsync(CancellationToken ct) => Task.FromResult(All);
+
+    Task<Theme?> IThemeCatalog.FindAsync(string? id, CancellationToken ct) => Task.FromResult(Find(id));
+
+    Task<bool> IThemeCatalog.IsValidAsync(string? id, CancellationToken ct) => Task.FromResult(IsValid(id));
+
+    // IThemeCatalog.GetCssAsync is intentionally not overridden — the
+    // interface's default implementation (returns null) is correct here:
+    // preset CSS is served as static files under wwwroot/css/themes, not
+    // fetched through the catalog.
 }

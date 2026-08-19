@@ -1,9 +1,12 @@
+@inject Shortnr.Web.Features.Theming.IThemeResolver ThemeResolver
 @{
-    var theme = ThemeCatalog.Resolve((string?)ViewData["PreviewTheme"]);
+    var theme = await ThemeResolver.ResolveAsync((string?)ViewData["PreviewTheme"]);
     var title = (string?)ViewData["PreviewTitle"] ?? "Redirecting…";
 }
+@* data-theme (in addition to the surface-specific data-preview-theme) is
+   what community CSS targets — see _BioLayout.cshtml's matching comment. *@
 <!DOCTYPE html>
-<html lang="en" data-preview-theme="@theme.Id" data-color-scheme="@(theme.IsDark ? "dark" : "light")">
+<html lang="en" data-preview-theme="@theme.Id" data-theme="@theme.Id" data-color-scheme="@(theme.IsDark ? "dark" : "light")">
 
 <head>
     <meta charset="utf-8" />

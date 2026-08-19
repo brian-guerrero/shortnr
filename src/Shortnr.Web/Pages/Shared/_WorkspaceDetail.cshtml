@@ -1,11 +1,13 @@
 @using Shortnr.Data.Entities
 @using Shortnr.Web.Features.ShortLinks
 @model Shortnr.Web.Pages.Settings.WorkspaceDetailViewModel
+@inject Shortnr.Web.Features.Theming.IThemeResolver ThemeResolver
 @{
     var members = Model.Members;
     var workspaceId = Model.WorkspaceId;
     var workspaceSlug = Model.WorkspaceSlug;
     var currentTheme = Model.DefaultPreviewTheme ?? "";
+    var previewThemes = await ThemeResolver.GetAllThemesAsync();
 }
 <div class="overflow-auto">
     <table class="stacked-table">
@@ -58,7 +60,7 @@
                 Theme for links without an explicit theme
                 <select name="previewTheme">
                     <option value="" selected="@(currentTheme == "")">None (direct redirect)</option>
-                    @foreach (var theme in ThemeCatalog.All)
+                    @foreach (var theme in previewThemes)
                     {
                         <option value="@theme.Id" selected="@(currentTheme == theme.Id)">@theme.Label</option>
                     }

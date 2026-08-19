@@ -12,6 +12,7 @@ public class WorkspacesModel : PageModel, IStatusMessages
     private readonly WorkspaceService _workspaceService;
     private readonly UserIdentityService _identity;
     private readonly AppDbContext _db;
+    private readonly IThemeResolver _themes;
 
     public List<Workspace> Workspaces { get; set; } = [];
     public string? StatusMessage { get; set; }
@@ -19,11 +20,12 @@ public class WorkspacesModel : PageModel, IStatusMessages
     public bool IsHtmxRequest { get; set; }
     public string? ExpandedWorkspace { get; set; }
 
-    public WorkspacesModel(WorkspaceService workspaceService, UserIdentityService identity, AppDbContext db)
+    public WorkspacesModel(WorkspaceService workspaceService, UserIdentityService identity, AppDbContext db, IThemeResolver themes)
     {
         _workspaceService = workspaceService;
         _identity = identity;
         _db = db;
+        _themes = themes;
     }
 
     public async Task<IActionResult> OnGet()
@@ -168,7 +170,7 @@ public class WorkspacesModel : PageModel, IStatusMessages
         if (workspace.OwnerUserId != ownerUserId)
             return await DetailPartialAsync(id, error: "Only the workspace owner can change settings.");
 
-        workspace.DefaultPreviewTheme = ThemeCatalog.IsValid(previewTheme) ? previewTheme : null;
+        workspace.DefaultPreviewTheme = await _themes.IsValidAsync(previewTheme) ? previewTheme : null;
         await _db.SaveChangesAsync();
 
         return await DetailPartialAsync(id, status: "Default preview theme updated.");

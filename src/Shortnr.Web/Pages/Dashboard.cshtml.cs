@@ -17,13 +17,15 @@ public class DashboardModel : PageModel, IStatusMessages
     private readonly UserIdentityService _identity;
     private readonly WorkspaceService _workspaces;
     private readonly BulkLinkUndoService _undo;
+    private readonly IThemeResolver _themes;
 
-    public DashboardModel(AppDbContext db, UserIdentityService identity, WorkspaceService workspaces, BulkLinkUndoService undo)
+    public DashboardModel(AppDbContext db, UserIdentityService identity, WorkspaceService workspaces, BulkLinkUndoService undo, IThemeResolver themes)
     {
         _db = db;
         _identity = identity;
         _workspaces = workspaces;
         _undo = undo;
+        _themes = themes;
     }
 
     public List<string> DomainOptions { get; set; } = [];
@@ -243,7 +245,7 @@ public async Task<IActionResult> OnPostEdit(long code, string url, string slug, 
         link.ShortCode = trimmedSlug;
         link.Title = string.IsNullOrWhiteSpace(title) ? null : title.Trim();
         link.Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
-        link.PreviewTheme = ThemeCatalog.IsValid(previewTheme) ? previewTheme : null;
+        link.PreviewTheme = await _themes.IsValidAsync(previewTheme) ? previewTheme : null;
         link.UpdatedAtUtc = DateTime.UtcNow;
 
         var tagNames = (tags ?? "")
