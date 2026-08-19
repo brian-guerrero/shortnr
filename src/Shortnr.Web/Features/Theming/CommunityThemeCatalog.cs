@@ -34,7 +34,7 @@ public interface ICommunityThemeCatalog
 public sealed class CommunityThemeCatalog(
     HttpClient http,
     IOptions<ThemeCatalogOptions> options,
-    ILogger<CommunityThemeCatalog> logger) : ICommunityThemeCatalog
+    ILogger<CommunityThemeCatalog> logger) : ICommunityThemeCatalog, IThemeCatalog
 {
     private readonly ConcurrentDictionary<string, string> cssCache = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim manifestLock = new(1, 1);
@@ -92,6 +92,38 @@ public sealed class CommunityThemeCatalog(
             return null;
         }
     }
+
+    async Task<IReadOnlyList<Theme>> IThemeCatalog.GetThemesAsync(CancellationToken ct) =>
+        [.. (await GetThemesAsync(ct)).Select(ToTheme)];
+
+    async Task<Theme?> IThemeCatalog.FindAsync(string? id, CancellationToken ct)
+    {
+        if (id is null) return null;
+        var entry = (await GetThemesAsync(ct)).FirstOrDefault(e => e.Id == id);
+        return entry is null ? null : ToTheme(entry);
+    }
+
+    async Task<bool> IThemeCatalog.IsValidAsync(string? id, CancellationToken ct) =>
+        id is not null && (await GetThemesAsync(ct)).Any(e => e.Id == id);
+
+    // IThemeCatalog.GetCssAsync needs no separate implementation: the public
+    // GetCssAsync(string, CancellationToken) above already matches its
+    // signature exactly and implicitly satisfies both interfaces.
+
+    /// <summary>
+    /// Known limitation: <see cref="CommunityThemeManifestEntry"/> has no
+    /// <c>isDark</c> field, so community themes always map to
+    /// <c>IsDark: false</c> here. Fixing this needs the remote manifest
+    /// schema to grow an <c>isDark</c> field — out of scope until something
+    /// actually surfaces community themes in a picker.
+    /// </summary>
+    private static Theme ToTheme(CommunityThemeManifestEntry entry) => new(
+        entry.Id,
+        entry.Name,
+        IsDark: false,
+        Author: entry.Author,
+        Description: entry.Description,
+        IsCommunity: true);
 
     private static bool IsSafeManifestEntry(CommunityThemeManifestEntry entry) =>
         ThemeIdIsSafe(entry.Id) && Uri.TryCreate(entry.DownloadUrl, UriKind.Absolute, out var uri) &&

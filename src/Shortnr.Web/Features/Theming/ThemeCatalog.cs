@@ -15,7 +15,7 @@ namespace Shortnr.Web.Features.Theming;
 /// corners, hard offset shadows, bold borders, Archivo Black headings — and
 /// differ only in palette.
 /// </summary>
-public static class ThemeCatalog
+public sealed class ThemeCatalog : IThemeCatalog
 {
     /// <summary>
     /// Id of the shared neutral/base palette. Distinct from the empty-string
@@ -48,4 +48,26 @@ public static class ThemeCatalog
 
     /// <summary>The named theme, or <see cref="Default"/> when the id is missing or unknown.</summary>
     public static Theme Resolve(string? id) => Find(id) ?? Default;
+
+    /// <summary>
+    /// Adapts this static catalog to <see cref="IThemeCatalog"/> so DI
+    /// consumers can resolve <c>IEnumerable&lt;IThemeCatalog&gt;</c> alongside
+    /// <see cref="CommunityThemeCatalog"/> without special-casing "the static
+    /// one". Purely additive — every member above keeps working exactly as
+    /// today for all existing static call sites.
+    /// </summary>
+    public static readonly IThemeCatalog Instance = new ThemeCatalog();
+
+    private ThemeCatalog() { }
+
+    Task<IReadOnlyList<Theme>> IThemeCatalog.GetThemesAsync(CancellationToken ct) => Task.FromResult(All);
+
+    Task<Theme?> IThemeCatalog.FindAsync(string? id, CancellationToken ct) => Task.FromResult(Find(id));
+
+    Task<bool> IThemeCatalog.IsValidAsync(string? id, CancellationToken ct) => Task.FromResult(IsValid(id));
+
+    // IThemeCatalog.GetCssAsync is intentionally not overridden — the
+    // interface's default implementation (returns null) is correct here:
+    // preset CSS is served as static files under wwwroot/css/themes, not
+    // fetched through the catalog.
 }
