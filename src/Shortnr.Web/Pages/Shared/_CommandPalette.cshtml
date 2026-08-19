@@ -1,12 +1,15 @@
 @inject Microsoft.Extensions.Configuration.IConfiguration _config
 @inject Shortnr.Web.Features.Authentication.IUserIdentityService _identity
 @inject Shortnr.Web.Features.Workspaces.WorkspaceService _workspaceService
+@inject Shortnr.Web.Features.Theming.IThemeResolver _themeResolver
 @using System.Security.Claims
 @{
     var authEnabled = User.Identity?.IsAuthenticated == true;
     var userId = authEnabled ? await _identity.ResolveOwnerUserIdAsync(User) : null;
     var workspaces = userId is not null ? await _workspaceService.GetWorkspacesForUserAsync(userId.Value) : [];
     var workspaceCtx = authEnabled ? await _identity.ResolveActiveWorkspaceContextAsync(User) : null;
+    var themes = authEnabled ? await _themeResolver.GetAllThemesAsync() : [];
+    var activeTheme = authEnabled ? await _identity.ResolveThemePreferenceAsync(User) : null;
 }
 @* PRD-019 command palette (Cmd+K). v1 scope: navigate, create link, switch
    workspace, toggle dark mode. Opened by the JS trigger in the nav and by
@@ -58,6 +61,24 @@
                             @if (workspaceCtx is null) { <span class="muted">· current</span> }
                         </button>
                     </form>
+                </div>
+            }
+            @if (authEnabled && themes.Count > 0)
+            {
+                <div class="palette-group">
+                    <p class="palette-group-label">Theme</p>
+                    @foreach (var t in themes)
+                    {
+                        var isActiveTheme = activeTheme?.Id == t.Id;
+                        <form method="post" action="/theme/switch" class="palette-item-form" data-palette-command="Switch to @t.Label theme">
+                            <input type="hidden" name="themeId" value="@t.Id">
+                            <button type="submit" class="palette-item palette-item-action @(isActiveTheme ? "is-active" : null)">
+                                @t.Label
+                                @if (t.IsCommunity) { <span class="muted">· community</span> }
+                                @if (isActiveTheme) { <span class="muted">· current</span> }
+                            </button>
+                        </form>
+                    }
                 </div>
             }
             <div class="palette-group">

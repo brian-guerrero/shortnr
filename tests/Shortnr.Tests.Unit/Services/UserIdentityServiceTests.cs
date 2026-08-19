@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Shortnr.Data;
 using Shortnr.Data.Entities;
+using Shortnr.Web.Features.Theming;
 
 namespace Shortnr.Tests.Unit.Services;
 
@@ -12,6 +13,7 @@ public class UserIdentityServiceTests : IDisposable
     private const string TestIssuer = "http://test.issuer";
 
     private readonly AppDbContext _db;
+    private readonly IThemeResolver _themeResolver = new ThemeResolver([ThemeCatalog.Instance]);
 
     public UserIdentityServiceTests()
     {
@@ -44,7 +46,7 @@ public class UserIdentityServiceTests : IDisposable
     [Fact]
     public void IsAuthEnabled_WhenKeyAbsent_DefaultsToTrue()
     {
-        var sut = new UserIdentityService(_db, new ConfigurationBuilder().Build(), new HttpContextAccessor());
+        var sut = new UserIdentityService(_db, new ConfigurationBuilder().Build(), new HttpContextAccessor(), _themeResolver);
         Assert.True(sut.IsAuthEnabled);
     }
 
@@ -156,6 +158,58 @@ public class UserIdentityServiceTests : IDisposable
     }
 
     // -------------------------------------------------------------------------
+    // ResolveThemePreferenceAsync
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task ResolveThemePreferenceAsync_WhenUnauthenticated_ReturnsDefault()
+    {
+        var sut = BuildService(authEnabled: true);
+        var anonymous = new ClaimsPrincipal(new ClaimsIdentity());
+
+        var theme = await sut.ResolveThemePreferenceAsync(anonymous);
+
+        Assert.Equal(ThemeCatalog.Default, theme);
+    }
+
+    [Fact]
+    public async Task ResolveThemePreferenceAsync_WhenUserHasNoPreference_ReturnsDefault()
+    {
+        var user = await SeedUser("no-pref", TestIssuer);
+        var sut = BuildService(authEnabled: true);
+
+        var theme = await sut.ResolveThemePreferenceAsync(AuthenticatedPrincipal("no-pref"));
+
+        Assert.Equal(ThemeCatalog.Default, theme);
+    }
+
+    [Fact]
+    public async Task ResolveThemePreferenceAsync_WhenUserHasValidPreference_ReturnsResolvedTheme()
+    {
+        var user = await SeedUser("has-pref", TestIssuer);
+        user.PreferredTheme = "midnight";
+        await _db.SaveChangesAsync();
+        var sut = BuildService(authEnabled: true);
+
+        var theme = await sut.ResolveThemePreferenceAsync(AuthenticatedPrincipal("has-pref"));
+
+        Assert.Equal("midnight", theme.Id);
+    }
+
+    [Fact]
+    public async Task ResolveThemePreferenceAsync_WhenStoredPreferenceIsInvalid_FallsBackToDefault()
+    {
+        var user = await SeedUser("bad-pref", TestIssuer);
+        user.PreferredTheme = "not-a-real-theme";
+        await _db.SaveChangesAsync();
+        var sut = BuildService(authEnabled: true);
+
+        var theme = await sut.ResolveThemePreferenceAsync(AuthenticatedPrincipal("bad-pref"));
+
+        Assert.Equal(ThemeCatalog.Default, theme);
+    }
+
+    // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
 
@@ -166,7 +220,7 @@ public class UserIdentityServiceTests : IDisposable
                 ["Authentication:Enabled"] = authEnabled.ToString().ToLower(),
                 ["Authentication:Oidc:Authority"] = TestIssuer
             })
-            .Build(), new HttpContextAccessor());
+            .Build(), new HttpContextAccessor(), _themeResolver);
 
     private static ClaimsPrincipal AuthenticatedPrincipal(string subject, bool useNameIdentifier = true) =>
         new(new ClaimsIdentity(

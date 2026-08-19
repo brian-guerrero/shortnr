@@ -10,5 +10,15 @@ public class User
     public DateTime CreatedAtUtc { get; set; }
     public DateTime LastLoginAtUtc { get; set; }
 
+    /// <summary>
+    /// Persisted app-wide theme choice, an id validated against
+    /// <c>IThemeResolver</c> (preset or community). <see langword="null"/>
+    /// means "use <c>ThemeCatalog.Default</c>" — most users never write this
+    /// column. Distinct from <c>BioPage.Theme</c>/<c>ShortenedUrl.PreviewTheme</c>,
+    /// which theme content the user publishes rather than how the app chrome
+    /// looks to them.
+    /// </summary>
+    public string? PreferredTheme { get; set; }
+
     public ICollection<ShortenedUrl> ShortenedUrls { get; set; } = [];
 }
