@@ -3,7 +3,10 @@ namespace Shortnr.Tests.Unit.Services;
 /// <summary>
 /// Locks in the invariant the old hand-mirrored BioThemes.All / PreviewThemes.All
 /// pair was trying to enforce: bio pages and the redirect-preview page offer the
-/// same eight themes, and every catalog entry actually has both of its palettes.
+/// same eight themes, and every catalog entry actually has its palette. Bio and
+/// the redirect-preview page share one palette file per theme (both layouts link
+/// <c>Theme.PreviewStylesheetPath</c>), so there is only one palette to check —
+/// see <see cref="EveryTheme_HasAPalette"/>.
 /// </summary>
 public class ThemeCatalogTests
 {
@@ -75,31 +78,18 @@ public class ThemeCatalogTests
     }
 
     // --- the shared-vocabulary invariant ---------------------------------
-    // Both surfaces render a theme from the same catalog entry, so a theme can
-    // only be offered on one of them if its palette is missing. These two tests
-    // catch that: add a theme to the catalog without its CSS and they fail.
+    // Bio and the redirect-preview page both link Theme.PreviewStylesheetPath
+    // — the same file, not a palette apiece — so there is exactly one palette
+    // per theme to check. This test catches a theme added to the catalog
+    // without its CSS.
 
     [Fact]
-    public void EveryTheme_HasARedirectPreviewPalette()
+    public void EveryTheme_HasAPalette()
     {
         var webRoot = Path.Combine(FindRepoRoot(), "src", "Shortnr.Web", "wwwroot");
 
         var missing = ThemeCatalog.All
             .Where(t => !File.Exists(Path.Combine(webRoot, t.PreviewStylesheetPath.Replace('/', Path.DirectorySeparatorChar))))
-            .Select(t => t.Id)
-            .ToArray();
-
-        Assert.Empty(missing);
-    }
-
-    [Fact]
-    public void EveryTheme_HasABioPalette()
-    {
-        var layout = File.ReadAllText(Path.Combine(
-            FindRepoRoot(), "src", "Shortnr.Web", "Pages", "Bio", "_BioLayout.cshtml"));
-
-        var missing = ThemeCatalog.All
-            .Where(t => !layout.Contains($"[data-bio-theme=\"{t.Id}\"]", StringComparison.Ordinal))
             .Select(t => t.Id)
             .ToArray();
 

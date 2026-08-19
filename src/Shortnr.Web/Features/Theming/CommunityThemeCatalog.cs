@@ -4,6 +4,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Options;
 
 namespace Shortnr.Web.Features.Theming;
@@ -13,6 +15,13 @@ public sealed class ThemeCatalogOptions
     public const string SectionName = "Theming";
     public string CommunityCatalogUrl { get; set; } =
         "https://raw.githubusercontent.com/brian-guerrero/shortnr-themes/main/index.json";
+
+    /// <summary>
+    /// Directory community theme CSS is cached to on disk, keyed as
+    /// <c>{id}.css</c>. Defaults to <c>wwwroot/data/community-themes</c> (same
+    /// convention as <c>GeoIp:DatabasePath</c>'s default) when unset.
+    /// </summary>
+    public string? CommunityThemeCachePath { get; set; }
 }
 
 public sealed record CommunityThemeManifestEntry(
@@ -30,15 +39,44 @@ public interface ICommunityThemeCatalog
     Task<string?> GetCssAsync(string id, CancellationToken ct = default);
 }
 
-/// <summary>Fetches the public manifest and validates downloaded CSS before caching it.</summary>
-public sealed class CommunityThemeCatalog(
-    HttpClient http,
-    IOptions<ThemeCatalogOptions> options,
-    ILogger<CommunityThemeCatalog> logger) : ICommunityThemeCatalog, IThemeCatalog
+/// <summary>
+/// Fetches the public manifest and validates downloaded CSS before caching it,
+/// both in memory and — since this catalog is registered as a singleton — to
+/// disk under <see cref="ThemeCatalogOptions.CommunityThemeCachePath"/>. The
+/// disk cache is what lets <see cref="CommunityThemeInstallerService"/>
+/// survive a redeploy onto a non-persistent volume: without it, every process
+/// restart would need to re-fetch every in-use community theme from GitHub
+/// before it could render correctly again.
+/// </summary>
+public sealed class CommunityThemeCatalog : ICommunityThemeCatalog, IThemeCatalog
 {
+    private readonly IHttpClientFactory httpClientFactory;
+    private readonly IOptions<ThemeCatalogOptions> options;
+    private readonly ILogger<CommunityThemeCatalog> logger;
+    private readonly string cacheDirectory;
     private readonly ConcurrentDictionary<string, string> cssCache = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim manifestLock = new(1, 1);
     private IReadOnlyList<CommunityThemeManifestEntry>? manifest;
+
+    public CommunityThemeCatalog(
+        IHttpClientFactory httpClientFactory,
+        IOptions<ThemeCatalogOptions> options,
+        ILogger<CommunityThemeCatalog> logger,
+        IWebHostEnvironment env)
+    {
+        this.httpClientFactory = httpClientFactory;
+        this.options = options;
+        this.logger = logger;
+        cacheDirectory = string.IsNullOrWhiteSpace(options.Value.CommunityThemeCachePath)
+            ? Path.Combine(env.WebRootPath, "data", "community-themes")
+            : options.Value.CommunityThemeCachePath;
+    }
+
+    // Resolved per call rather than held on the singleton, so the pooled
+    // handler behind it still rotates per IHttpClientFactory's normal lifetime
+    // management instead of pinning one HttpClient (and its DNS results) for
+    // the process's entire lifetime — the same pattern GeoIpUpdateService uses.
+    private HttpClient Http => httpClientFactory.CreateClient("community-themes");
 
     public async Task<IReadOnlyList<CommunityThemeManifestEntry>> GetThemesAsync(CancellationToken ct = default)
     {
@@ -47,7 +85,7 @@ public sealed class CommunityThemeCatalog(
         try
         {
             if (manifest is not null) return manifest;
-            var entries = await http.GetFromJsonAsync<List<CommunityThemeManifestEntry>>(
+            var entries = await Http.GetFromJsonAsync<List<CommunityThemeManifestEntry>>(
                 options.Value.CommunityCatalogUrl, ct) ?? [];
             manifest = entries
                 .Where(IsSafeManifestEntry)
@@ -64,16 +102,33 @@ public sealed class CommunityThemeCatalog(
         finally { manifestLock.Release(); }
     }
 
+    /// <summary>
+    /// Returns this theme's CSS, installing it first if it isn't already
+    /// cached: checks the in-memory cache, then the on-disk cache (populated
+    /// by an earlier run — possibly a previous process, before a redeploy
+    /// wiped the volume), and only hits the network as a last resort. A
+    /// successful network fetch is persisted to disk before returning, so the
+    /// next call — in this process or the next one, if the disk survives —
+    /// doesn't need the network at all.
+    /// </summary>
     public async Task<string?> GetCssAsync(string id, CancellationToken ct = default)
     {
         if (!ThemeIdIsSafe(id)) return null;
+        if (cssCache.TryGetValue(id, out var cached)) return cached;
+
+        var onDisk = await ReadFromDiskAsync(id, ct);
+        if (onDisk is not null)
+        {
+            cssCache[id] = onDisk;
+            return onDisk;
+        }
+
         var entry = (await GetThemesAsync(ct)).FirstOrDefault(theme => theme.Id == id);
         if (entry is null) return null;
-        if (cssCache.TryGetValue(id, out var cached)) return cached;
 
         try
         {
-            var css = await http.GetStringAsync(entry.DownloadUrl, ct);
+            var css = await Http.GetStringAsync(entry.DownloadUrl, ct);
             var bytes = Encoding.UTF8.GetBytes(css);
             var hash = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
             if (!CryptographicOperations.FixedTimeEquals(
@@ -83,6 +138,8 @@ public sealed class CommunityThemeCatalog(
                 css.Contains("url(", StringComparison.OrdinalIgnoreCase) ||
                 !css.Contains($"[data-theme=\"{id}\"]", StringComparison.Ordinal))
                 throw new InvalidDataException($"Unsafe CSS rejected for community theme '{id}'");
+
+            await WriteToDiskAsync(id, css, ct);
             cssCache[id] = css;
             return css;
         }
@@ -90,6 +147,41 @@ public sealed class CommunityThemeCatalog(
         {
             logger.LogWarning(ex, "Unable to load community theme {ThemeId}", id);
             return null;
+        }
+    }
+
+    private async Task<string?> ReadFromDiskAsync(string id, CancellationToken ct)
+    {
+        var path = Path.Combine(cacheDirectory, $"{id}.css");
+        if (!File.Exists(path)) return null;
+        try
+        {
+            return await File.ReadAllTextAsync(path, ct);
+        }
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Unable to read cached community theme {ThemeId} from disk", id);
+            return null;
+        }
+    }
+
+    private async Task WriteToDiskAsync(string id, string css, CancellationToken ct)
+    {
+        try
+        {
+            Directory.CreateDirectory(cacheDirectory);
+            var finalPath = Path.Combine(cacheDirectory, $"{id}.css");
+            var tempPath = finalPath + ".tmp";
+            await File.WriteAllTextAsync(tempPath, css, ct);
+            File.Move(tempPath, finalPath, overwrite: true);
+        }
+        catch (IOException ex)
+        {
+            // Disk persistence is best-effort: the in-memory cache still
+            // serves the rest of this process's lifetime even if the write
+            // fails (e.g. a read-only filesystem). Never fail the caller over
+            // a cache-write problem — they already have the validated CSS.
+            logger.LogWarning(ex, "Unable to persist community theme {ThemeId} to disk cache", id);
         }
     }
 

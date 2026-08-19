@@ -177,8 +177,9 @@ public static class McpBioWriteTools
             RequestContext<CallToolRequestParams> context,
             AppDbContext db,
             UserIdentityService identity,
+            IThemeResolver themes,
             Channel<AiActivityRecord> activity,
-            [Description("One of the preset themes")] string theme,
+            [Description("One of the preset themes, or a community theme id")] string theme,
             CancellationToken ct = default)
         {
             var ownerUserId = await McpToolGuard.ResolveOwnerAsync(context, identity);
@@ -186,8 +187,8 @@ public static class McpBioWriteTools
             if (!McpToolGuard.HasScope(context, ApiKeyScopes.McpWrite)) return McpToolGuard.WriteScopeError;
 
             var normalized = theme.Trim().ToLowerInvariant();
-            if (!ThemeCatalog.IsValid(normalized))
-                return $"Error: unknown theme '{theme}'. Valid themes: {string.Join(", ", ThemeCatalog.Ids)}.";
+            if (!await themes.IsValidAsync(normalized, ct))
+                return $"Error: unknown theme '{theme}'. Built-in themes: {string.Join(", ", ThemeCatalog.Ids)}. Community themes are also accepted.";
 
             var bioPage = await db.BioPages.FirstOrDefaultAsync(b => b.OwnerUserId == ownerUserId, ct);
             if (bioPage is null)
