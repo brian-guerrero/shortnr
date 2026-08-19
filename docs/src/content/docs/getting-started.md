@@ -18,7 +18,17 @@ docker run -p 8080:8080 -v shortnr-data:/data ghcr.io/brian-guerrero/shortnr:lat
 
 Open `http://localhost:8080`. The SQLite database is stored in the `shortnr-data` named Docker volume and persists across container restarts.
 
-By default, authentication is disabled &mdash; every link and click is visible to whoever can reach the instance. This is fine for personal or single-user use.
+Authentication is **enabled by default**. For personal or single-user use without an identity provider, pass `-e Authentication__Enabled=false`:
+
+```bash
+docker run -d \
+  --name shortnr \
+  -p 8080:8080 \
+  -v shortnr-data:/data \
+  -e Authentication__Enabled=false \
+  --restart unless-stopped \
+  ghcr.io/brian-guerrero/shortnr:latest
+```
 
 Prefer Postgres, or planning to run more than one instance? Bring both up together:
 
@@ -80,12 +90,12 @@ The schema is created automatically on first start under either provider. See th
 
 ## Running with authentication
 
-To enable OIDC authentication (works with Dex, Authentik, Okta, Auth0, Azure AD):
+Authentication is enabled by default (see [Configuration](/shortnr/docs/configuration/)). To wire it up with a specific OIDC provider (Dex, Authentik, Okta, Auth0, Azure AD), set the authority/credentials on launch:
 
 ```bash
 dotnet run --project src/Shortnr.Web -- \
   Authentication:Enabled=true \
-  Authentication:Oidc:Authority=http://your-idp/.well-known/openid-configuration \
+  Authentication:Oidc:Authority=https://your-idp/.well-known/openid-configuration \
   Authentication:Oidc:ClientId=shortnr-web \
   Authentication:Oidc:ClientSecret=your-secret
 ```

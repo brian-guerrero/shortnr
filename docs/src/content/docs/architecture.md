@@ -6,7 +6,7 @@ order: 6
 
 # Architecture
 
-shortnr is built with ASP.NET Core Razor Pages, HTMUX, and a multi-provider EF Core data layer. It defaults to SQLite for local development but supports PostgreSQL in production. Client-side it uses HTMX, Alpine.js, and Chart.js — with a self-contained CSS system in `site.css` that replaces Pico entirely. No client-side JavaScript framework, no Redis. External services include an optional OIDC provider (Dex for local dev), SMTP (MailPit locally), optional GeoIP enrichment, and OAuth 2.1 certificate management for the MCP server.
+shortnr is built with ASP.NET Core Razor Pages, HTMX, and a multi-provider EF Core data layer. It defaults to SQLite for local development but supports PostgreSQL in production. Client-side it uses HTMX, Alpine.js, and Chart.js — with a self-contained CSS system in `site.css` that replaces Pico entirely. No client-side JavaScript framework, no Redis. External services include an optional OIDC provider (Dex for local dev), SMTP (MailPit locally), optional GeoIP enrichment, and OAuth 2.1 certificate management for the MCP server.
 
 ## Project structure
 
@@ -28,6 +28,7 @@ shortnr/
 │   │   │   ├── Domains/            # Domain entity, verification, default domain logic
 │   │   │   ├── Workspaces/         # Workspace, WorkspaceMember, WorkspaceAuthorizationService
 │   │   │   ├── BioPages/           # Bio page editor + public pages
+│   │   │   ├── Theming/            # ThemeCatalog + Theme record (shared theme vocabulary)
 │   │   │   ├── Api/                # Versioned REST API (/api/v1)
 │   │   │   ├── Mcp/                # MCP server, tools, resources, prompts, OAuth 2.1
 │   │   │   ├── OAuth/              # OpenIddict OAuth 2.1 server
@@ -36,8 +37,7 @@ shortnr/
 │   │   │   ├── GeoIp/              # MaxMind GeoLite2 enrichment
 │   │   │   ├── AiActivity/         # AiActivityProcessor, AiActivityLog
 │   │   │   ├── Insights/           # AiInsightsHostedService, InsightHeuristics
-│   │   │   ├── Infrastructure/     # ChainedRateLimiter, ClientIpResolver, GravatarHelper, view models
-│   │   │   └── Preview/            # Link preview interstitial
+│   │   │   └── Infrastructure/     # ChainedRateLimiter, ClientIpResolver, GravatarHelper, view models
 │   │   ├── Pages/                  # Razor Pages + Shared partials
 │   │   ├── wwwroot/                # Static files (css/site.css, lib/ restored by LibMan)
 │   │   └── Program.cs              # App setup, DI, minimal API, OIDC, rate limiting
@@ -56,7 +56,7 @@ shortnr/
 
 - **`/`** &mdash; Index page. POST shortens a URL and returns an HTMX partial with the short URL, a "Show QR" button, and an OOB swap of the recent links table.
 - **`/{shortCode}`** &mdash; Redirect endpoint (minimal API). Host-aware lookup by `(host, shortCode)`. Writes a `ClickRecord` to an in-memory channel and returns `302` immediately. Renders a pixel-tracking interstitial if a PixelSnippet is attached.
-- **`/preview/{code}`** &mdash; Link preview interstitial page (shows target URL metadata before redirecting).
+- **`/preview`** &mdash; Preview interstitial page (shows target URL metadata before redirecting). Served via `/preview?url=<destination>&theme=<id>&host=<host>`.
 - **`/qr/{code}`** &mdash; QR code page rendered via `QrService`. Also serves `/api/qr/{code}` as a PNG.
 - **`/dashboard`** &mdash; Dashboard page. Metrics, sortable search results, and recent clicks are scoped to the signed-in user or active workspace. Polls `/api/metrics` for charts and `/dashboard` for summaries.
 - **`GET /api/metrics`** &mdash; Dashboard metrics endpoint (JSON), workspace-scoped or user-scoped.
@@ -69,25 +69,25 @@ shortnr/
 - **`/settings/webhooks`** &mdash; Webhook management (url, secret, event types).
 - **`/insights`** &mdash; AI-generated link suggestions surfaced from `AiActivityLog` and heuristic analysis.
 - **`/dashboard/activity`** &mdash; AI activity log page (personal data only).
-- **`/api/v1/links`** &mdash; Versioned REST CRUD for short links.
-- **`/api/v1/links/{code}/clicks`** &mdash; Click analytics for a specific link.
-- **`/api/v1/links/{code}/transfer`** &mdash; Transfer ownership of a link.
-- **`/api/v1/pixel-snippets`** &mdash; Pixel snippet CRUD (REST).
+- **`/api/v1/links`** &mdash; Versioned REST CRUD for short links (GET list, POST create, GET/PUT/PATCH/DELETE by code, plus POST archive/unarchive).
+- **`/api/v1/links/{code}/clicks`** &mdash; Paginated click events for a specific link.
+- **`/api/v1/links/{code}/transfer`** &mdash; Transfer ownership of a link to another workspace.
+- **`/api/v1/pixel-snippets`** &mdash; List retargeting pixel snippets available for `metadata.pixelSnippet` (GET only).
 - **`/api/v1` group** &mdash; Requires API key auth (`ApiKey` policy) + `api-key` rate limiter. Per-key scopes (`links:read`/`links:write`/`mcp:read`/`mcp:write`) enforced.
 - **`/api/docs`** &mdash; Scalar UI for OpenAPI (restricted to `api/v1*` paths).
 - **`/mcp`** &mdash; MCP server endpoint (OAuth 2.1 or API key auth).
 - **`/connect/authorize`**, **`/connect/token`**, **`/connect/register`** &mdash; OAuth 2.1 endpoints for MCP clients (OpenIddict).
 - **`/.well-known/shortnr-verify.txt`** &mdash; Well-known file for domain verification.
-- **`/.well-known/webfinger`** &mdash; Matrix-style webfinger for MCP OAuth discovery.
+- **`/.well-known/openid-configuration`** &mdash; OpenID Connect discovery (auto-generated by OpenIddict).
+- **`/.well-known/oauth-protected-resource/mcp`** &mdash; RFC 9728 protected-resource metadata (auto-generated by OpenIddict).
 
 ## Authentication
 
-Auth wiring follows SRP via two extension classes under `Features/Authentication/`:
+Auth wiring is split across `Program.cs` and two extension classes under `Features/Authentication/`:
 
-- `AuthenticationServiceExtensions.cs` &mdash; registers cookie + OIDC schemes and the `OnTokenValidated` user-provisioning queue write. Also registers the API key handler and `ApiKeyService`.
-- `AuthenticationEndpointExtensions.cs` &mdash; registers `/account/login` and `/account/logout` endpoints.
-
-Both are no-ops when `Authentication:Enabled` is `false`.
+- `Program.cs` — registers the `ApiKey` authentication scheme (`ApiKeyHandler`) and all authorization policies (scope-based claims for `links:read`/`links:write`/`mcp:read`/`mcp:write`, plus the MCP endpoint policy). The API key scheme is **not** gated on `Authentication:Enabled` — it works whenever the `ApiKey` policy is required, regardless of OIDC.
+- `AuthenticationServiceExtensions.cs` &mdash; `AddOidcAuthentication()`: registers cookie + OIDC schemes and the `OnTokenValidated` user-provisioning queue write. No-op when `Authentication:Enabled` is `false`.
+- `AuthenticationEndpointExtensions.cs` &mdash; `MapAuthenticationEndpoints()`: registers `/account/login`, `/account/logout`, and `/workspace/switch`. No-op when `Authentication:Enabled` is `false`.
 
 `UserIdentityService` (scoped, `IUserIdentityService` abstraction) is the single source of truth for `IsAuthEnabled`, `ResolveOwnerUserIdAsync(ClaimsPrincipal)`, and `ResolveActiveWorkspaceContextAsync(ClaimsPrincipal)`.
 
