@@ -31,7 +31,8 @@ public sealed record CommunityThemeManifestEntry(
     [property: JsonPropertyName("version")] string Version,
     [property: JsonPropertyName("description")] string Description,
     [property: JsonPropertyName("downloadUrl")] string DownloadUrl,
-    [property: JsonPropertyName("sha256")] string Sha256);
+    [property: JsonPropertyName("sha256")] string Sha256,
+    [property: JsonPropertyName("isDark")] bool IsDark = false);
 
 public interface ICommunityThemeCatalog
 {
@@ -202,17 +203,10 @@ public sealed class CommunityThemeCatalog : ICommunityThemeCatalog, IThemeCatalo
     // GetCssAsync(string, CancellationToken) above already matches its
     // signature exactly and implicitly satisfies both interfaces.
 
-    /// <summary>
-    /// Known limitation: <see cref="CommunityThemeManifestEntry"/> has no
-    /// <c>isDark</c> field, so community themes always map to
-    /// <c>IsDark: false</c> here. Fixing this needs the remote manifest
-    /// schema to grow an <c>isDark</c> field — out of scope until something
-    /// actually surfaces community themes in a picker.
-    /// </summary>
     private static Theme ToTheme(CommunityThemeManifestEntry entry) => new(
         entry.Id,
         entry.Name,
-        IsDark: false,
+        IsDark: entry.IsDark,
         Author: entry.Author,
         Description: entry.Description,
         IsCommunity: true);
