@@ -515,8 +515,12 @@ public class DashboardBulkActionTests : IAsyncLifetime
         var html = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        // The root panel's entry point into the themes sub-panel...
+        Assert.Contains("data-palette-open-panel=\"themes\"", html);
+        Assert.Contains("Switch theme", html);
+        // ...which is rendered (hidden until opened) with every preset listed...
+        Assert.Contains("data-palette-panel=\"themes\"", html);
         Assert.Contains("action=\"/theme/switch\"", html);
-        // Every preset theme should be listed...
         Assert.Contains("Switch to Midnight theme", html);
         Assert.Contains("value=\"midnight\"", html);
         // ...and with no stored preference, Default is the active one.

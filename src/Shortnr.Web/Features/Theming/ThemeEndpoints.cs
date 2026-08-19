@@ -45,7 +45,16 @@ public static class ThemeEndpoints
                 await db.SaveChangesAsync(ct);
             }
 
-            return Results.Redirect("/");
+            // Send the user back to the page they were on (e.g. the command
+            // palette), not always home. Only accept a same-site relative
+            // referer so a forged absolute URI can't turn this into an open
+            // redirect; fall back to "/" when there is none.
+            var referer = ctx.Request.Headers.Referer.ToString();
+            var returnUrl = Uri.TryCreate(referer, UriKind.Absolute, out var refererUri)
+                && string.Equals(ctx.Request.Host.Host, refererUri.Host, StringComparison.OrdinalIgnoreCase)
+                    ? refererUri.PathAndQuery
+                    : "/";
+            return Results.Redirect(returnUrl);
         // No antiforgery token: cross-origin CSRF is blocked by the SameSite=Lax
         // session cookie (browsers never attach it to a cross-site POST, so the
         // forged request hits the 401 above), and this is an idempotent,
