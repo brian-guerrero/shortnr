@@ -15,6 +15,7 @@ A URL shortener with a real-time dashboard. Built with ASP.NET Core Razor Pages,
 - Link titles and descriptions for dashboard readability
 - Tags and AI-suggested tags — click-pattern heuristics propose tags for your links
 - Link-in-bio pages — personal bio page with theme picker, link reordering, and avatar support
+- Shared theme catalog — 8 preset themes (default, sunset, ocean, forest, midnight, minimal, corporate, dark) shared by bio pages and the redirect-preview interstitial; themes are validated against a single `ThemeCatalog`, never a local list
 - Optional OIDC authentication via Dex (or any OIDC provider); disable entirely with one config flag
 - Per-user dashboard — when auth is enabled, dashboard and `/api/metrics` show only the signed-in user's links
 - Team workspaces — create workspaces, invite members by email, assign roles (Owner/Editor/Viewer), and switch between workspaces to scope dashboards and link creation
@@ -40,8 +41,8 @@ shortnr/
 │   ├── Shortnr.Web/           # Razor Pages app
 │   │   ├── Features/          # Feature modules, each with an Add<Feature>Feature() extension:
 │   │   │                      #   ShortLinks, ClickTracking, Authentication, Domains,
-│   │   │                      #   Workspaces, BioPages, Api, Mcp, OAuth, Webhooks, Email,
-│   │   │                      #   GeoIp, AiActivity, Insights, Infrastructure
+│   │   │                      #   Workspaces, BioPages, Theming, Api, Mcp, OAuth, Webhooks,
+│   │   │                      #   Email, GeoIp, AiActivity, Insights, Infrastructure
 │   │   ├── Pages/             # Index, Dashboard (+Activity), Insights, QR, Bio, Preview,
 │   │   │                      #   Settings pages + Shared partials
 │   │   ├── wwwroot/           # Static files (lib/ is gitignored, restored by LibMan)
@@ -82,7 +83,17 @@ Open `http://localhost:5156`.
 
 > `dotnet build` triggers `Microsoft.Web.LibraryManager.Build`, which downloads htmx, htmx-ext-sse, Chart.js, and Alpine.js into `wwwroot/lib/` automatically. No manual `libman restore` needed. Styling is provided by `wwwroot/css/site.css` &mdash; no external CSS framework is bundled.
 
-Running this way starts the app **without authentication** — the dashboard is freely accessible and all data is shared. To run with full auth, either disable it explicitly (see below) or start under Aspire with a live Dex instance:
+Authentication is **enabled by default** in `appsettings.json`. Running standalone without an OIDC provider means `/account/login` won't work and the dashboard is inaccessible to unauthenticated visitors. To run without auth:
+
+```bash
+dotnet run --project src/Shortnr.Web -- Authentication:Enabled=false
+```
+
+Or, for full auth with a live test IdP, start under Aspire with Dex:
+
+```bash
+dotnet run --project src/Shortnr.AppHost
+```
 
 ```bash
 dotnet run --project src/Shortnr.AppHost
@@ -120,6 +131,8 @@ docker run -p 8080:8080 -v shortnr-data:/data ghcr.io/brian-guerrero/shortnr:lat
 ```
 
 Open `http://localhost:8080`. The SQLite database is stored in the `shortnr-data` named volume at `/data/shortnr.db` and persists across container restarts.
+
+Authentication is enabled by default in the container image. For single-user use without an IdP, pass `-e Authentication__Enabled=false`.
 
 To build from source instead:
 
@@ -169,7 +182,7 @@ web app automatically.
 |---------|---------|-------------|
 | `Database__Provider` | `Sqlite` | Database engine: `Sqlite` or `Postgres`. See [Multi-database support](#multi-database-support). |
 | `Database__ConnectionString` | *(empty)* | Connection string for the selected provider. Defaults to `Data Source=shortnr.db` for `Sqlite`; required for `Postgres`. |
-| `ASPNETCORE_URLS` | `http://+:5000` (dev) / `http://+:8080` (Docker) | Listening address. |
+| `ASPNETCORE_URLS` | `http://localhost:5156` (dev) / `http://+:8080` (Docker) | Listening address. Set via `launchSettings.json` in development and `ENV ASPNETCORE_URLS=http://+:8080` in the Dockerfile. |
 | `DataProtection__KeyPath` | *(empty)* | Filesystem path to persist the Data Protection key ring so auth cookies and OIDC correlation cookies survive redeploy. Set in Docker to `/data/dataprotection-keys`. |
 | `Authentication__Enabled` | `true` | Set to `false` to disable OIDC entirely — no login UI, no access control, dashboard shows all data. |
 | `Authentication__Oidc__Authority` | `http://localhost:5556/dex` | OpenID Connect issuer URL. Set automatically by `Shortnr.AppHost` when running under Aspire. |
@@ -177,8 +190,8 @@ web app automatically.
 | `OAuth__Issuer` / `OAuth__Resource` | `http://localhost:5156` / `http://localhost:5156/mcp` | OAuth 2.1 issuer + MCP resource URI for AI clients. `Issuer` must be the real `https://` URL in production. |
 | `OAuth__AccessTokenLifetimeMinutes` | `60` | Access token lifetime for the OAuth 2.1 server. |
 | `OAuth__RefreshTokenLifetimeDays` | `14` | Refresh token lifetime for the OAuth 2.1 server. |
-| `OAuth__SigningCertificate` / `OAuth__SigningCertificatePassword` | *(dev certs auto-generated)* | Base64 PKCS#12 cert (Digital Signature key usage) used to sign OAuth tokens. Required outside `Development`. |
-| `OAuth__EncryptionCertificate` / `OAuth__EncryptionCertificatePassword` | *(dev certs auto-generated)* | Base64 PKCS#12 cert (Key Encipherment key usage) used to encrypt OAuth tokens. Required outside `Development`. See [MCP server docs](https://brian-guerrero.github.io/shortnr/docs/mcp/#deploying-the-oauth-server) for generation steps and key-usage requirements. |
+| `OAuth__SigningCertificate` / `OAuth__SigningCertificatePassword` | *(dev certs auto-generated)* | Base64 PKCS#12 cert (Digital Signature key usage) used to sign OAuth access tokens and authorization codes. Required outside `Development`. See [MCP server docs](https://brian-guerrero.github.io/shortnr/docs/mcp/#deploying-the-oauth-server) for generation steps. |
+| `OAuth__EncryptionCertificate` / `OAuth__EncryptionCertificatePassword` | *(dev certs auto-generated)* | Base64 PKCS#12 cert (Key Encipherment key usage) used to encrypt OAuth authorization codes and refresh tokens (access token encryption is disabled). Required outside `Development`. |
 | `Smtp__Host` / `Smtp__Port` | `localhost` / `1025` | SMTP host/port for outbound email (invite notifications). Set automatically by `Shortnr.AppHost` to the MailPit container. |
 | `GeoIp__MaxMindAccountId` | *(empty)* | MaxMind account ID. **GeoIP enrichment is disabled until both account ID and license key are set.** |
 | `GeoIp__MaxMindLicenseKey` | *(empty)* | MaxMind license key. Enables downloading GeoLite2-City from MaxMind's official endpoint on startup + Wed/Sat 12:00 UTC. |
@@ -189,10 +202,10 @@ web app automatically.
 | `RateLimiting__Shorten__PerDay` | `200` | Per-IP daily cap for the shorten form. |
 | `RateLimiting__Redirect__PerMinute` | `300` | Per-IP request cap per minute for the redirect endpoint (`GET /{shortCode}`). Deliberately generous — add proxy/CDN limiting for very high redirect volume. |
 | `RateLimiting__Redirect__PerDay` | `10000` | Per-IP daily cap for the redirect endpoint. |
-| `AiInsights__Enabled` | `false` | Set to `true` (or `--Parameters:ai-insights=true` under Aspire) to enable the background AI insights analysis pass. When off, `/insights` returns 404. |
-| `AiInsights__AnalysisIntervalHours` | `24` | How often the insights analysis pass runs (minimum 1 hour). |
+| `AiInsights__Enabled` | `false` | Master switch for the AI insights background analysis. Set to `true` (or `--Parameters:ai-insights=true` under Aspire, where it defaults to `true`) to enable. When off, `/insights` is hidden. |
+| `AiInsights__AnalysisIntervalHours` | `24` | How often the insights analysis pass runs (minimum 1 hour, enforced at runtime). |
 | `AiInsights__MinClicksForAnalysis` | `10` | Links with fewer clicks than this are skipped by the insights analysis. |
-| `AiInsights__Llm__Enabled` | `false` | Set to `true` (or `--Parameters:llm-enabled=true` under Aspire) to enable the LLM-powered "Ask AI" layer on `/insights`. |
+| `AiInsights__Llm__Enabled` | `false` | Master switch for the LLM-powered "Ask AI" layer on `/insights`. Set to `true` (or `--Parameters:llm-enabled=true` under Aspire, where it defaults to `true`) to enable. |
 | `AiInsights__Llm__Provider` | `OpenAI` | LLM provider: `OpenAI`, `Anthropic`, `OpenRouter`, or `Ollama`. |
 | `AiInsights__Llm__ApiKey` | *(empty)* | Provider API key (not needed for local Ollama). |
 | `AiInsights__Llm__Model` | *(empty)* | Model name (e.g. `gpt-4o-mini`, `claude-3-5-sonnet`, `llama3.1`). Empty disables LLM analysis. |
@@ -244,7 +257,7 @@ dotnet run --project src/Shortnr.Web -- \
 
 - **`/`** — Index page. POST shortens a URL and returns an HTMX partial with the short URL, a "Show QR" button, and an OOB swap of the recent links table.
 - **`/{shortCode}`** — Redirect endpoint (minimal API). Looks up the link by `(host, shortCode)`, writes a `ClickRecord` to an in-memory channel, and returns `302` immediately. May serve a pixel interstitial (if the link has a retargeting pixel) or a preview interstitial (if the link has a preview theme) before redirecting.
-- **`/preview`** — Preview interstitial page rendered when a link has a `PreviewTheme`. Themed redirect page with an optional timer. Theme CSS lives in `wwwroot/css/themes/`.
+- **`/preview`** — Preview interstitial page rendered when a link has a `PreviewTheme`. Themed redirect page with an optional timer. Served via `/preview?url=<destination>&theme=<id>&host=<host>` (query-param form, not a route segment). Theme CSS lives in `wwwroot/css/themes/`.
 - **`/dashboard`** — Dashboard page. When auth is enabled, requires authentication. Metrics, sortable search results, and recent clicks are all scoped to the signed-in user or active workspace.
 - **`/dashboard/activity`** — AI activity dashboard showing MCP tool actions performed on behalf of the user.
 - **`/insights`** — AI insights page. Shows tag suggestions from click-pattern heuristics and an "Ask AI" section powered by the optional LLM layer. Only registered when `AiInsights:Enabled` is `true`.
@@ -341,7 +354,7 @@ Operators expecting very high redirect volume should configure additional limiti
 
 Managed by [LibMan](https://learn.microsoft.com/en-us/aspnetcore/client-side/libman/) via `src/Shortnr.Web/libman.json`. All assets are served from `wwwroot/lib/` (gitignored). No npm, no bundler in the web app (npm is only used by `docs/`).
 
-The styling is a custom CSS system (`wwwroot/css/site.css`) that replaces Pico entirely — it defines design tokens, layout helpers, button tiers, table styles, and status marks that mirror the docs site's design system. No CSS framework is loaded from `wwwroot/lib/`.
+The styling is a custom CSS system (`wwwroot/css/site.css`) that replaces Pico entirely — it defines design tokens (`:root` custom properties kept identical to `docs/src/styles/global.css`), layout helpers, button tiers, table styles, and status marks. No CSS framework is loaded from `wwwroot/lib/`.
 
 | Package | Version | Local path |
 |---------|---------|------------|

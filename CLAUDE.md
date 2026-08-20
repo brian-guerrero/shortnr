@@ -48,7 +48,7 @@ Program.cs wires 16 feature modules together; each owns its own DI composition a
 - **Email** — MailKit SMTP (fire-and-forget); host/port wired by the AppHost to MailPit.
 - **GeoIp** — optional MaxMind GeoLite2 enrichment. **Disabled (fails open) until both `GeoIp__MaxMindAccountId` and `GeoIp__MaxMindLicenseKey` are set.** Database downloaded at startup and on Wed/Sat 12:00 UTC; never bundled with the repo. Footer attribution is required by the GeoLite2 EULA.
 - **AiActivity** — `AiActivityLog` records MCP tool actions performed on behalf of a user; surfaced at `/dashboard/activity` (`Pages/Dashboard/Activity.cshtml.cs`). Personal-only (no workspace FK). `AiActivityProcessor` drains a channel like the other background services.
-- **Insights** — `AiInsightsHostedService` runs on a configurable schedule (`AiInsights:AnalysisIntervalHours`, default 24h, min 10 clicks); `InsightHeuristics` generates suggestions surfaced at `/insights`. Personal data only.
+- **Insights** — `AiInsightsHostedService` runs on a configurable schedule (`AiInsights:AnalysisIntervalHours`, default 24h, minimum 1 hour enforced at runtime, `AiInsights:MinClicksForAnalysis` default 10); `InsightHeuristics` generates suggestions surfaced at `/insights`. Personal data only.
 - **Infrastructure** — `ChainedRateLimiter`, `ClientIpResolver`, `RateLimitingOptions`, `GravatarHelper` (MD5 email hash, mystery-person fallback, used by `Pages/Shared/_UserMenu.cshtml`).
 
 ## Architecture & conventions

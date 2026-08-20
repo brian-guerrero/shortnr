@@ -54,7 +54,10 @@ The full endpoint reference is available interactively at `/api/docs` on your ru
 | `POST` | `/api/v1/links` | Create a new short link |
 | `GET` | `/api/v1/links/{code}` | Get a specific link |
 | `PUT` / `PATCH` | `/api/v1/links/{code}` | Update a link |
-| `DELETE` | `/api/v1/links/{code}` | Delete a link |
+| `POST` | `/api/v1/links/{code}/archive` | Archive a short link (hides it from dashboard/index, returns 410 on redirect; non-destructive) |
+| `POST` | `/api/v1/links/{code}/unarchive` | Restore an archived short link |
+| `POST` | `/api/v1/links/{code}/transfer` | Transfer ownership of a link to another workspace |
+| `DELETE` | `/api/v1/links/{code}` | Delete a short link |
 | `GET` | `/api/v1/links/{code}/clicks` | Get click events for a link |
 | `GET` | `/api/v1/pixel-snippets` | List retargeting pixel snippets available for `metadata.pixelSnippet` |
 

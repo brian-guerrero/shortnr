@@ -29,6 +29,8 @@ docker run -d \
 
 The SQLite database is stored at `/data/shortnr.db` inside the container. The named volume `shortnr-data` persists across restarts.
 
+Authentication is **enabled by default** in the container. For personal/single-user use without an identity provider, add `-e Authentication__Enabled=false` to the run command above. For production, set `Authentication__Enabled=true` (already the default) along with your OIDC authority and credentials &mdash; see [Configuration](/shortnr/docs/configuration/) and [Running with authentication](/shortnr/docs/getting-started/#running-with-authentication).
+
 ### PostgreSQL
 
 For production deployments with higher concurrency needs, use PostgreSQL:
@@ -117,7 +119,7 @@ When behind a proxy, set `RateLimiting__TrustForwardedFor=true` so shortnr resol
 ### All deployments
 
 - [ ] **TLS** &mdash; place shortnr behind a reverse proxy with HTTPS.
-- [ ] **Authentication** &mdash; enable OIDC if multiple users will access the instance.
+- [ ] **Authentication** &mdash; auth is enabled by default; configure `Authentication__Oidc__Authority`, `ClientId`, and `ClientSecret` for your OIDC provider if you need multi-user access, or set `Authentication__Enabled=false` for single-user use.
 - [ ] **Rate limiting** &mdash; the built-in rate limits are sensible defaults. For very high redirect volume, add proxy/CDN-level limiting.
 - [ ] **GeoIP** (optional) &mdash; configure `GeoIp__MaxMindAccountId` and `GeoIp__MaxMindLicenseKey` to enrich clicks with country/city data.
 

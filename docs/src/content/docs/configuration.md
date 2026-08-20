@@ -64,8 +64,8 @@ When disabled: `/account/login` and `/account/logout` return 404, the login link
 | `OAuth__Resource` | `http://localhost:5156/mcp` | The MCP resource URI (RFC 8707 audience). |
 | `OAuth__AccessTokenLifetimeMinutes` | `60` | Access token lifetime. |
 | `OAuth__RefreshTokenLifetimeDays` | `14` | Refresh token lifetime. |
-| `OAuth__SigningCertificate` / `OAuth__SigningCertificatePassword` | *(dev certs auto-generated)* | Base64 PKCS#12 cert (Digital Signature key usage) used to sign OAuth tokens. Required outside `Development`. |
-| `OAuth__EncryptionCertificate` / `OAuth__EncryptionCertificatePassword` | *(dev certs auto-generated)* | Base64 PKCS#12 cert (Key Encipherment key usage) used to encrypt OAuth tokens. Required outside `Development`. |
+| `OAuth__SigningCertificate` / `OAuth__SigningCertificatePassword` | *(dev certs auto-generated)* | Base64 PKCS#12 cert (Digital Signature key usage) used to sign OAuth access tokens and authorization codes. Required outside `Development`. |
+| `OAuth__EncryptionCertificate` / `OAuth__EncryptionCertificatePassword` | *(dev certs auto-generated)* | Base64 PKCS#12 cert (Key Encipherment key usage) used to encrypt authorization codes and refresh tokens (access token encryption is disabled via `DisableAccessTokenEncryption()`). Required outside `Development`. |
 
 See the [MCP server docs](/shortnr/docs/mcp/#deploying-the-oauth-server) for certificate generation steps and common deployment pitfalls.
 
@@ -116,14 +116,14 @@ Used by the Email feature module for workspace invite emails. Fire-and-forget vi
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `AiInsights__Enabled` | `false` | Master switch for the AI insights background analysis. When `false`, no hosted service is registered and `/insights` is hidden. |
+| `AiInsights__Enabled` | `false` | Master switch for the AI insights background analysis. Set to `true` (or `--Parameters:ai-insights=true` under Aspire, where it defaults to `true`) to enable. When off, no hosted service is registered and `/insights` is hidden. |
 | `AiInsights__AnalysisIntervalHours` | `24` | How often the analysis pass runs (minimum 1 hour enforced at runtime). |
 | `AiInsights__MinClicksForAnalysis` | `10` | Links with fewer clicks than this are skipped by heuristics. |
-| `AiInsights__Llm__Enabled` | `false` | Enables the optional LLM analysis layer on top of deterministic heuristics. |
+| `AiInsights__Llm__Enabled` | `false` | Enables the optional LLM analysis layer on top of deterministic heuristics. Set to `true` (or `--Parameters:llm-enabled=true` under Aspire, where it defaults to `true`) to enable. |
 | `AiInsights__Llm__Provider` | `OpenAI` | AI provider: `OpenAI`, `Anthropic`, `OpenRouter`, or `Ollama`. |
 | `AiInsights__Llm__ApiKey` | *(empty)* | API key for the selected provider. Not needed for a local Ollama instance. |
 | `AiInsights__Llm__Model` | *(empty)* | Model name (e.g. `gpt-4o-mini`, `claude-3-5-sonnet`, `llama3.1`). Empty disables AI analysis with a friendly message. |
-| `AiInsights__Llm__BaseUrl` | *(empty)* | Base URL override for local OpenAI-compatible servers and Ollama (default `http://localhost:11434`). |
+| `AiInsights__Llm__BaseUrl` | *(empty)* | Base URL override for local OpenAI-compatible servers. Leave empty for provider defaults. For Ollama, defaults to `http://localhost:11434` when empty. |
 | `AiInsights__Llm__MonthlyBudget` | `0` | Maximum estimated spend per calendar month in USD. `0` means unlimited. |
 | `AiInsights__Llm__TimeoutSeconds` | `60` | Per-request timeout for LLM calls. |
 | `AiInsights__Llm__InputPricePerMillion` | `0` | Optional override for USD per 1M input tokens. `0` falls back to the built-in price table. |
