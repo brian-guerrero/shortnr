@@ -51,6 +51,27 @@ docker run -d \
   ghcr.io/brian-guerrero/shortnr:latest
 ```
 
+### Multiple instances (distributed rate limiting)
+
+By default rate-limit counters live in each instance's memory, so two instances behind a load balancer each allow their own quota. To enforce a **fleet-wide** limit, point rate limiting at a shared Redis:
+
+```bash
+docker compose -f docker-compose.redis.yml up -d
+```
+
+Or manually:
+
+```bash
+docker run -d \
+  --name shortnr \
+  -p 8080:8080 \
+  -e RateLimiting__Provider=Redis \
+  -e RateLimiting__Redis__ConnectionString="redis:6379" \
+  ghcr.io/brian-guerrero/shortnr:latest
+```
+
+The deployment fails gracefully: if Redis is unreachable at startup or goes down later, requests fall back to in-process limiting (a warning is logged) instead of failing. Redis only ever stores rate-limit counters — it is not a general-purpose cache. Connectivity is reported through `/health`.
+
 ### Environment variables
 
 ```bash
