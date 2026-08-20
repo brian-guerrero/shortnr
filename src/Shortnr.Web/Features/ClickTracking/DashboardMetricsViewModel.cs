@@ -26,6 +26,7 @@ public class DashboardDataViewModel
     public long TotalLinks { get; init; }
     public long TotalClicks { get; init; }
     public int TotalCountries { get; init; }
+    public long ClicksLast7Days { get; init; }
     public string ChartJson { get; init; } = "";
     public List<GeoBreakdownItem> GeoBreakdown { get; init; } = [];
     public List<ClickEventRow> RecentClicks { get; init; } = [];

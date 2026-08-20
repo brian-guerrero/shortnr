@@ -100,6 +100,13 @@
                         <button type="button" class="scheme-toggle" data-scheme-toggle
                                 aria-pressed="false" aria-label="Switch to dark theme" hidden>☾</button>
                     </li>
+                    @if (!authEnabled || User.Identity?.IsAuthenticated == true)
+                    {
+                        <li>
+                            <button type="button" class="btn-sm nav-palette-opener" data-palette-opener
+                                    aria-label="Open command palette (Ctrl+K)">⌘K</button>
+                        </li>
+                    }
                 </ul>
             </nav>
         </div>
@@ -108,7 +115,19 @@
         @RenderBody()
     </main>
 
+    @* Out-of-band swap target for bulk-action toast confirmations (PRD-019):
+       the toast travels here so it is never nested inside the swapped table. *@
+    <div id="bulk-toast-wrap" aria-live="polite"></div>
+
     @await RenderSectionAsync("Scripts", required: false)
+
+    @if (!authEnabled || User.Identity?.IsAuthenticated == true)
+    {
+        @await Html.PartialAsync("Shared/_CommandPalette")
+    }
+    <script src="/js/bulk-actions.js" defer></script>
+    <script src="/js/command-palette.js" defer></script>
+    <script src="/js/link-detail.js" defer></script>
 
     <footer class="site-footer">
         <p>This product includes GeoLite2 data created by MaxMind, available from <a href="https://www.maxmind.com" target="_blank" rel="noopener">https://www.maxmind.com</a>.</p>

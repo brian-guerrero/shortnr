@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
 using Shortnr.Data.Entities;
+using Shortnr.Web.Features.ClickTracking;
+using Shortnr.Web.Features.Infrastructure;
 using Shortnr.Web.Features.ShortLinks;
 using Shortnr.Web.Features.Workspaces;
 
@@ -14,12 +16,14 @@ public class DashboardModel : PageModel, IStatusMessages
     private readonly AppDbContext _db;
     private readonly UserIdentityService _identity;
     private readonly WorkspaceService _workspaces;
+    private readonly BulkLinkUndoService _undo;
 
-    public DashboardModel(AppDbContext db, UserIdentityService identity, WorkspaceService workspaces)
+    public DashboardModel(AppDbContext db, UserIdentityService identity, WorkspaceService workspaces, BulkLinkUndoService undo)
     {
         _db = db;
         _identity = identity;
         _workspaces = workspaces;
+        _undo = undo;
     }
 
     public List<string> DomainOptions { get; set; } = [];
@@ -83,6 +87,10 @@ public class DashboardModel : PageModel, IStatusMessages
 
             var clickQuery = ApplyClickScoping(_db.ClickEvents.AsQueryable(), ownerUserId, workspaceId);
 
+            var clicksLast7Days = await clickQuery
+                .Where(e => e.ClickedAtUtc >= DateTime.UtcNow.AddDays(-7))
+                .LongCountAsync();
+
             var geoRows = await clickQuery
                 .Where(e => e.CountryCode != null && e.CountryCode != "")
                 .GroupBy(e => new { e.CountryCode, e.CountryName, CityName = e.CityName ?? "" })
@@ -133,6 +141,7 @@ public class DashboardModel : PageModel, IStatusMessages
                 TotalLinks = totalLinks,
                 TotalClicks = totalClicks,
                 TotalCountries = totalCountries,
+                ClicksLast7Days = clicksLast7Days,
                 ChartJson = chartJson,
                 GeoBreakdown = geoBreakdown,
                 RecentClicks = recentClicks
@@ -373,6 +382,328 @@ public async Task<IActionResult> OnPostEdit(long code, string url, string slug, 
         });
     }
 
+    // -------------------------------------------------------------------------
+    // PRD-019: link-detail drill-down, bulk actions, and undo
+    // -------------------------------------------------------------------------
+
+    public async Task<IActionResult> OnGetDetail(long? code)
+    {
+        var gate = EnforceAccess();
+        if (gate is not null)
+            return gate;
+
+        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+
+        if (code is null)
+            return NotFound();
+
+        var link = await FindLinkAsync(code.Value);
+        if (link is null)
+            return NotFound();
+
+        return Partial("Shared/_LinkDetail", await BuildDetailAsync(link));
+    }
+
+    public async Task<IActionResult> OnPostBulkDelete([FromForm] long[] ids, string? search, string? linkSort, string? linkDir, string? domain, string? status)
+    {
+        var gate = EnforceAccess();
+        if (gate is not null)
+            return gate;
+
+        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        var workspaceId = Workspace?.WorkspaceId;
+
+        var idsSet = ids.Distinct().ToHashSet();
+        if (idsSet.Count == 0)
+            return Partial("Shared/_BulkActionResult", new BulkActionResultViewModel
+            {
+                Links = await LoadLinksAsync(search, linkSort, linkDir, domain, status),
+                Message = "No links selected.",
+                Kind = StatusKind.Neutral
+            });
+
+        // Snapshot for undo before deleting, scoped so only the caller's own
+        // links (personal or current workspace) can ever be captured.
+        var scoped = await FindLinksByIdsAsync(idsSet);
+        if (scoped.Count == 0)
+            return Partial("Shared/_BulkActionResult", new BulkActionResultViewModel
+            {
+                Links = await LoadLinksAsync(search, linkSort, linkDir, domain, status),
+                Message = "No links selected.",
+                Kind = StatusKind.Neutral
+            });
+
+        var captured = scoped.ToList();
+        var tokens = _undo.Capture(captured);
+
+        _db.ShortenedUrls.RemoveRange(scoped);
+        await _db.SaveChangesAsync();
+
+        var links = await LoadLinksAsync(search, linkSort, linkDir, domain, status);
+        return Partial("Shared/_BulkActionResult", new BulkActionResultViewModel
+        {
+            Links = links,
+            Message = $"Deleted {captured.Count} link{(captured.Count == 1 ? "" : "s")}.",
+            Kind = StatusKind.Success,
+            UndoToken = tokens
+        });
+    }
+
+    public async Task<IActionResult> OnPostBulkArchive([FromForm] long[] ids, string? search, string? linkSort, string? linkDir, string? domain, string? status)
+    {
+        var gate = EnforceAccess();
+        if (gate is not null)
+            return gate;
+
+        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        var workspaceId = Workspace?.WorkspaceId;
+
+        var idsSet = ids.Distinct().ToHashSet();
+        var now = DateTime.UtcNow;
+        var count = await ApplyScoping(_db.ShortenedUrls.AsQueryable(), ownerUserId, workspaceId)
+            .Where(l => idsSet.Contains(l.Id) && l.ArchivedAtUtc == null)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(l => l.ArchivedAtUtc, now)
+                .SetProperty(l => l.UpdatedAtUtc, now));
+
+        var links = await LoadLinksAsync(search, linkSort, linkDir, domain, status);
+        return Partial("Shared/_BulkActionResult", new BulkActionResultViewModel
+        {
+            Links = links,
+            Message = count == 0 ? "No active links selected." : $"Archived {count} link{(count == 1 ? "" : "s")}.",
+            Kind = StatusKind.Info
+        });
+    }
+
+    public async Task<IActionResult> OnPostBulkUnarchive([FromForm] long[] ids, string? search, string? linkSort, string? linkDir, string? domain, string? status)
+    {
+        var gate = EnforceAccess();
+        if (gate is not null)
+            return gate;
+
+        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        var workspaceId = Workspace?.WorkspaceId;
+
+        var idsSet = ids.Distinct().ToHashSet();
+        var count = await ApplyScoping(_db.ShortenedUrls.AsQueryable(), ownerUserId, workspaceId)
+            .Where(l => idsSet.Contains(l.Id) && l.ArchivedAtUtc != null)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(l => l.ArchivedAtUtc, (DateTime?)null)
+                .SetProperty(l => l.UpdatedAtUtc, DateTime.UtcNow));
+
+        var links = await LoadLinksAsync(search, linkSort, linkDir, domain, status);
+        return Partial("Shared/_BulkActionResult", new BulkActionResultViewModel
+        {
+            Links = links,
+            Message = count == 0 ? "No archived links selected." : $"Restored {count} link{(count == 1 ? "" : "s")}.",
+            Kind = StatusKind.Info
+        });
+    }
+
+    public async Task<IActionResult> OnPostBulkMove([FromForm] long[] ids, string workspace, string? search, string? linkSort, string? linkDir, string? domain, string? status)
+    {
+        var gate = EnforceAccess();
+        if (gate is not null)
+            return gate;
+
+        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        var workspaceId = Workspace?.WorkspaceId;
+
+        var idsSet = ids.Distinct().ToHashSet();
+        if (idsSet.Count == 0)
+            return Partial("Shared/_BulkActionResult", new BulkActionResultViewModel
+            {
+                Links = await LoadLinksAsync(search, linkSort, linkDir, domain, status),
+                Message = "No links selected.",
+                Kind = StatusKind.Neutral
+            });
+
+        var movesForUser = ownerUserId ?? await _identity.ResolveOwnerUserIdAsync(User);
+        if (movesForUser is null)
+            return Partial("Shared/_BulkActionResult", new BulkActionResultViewModel
+            {
+                Links = await LoadLinksAsync(search, linkSort, linkDir, domain, status),
+                Message = "You must be signed in to move links.",
+                Kind = StatusKind.Error
+            });
+
+        var target = await _workspaces.GetWorkspaceBySlugAsync(workspace);
+        if (target is null || !await _workspaces.IsMemberAsync(target.Id, movesForUser.Value))
+            return Partial("Shared/_BulkActionResult", new BulkActionResultViewModel
+            {
+                Links = await LoadLinksAsync(search, linkSort, linkDir, domain, status),
+                Message = "You can only move links to a workspace you are a member of.",
+                Kind = StatusKind.Error
+            });
+
+        var count = await ApplyScoping(_db.ShortenedUrls.AsQueryable(), ownerUserId, workspaceId)
+            .Where(l => idsSet.Contains(l.Id))
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(l => l.WorkspaceId, target.Id)
+                .SetProperty(l => l.OwnerUserId, (long?)null)
+                .SetProperty(l => l.UpdatedAtUtc, DateTime.UtcNow));
+
+        var links = await LoadLinksAsync(search, linkSort, linkDir, domain, status);
+        return Partial("Shared/_BulkActionResult", new BulkActionResultViewModel
+        {
+            Links = links,
+            Message = $"Moved {count} link{(count == 1 ? "" : "s")} to '{target.Name}'.",
+            Kind = StatusKind.Info
+        });
+    }
+
+    public async Task<IActionResult> OnPostBulkTag([FromForm] long[] ids, string tags, string? search, string? linkSort, string? linkDir, string? domain, string? status)
+    {
+        var gate = EnforceAccess();
+        if (gate is not null)
+            return gate;
+
+        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        var workspaceId = Workspace?.WorkspaceId;
+
+        var idsSet = ids.Distinct().ToHashSet();
+        var tagNames = (tags ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(t => t.Length > 128 ? t[..128] : t)
+            .Distinct()
+            .ToList();
+
+        if (idsSet.Count == 0 || tagNames.Count == 0)
+            return Partial("Shared/_BulkActionResult", new BulkActionResultViewModel
+            {
+                Links = await LoadLinksAsync(search, linkSort, linkDir, domain, status),
+                Message = tagNames.Count == 0 ? "Enter at least one tag." : "No links selected.",
+                Kind = StatusKind.Neutral
+            });
+
+        var links = await ApplyScoping(_db.ShortenedUrls.AsQueryable(), ownerUserId, workspaceId)
+            .Where(l => idsSet.Contains(l.Id))
+            .Include(l => l.Tags)
+            .ToListAsync();
+
+        var now = DateTime.UtcNow;
+        foreach (var link in links)
+        {
+            var existing = link.Tags.Select(t => t.Name).ToHashSet();
+            var toAdd = tagNames.Where(n => !existing.Contains(n)).ToList();
+            if (toAdd.Count == 0)
+                continue;
+            foreach (var name in toAdd)
+            {
+                _db.ShortenedUrlTags.Add(new ShortenedUrlTag
+                {
+                    ShortenedUrlId = link.Id,
+                    Name = name,
+                    CreatedAtUtc = now
+                });
+            }
+            link.UpdatedAtUtc = now;
+        }
+        await _db.SaveChangesAsync();
+
+        var resultLinks = await LoadLinksAsync(search, linkSort, linkDir, domain, status);
+        return Partial("Shared/_BulkActionResult", new BulkActionResultViewModel
+        {
+            Links = resultLinks,
+            Message = $"Tagged {links.Count} link{(links.Count == 1 ? "" : "s")} with {string.Join(", ", tagNames)}.",
+            Kind = StatusKind.Info
+        });
+    }
+
+    public async Task<IActionResult> OnPostBulkUntag([FromForm] long[] ids, string tags, string? search, string? linkSort, string? linkDir, string? domain, string? status)
+    {
+        var gate = EnforceAccess();
+        if (gate is not null)
+            return gate;
+
+        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        var workspaceId = Workspace?.WorkspaceId;
+
+        var idsSet = ids.Distinct().ToHashSet();
+        var tagNames = (tags ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct()
+            .ToList();
+
+        if (idsSet.Count == 0 || tagNames.Count == 0)
+            return Partial("Shared/_BulkActionResult", new BulkActionResultViewModel
+            {
+                Links = await LoadLinksAsync(search, linkSort, linkDir, domain, status),
+                Message = "Enter at least one tag.",
+                Kind = StatusKind.Neutral
+            });
+
+        var links = await ApplyScoping(_db.ShortenedUrls.AsQueryable(), ownerUserId, workspaceId)
+            .Where(l => idsSet.Contains(l.Id))
+            .Include(l => l.Tags)
+            .ToListAsync();
+
+        var removed = 0;
+        foreach (var link in links)
+        {
+            var matching = link.Tags.Where(t => tagNames.Any(n => string.Equals(n, t.Name, StringComparison.OrdinalIgnoreCase))).ToList();
+            if (matching.Count == 0)
+                continue;
+            foreach (var tag in matching)
+                _db.ShortenedUrlTags.Remove(tag);
+            removed++;
+            link.UpdatedAtUtc = DateTime.UtcNow;
+        }
+        await _db.SaveChangesAsync();
+
+        var resultLinks = await LoadLinksAsync(search, linkSort, linkDir, domain, status);
+        return Partial("Shared/_BulkActionResult", new BulkActionResultViewModel
+        {
+            Links = resultLinks,
+            Message = removed == 0 ? "No matching tags found on the selected links." : $"Removed tag(s) from {removed} link{(removed == 1 ? "" : "s")}.",
+            Kind = StatusKind.Info
+        });
+    }
+
+    public async Task<IActionResult> OnPostUndo(string token, string? search, string? linkSort, string? linkDir, string? domain, string? status)
+    {
+        var gate = EnforceAccess();
+        if (gate is not null)
+            return gate;
+
+        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+
+        var snapshots = _undo.Retrieve(token);
+        if (snapshots is null || snapshots.Count == 0)
+            return Partial("Shared/_BulkActionResult", new BulkActionResultViewModel
+            {
+                Links = await LoadLinksAsync(search, linkSort, linkDir, domain, status),
+                Message = "Undo is no longer available for those links.",
+                Kind = StatusKind.Error
+            });
+
+        // Re-insert with stable primary keys so referential data (clicks, tags,
+        // metadata) that was never touched is preserved.
+        foreach (var link in snapshots)
+        {
+            _db.ShortenedUrls.Add(link);
+            if (link.Metadata is not null)
+                _db.ShortenedUrlMetadatas.Add(link.Metadata);
+            foreach (var tag in link.Tags)
+                _db.ShortenedUrlTags.Add(tag);
+        }
+        await _db.SaveChangesAsync();
+
+        var links = await LoadLinksAsync(search, linkSort, linkDir, domain, status);
+        return Partial("Shared/_BulkActionResult", new BulkActionResultViewModel
+        {
+            Links = links,
+            Message = $"Restored {snapshots.Count} link{(snapshots.Count == 1 ? "" : "s")}.",
+            Kind = StatusKind.Success
+        });
+    }
+
     private IActionResult? EnforceAccess()
     {
         if (_identity.IsAuthEnabled && User.Identity?.IsAuthenticated != true)
@@ -383,7 +714,171 @@ public async Task<IActionResult> OnPostEdit(long code, string url, string slug, 
         return null;
     }
 
-    private async Task<List<ShortenedUrl>> LoadLinksAsync(string? search, string? linkSort, string? linkDir, string? domain, string? status)
+    private async Task<LinkDetailViewModel> BuildDetailAsync(ShortenedUrl link)
+    {
+        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        var workspaceId = Workspace?.WorkspaceId;
+
+        var clickQuery = ApplyClickScoping(_db.ClickEvents.AsQueryable(), ownerUserId, workspaceId)
+            .Where(e => e.ShortenedUrlId == link.Id);
+
+        // Click timeline — last 30 days, padded so the chart always spans the
+        // full window even when a link is brand new.
+        var since = DateTime.UtcNow.Date.AddDays(-29);
+        var rawDays = await clickQuery
+            .Where(e => e.ClickedAtUtc >= since)
+            .GroupBy(e => e.ClickedAtUtc.Date)
+            .Select(g => new { Day = g.Key, Count = g.LongCount() })
+            .ToListAsync();
+        var timeline = new List<TimelinePoint>(30);
+        for (var i = 0; i < 30; i++)
+        {
+            var day = since.AddDays(i);
+            timeline.Add(new TimelinePoint
+            {
+                Label = day.ToString("MMM d"),
+                Count = rawDays.FirstOrDefault(d => d.Day == day)?.Count ?? 0
+            });
+        }
+
+        // Referrers — top raw referers roll up by normalized host so "twitter.com/x"
+        // and "twitter.com/y" count as one domain. Bounded in SQL (top 20) before
+        // the in-memory host extraction.
+        var rawReferrers = await clickQuery
+            .Where(e => e.Referer.Length > 0 && e.Referer != "direct")
+            .GroupBy(e => e.Referer)
+            .Select(g => new { Ref = g.Key, Count = g.LongCount() })
+            .OrderByDescending(x => x.Count)
+            .Take(20)
+            .ToListAsync();
+        var referrers = rawReferrers
+            .Select(r => new { Domain = RefererHost(r.Ref), Count = r.Count })
+            .GroupBy(x => x.Domain)
+            .Select(g => new NameCountStat { Name = g.Key, Count = g.Sum(x => x.Count) })
+            .OrderByDescending(x => x.Count)
+            .Take(10)
+            .ToList();
+        if (referrers.Count == 0 && await clickQuery.CountAsync() > 0)
+            referrers.Add(new NameCountStat { Name = "Direct / unknown", Count = await clickQuery.LongCountAsync() });
+
+        // Devices — roll UAParser's DeviceFamily/counts into the three-class
+        // desktop/mobile/tablet split the PRD calls for, with an "Unknown" bucket
+        // for clicks whose device family was never persisted.
+        var rawDevices = await clickQuery
+            .Where(e => e.DeviceFamily != null && e.DeviceFamily != "")
+            .GroupBy(e => e.DeviceFamily!)
+            .Select(g => new { Device = g.Key, Count = g.LongCount() })
+            .ToListAsync();
+        var noneDevice = await clickQuery
+            .Where(e => e.DeviceFamily == null || e.DeviceFamily == "")
+            .LongCountAsync();
+        var devices = rawDevices
+            .Select(d => new NameCountStat { Name = DeviceClass(d.Device), Count = d.Count })
+            .GroupBy(x => x.Name)
+            .Select(g => new NameCountStat { Name = g.Key, Count = g.Sum(x => x.Count) })
+            .OrderByDescending(x => x.Count)
+            .ToList();
+        if (noneDevice > 0)
+            devices = devices
+                .Append(new NameCountStat { Name = "Unknown", Count = noneDevice })
+                .OrderByDescending(x => x.Count)
+                .ToList();
+
+        // Geo — country split (top 10) plus the top cities under it.
+        var geoRows = await clickQuery
+            .Where(e => e.CountryCode != null && e.CountryCode != "")
+            .GroupBy(e => new { e.CountryCode, e.CountryName })
+            .Select(g => new { g.Key.CountryCode, g.Key.CountryName, Count = g.LongCount() })
+            .OrderByDescending(x => x.Count)
+            .Take(10)
+            .ToListAsync();
+        var geo = geoRows
+            .Select(g => new NameCountStat { Name = $"{g.CountryCode} — {g.CountryName}", Count = g.Count })
+            .ToList();
+        var cityRows = await clickQuery
+            .Where(e => e.CityName != null && e.CityName != "")
+            .GroupBy(e => e.CityName!)
+            .Select(g => new { City = g.Key, Count = g.LongCount() })
+            .OrderByDescending(x => x.Count)
+            .Take(5)
+            .ToListAsync();
+        var cities = cityRows
+            .Select(c => new NameCountStat { Name = c.City, Count = c.Count })
+            .ToList();
+
+        // UTM summary — the params this link was created with, only those set.
+        var utm = link.Metadata is null
+            ? []
+            : new List<NameCountStat>()
+            {
+                FromUtm("source", link.Metadata.UtmSource),
+                FromUtm("medium", link.Metadata.UtmMedium),
+                FromUtm("campaign", link.Metadata.UtmCampaign),
+                FromUtm("term", link.Metadata.UtmTerm),
+                FromUtm("content", link.Metadata.UtmContent)
+            }.Where(s => s is not null).Cast<NameCountStat>().ToList();
+
+        var chartJson = JsonSerializer.Serialize(new
+        {
+            timeline = timeline.Select(t => new { label = t.Label, count = t.Count }),
+            devices = devices.Select(d => new { name = d.Name, count = d.Count })
+        });
+
+        var scheme = Request.Scheme;
+        return new LinkDetailViewModel
+        {
+            Id = link.Id,
+            ShortCode = link.ShortCode,
+            LongUrl = link.LongUrl,
+            Title = link.Title,
+            Description = link.Description,
+            CreatedAtUtc = link.CreatedAtUtc,
+            ClickCount = link.ClickCount,
+            DomainHostname = link.Domain?.Hostname ?? "",
+            IsArchived = link.IsArchived,
+            Tags = link.Tags?.Select(t => t.Name).ToList() ?? [],
+            Timeline = timeline,
+            Referrers = referrers,
+            Devices = devices,
+            Geo = geo,
+            Cities = cities,
+            Utm = utm,
+            ChartJson = chartJson,
+            DisplayHref = ShortUrlHelper.DisplayHref(scheme, link.Domain?.Hostname, link.ShortCode)
+        };
+    }
+
+    private static string RefererHost(string referer)
+    {
+        if (string.IsNullOrWhiteSpace(referer)) return "Direct / unknown";
+        if (Uri.TryCreate(referer, UriKind.Absolute, out var uri)) return uri.Host;
+        return referer.Length > 40 ? referer[..40] : referer;
+    }
+
+    private static string DeviceClass(string deviceFamily) => deviceFamily.ToLowerInvariant() switch
+    {
+        "mobile" or "smartphone" or "phone" or "ios" or "android" => "Mobile",
+        "tablet" or "ipad" => "Tablet",
+        "unknown" or "" => "Unknown",
+        _ => "Desktop"
+    };
+
+    private static NameCountStat? FromUtm(string param, string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : new NameCountStat { Name = $"{param}: {value}", Count = 1 };
+
+    private async Task<List<ShortenedUrl>> FindLinksByIdsAsync(IEnumerable<long> ids)
+    {
+        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        var workspaceId = Workspace?.WorkspaceId;
+        var set = ids.ToHashSet();
+        return await ApplyScoping(_db.ShortenedUrls.AsQueryable(), ownerUserId, workspaceId)
+            .Where(l => set.Contains(l.Id))
+            .Include(l => l.Tags)
+            .Include(l => l.Metadata)
+            .ToListAsync();
+    }
+
+    private async Task<List<LinkRowViewModel>> LoadLinksAsync(string? search, string? linkSort, string? linkDir, string? domain, string? status)
     {
         var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
         var workspaceId = Workspace?.WorkspaceId;
@@ -428,8 +923,21 @@ public async Task<IActionResult> OnPostEdit(long code, string url, string slug, 
 
         return await linkQ
             .AsNoTracking()
-            .Include(l => l.Domain)
-            .Include(l => l.Workspace)
+            .Select(l => new LinkRowViewModel
+            {
+                Id = l.Id,
+                ShortCode = l.ShortCode,
+                LongUrl = l.LongUrl,
+                CreatedAtUtc = l.CreatedAtUtc,
+                ClickCount = l.ClickCount,
+                LastClickedAtUtc = l.ClickEvents
+                    .OrderByDescending(e => e.ClickedAtUtc)
+                    .Select(e => (DateTime?)e.ClickedAtUtc)
+                    .FirstOrDefault(),
+                DomainHostname = l.Domain == null ? "" : l.Domain.Hostname,
+                IsArchived = l.ArchivedAtUtc != null,
+                Tags = l.Tags.Select(t => t.Name).ToList()
+            })
             .Take(50)
             .ToListAsync();
     }
