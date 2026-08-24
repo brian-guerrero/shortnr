@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
 using Shortnr.Data;
+using Shortnr.Web.Features.Social;
 using ModelContextProtocol.AspNetCore;
 using ModelContextProtocol.AspNetCore.Authentication;
 using ModelContextProtocol.Authentication;
@@ -81,7 +82,8 @@ builder.Services
     .AddEmailFeature(builder.Configuration)
     .AddAiActivityFeature()
     .AddAiInsightsFeature(builder.Configuration)
-    .AddInfrastructureFeature(builder.Configuration);
+    .AddInfrastructureFeature(builder.Configuration)
+    .AddSocialFeature(builder.Configuration);
 
 // ── Cross-cutting: authentication schemes, policies, rate limiting ──────────
 // These span multiple feature boundaries and are wired at the composition root.

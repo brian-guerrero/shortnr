@@ -1,0 +1,41 @@
+@page "/bio/{slug}/link/{linkId:long}"
+@model Shortnr.Web.Pages.Bio.SubLinkModel
+@{
+    Layout = "_BioLayout";
+    ViewData["BioTheme"] = Model.BioPage?.Theme ?? "default";
+    ViewData["BioTitle"] = Model.Og?.Title ?? Model.LinkTitle ?? Model.BioPage?.DisplayName ?? "shortnr";
+    ViewData["BioDescription"] = Model.Og?.Description ?? Model.BioPage?.BioText ?? $"{Model.BioPage?.DisplayName}'s link on shortnr";
+    ViewData["BioImage"] = Model.Og?.Image ?? Model.BioPage?.AvatarUrl;
+    ViewData["BioTwitterCard"] = Model.Og?.Image is not null ? "summary_large_image" : "summary";
+    ViewData["BioUrl"] = $"{Request.Scheme}://{Request.Host}/bio/{Model.BioPage?.Slug}/link/{Model.LinkId}";
+}
+
+@if (Model.BioPage is null)
+{
+    <div class="bio-card bio-404">
+        <p>This bio page doesn't exist.</p>
+    </div>
+}
+else if (Model.IsSocialCrawler)
+{
+    @* Social crawlers see the OG meta tags and a static page.
+       Regular users get redirected by JavaScript/meta-refresh. *@
+    <div class="bio-card">
+        <h1 class="bio-name">@Model.BioPage.DisplayName</h1>
+        @if (Model.Og?.Image is not null)
+        {
+            <img class="bio-avatar" src="@Model.Og.Image" alt="" referrerpolicy="no-referrer">
+        }
+        <p class="bio-text">@(Model.Og?.Title ?? Model.LinkTitle ?? "")</p>
+        @if (Model.Og?.Description is not null)
+        {
+            <p class="bio-text">@Model.Og.Description</p>
+        }
+        <meta http-equiv="refresh" content="0;url=@Model.DestinationUrl">
+    </div>
+}
+else
+{
+    @* Regular users are redirected immediately *@
+    Response.Redirect(Model.DestinationUrl);
+}
