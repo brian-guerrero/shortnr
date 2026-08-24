@@ -22,6 +22,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Workspace> Workspaces => Set<Workspace>();
     public DbSet<WorkspaceMember> WorkspaceMembers => Set<WorkspaceMember>();
     public DbSet<Webhook> Webhooks => Set<Webhook>();
+    public DbSet<SocialAccount> SocialAccounts => Set<SocialAccount>();
+    public DbSet<SocialPost> SocialPosts => Set<SocialPost>();
 
     public override int SaveChanges()
     {
@@ -82,6 +84,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                     break;
                 case Webhook e when e.CreatedAtUtc == default:
                     e.CreatedAtUtc = now;
+                    break;
+                case SocialAccount e when e.CreatedAtUtc == default:
+                    e.CreatedAtUtc = now;
+                    break;
+                case SocialPost e when e.FetchedAtUtc == default:
+                    e.FetchedAtUtc = now;
                     break;
             }
         }
@@ -146,6 +154,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.PixelId).HasMaxLength(8192);
             entity.Property(e => e.IosDeepLink).HasMaxLength(2048);
             entity.Property(e => e.AndroidDeepLink).HasMaxLength(2048);
+            entity.Property(e => e.OgTitle).HasMaxLength(256);
+            entity.Property(e => e.OgDescription).HasMaxLength(2000);
+            entity.Property(e => e.OgImage).HasMaxLength(2048);
             entity.HasIndex(e => e.ShortenedUrlId).IsUnique();
 
             entity.HasOne(e => e.PixelSnippet)
@@ -382,6 +393,55 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasOne(e => e.Owner)
                 .WithMany()
                 .HasForeignKey(e => e.OwnerUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SocialAccount>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Provider).HasConversion<int>();
+            entity.Property(e => e.ExternalId).IsRequired().HasMaxLength(128);
+            entity.Property(e => e.Username).IsRequired().HasMaxLength(256);
+            entity.Property(e => e.DisplayName).HasMaxLength(256);
+            entity.Property(e => e.AvatarUrl).HasMaxLength(512);
+            entity.Property(e => e.AccessTokenEncrypted).HasMaxLength(2048);
+            entity.Property(e => e.RefreshTokenEncrypted).HasMaxLength(2048);
+            entity.Property(e => e.LastError).HasMaxLength(512);
+
+            // One linked account per platform per scope: at most one personal row
+            // per provider, and at most one workspace row per provider. The paired
+            // filtered unique indexes mirror the ShortenedUrl domain index pattern.
+            entity.HasIndex(e => new { e.Provider, e.OwnerUserId })
+                .IsUnique()
+                .HasFilter("\"OwnerUserId\" IS NOT NULL");
+            entity.HasIndex(e => new { e.Provider, e.WorkspaceId })
+                .IsUnique()
+                .HasFilter("\"OwnerUserId\" IS NULL");
+
+            entity.HasOne(e => e.Owner)
+                .WithMany()
+                .HasForeignKey(e => e.OwnerUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Workspace)
+                .WithMany()
+                .HasForeignKey(e => e.WorkspaceId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<SocialPost>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ExternalPostId).IsRequired().HasMaxLength(128);
+            entity.Property(e => e.Title).HasMaxLength(256);
+            entity.Property(e => e.Text).HasMaxLength(4000);
+            entity.Property(e => e.MediaUrl).HasMaxLength(2048);
+            entity.Property(e => e.Permalink).HasMaxLength(2048);
+            entity.HasIndex(e => new { e.SocialAccountId, e.ExternalPostId }).IsUnique();
+
+            entity.HasOne(e => e.Account)
+                .WithMany(a => a.Posts)
+                .HasForeignKey(e => e.SocialAccountId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }
