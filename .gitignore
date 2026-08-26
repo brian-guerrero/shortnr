@@ -488,3 +488,4 @@ $RECYCLE.BIN/
 
 # Frontend assets downloaded at build time
 src/Shortnr.Web/wwwroot/lib/
+src/Shortnr.Web/wwwroot/data/community-themes/

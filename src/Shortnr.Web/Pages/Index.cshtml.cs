@@ -12,6 +12,7 @@ public class IndexModel : PageModel
     private readonly UserIdentityService _identity;
     private readonly ShortenRateLimiter _shortenLimiter;
     private readonly WebhookEventDispatcher _webhookDispatcher;
+    private readonly IThemeResolver _themes;
 
     public List<ShortenedUrl> RecentLinks { get; set; } = [];
     public List<PixelSnippet> PixelSnippets { get; set; } = [];
@@ -20,12 +21,13 @@ public class IndexModel : PageModel
     public string? DefaultHostname { get; set; }
     public ActiveWorkspaceContext? Workspace { get; set; }
 
-    public IndexModel(AppDbContext db, UserIdentityService identity, ShortenRateLimiter shortenLimiter, WebhookEventDispatcher webhookDispatcher)
+    public IndexModel(AppDbContext db, UserIdentityService identity, ShortenRateLimiter shortenLimiter, WebhookEventDispatcher webhookDispatcher, IThemeResolver themes)
     {
         _db = db;
         _identity = identity;
         _shortenLimiter = shortenLimiter;
         _webhookDispatcher = webhookDispatcher;
+        _themes = themes;
     }
 
     public async Task OnGet()
@@ -111,7 +113,7 @@ public class IndexModel : PageModel
             CreatedAtUtc = DateTime.UtcNow,
             OwnerUserId = workspaceId is not null ? null : ownerUserId,
             WorkspaceId = workspaceId,
-            PreviewTheme = ThemeCatalog.IsValid(previewTheme) ? previewTheme : null
+            PreviewTheme = await _themes.IsValidAsync(previewTheme) ? previewTheme : null
         };
         if (utm is not null && !utm.IsEmpty || pixelSnippetId is not null || iosDeepLink is not null && iosDeepLink.Length > 0 || androidDeepLink is not null && androidDeepLink.Length > 0)
         {

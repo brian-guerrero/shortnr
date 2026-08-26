@@ -1,4 +1,12 @@
 @model Shortnr.Web.Pages.Bio.EditModel
+@inject Shortnr.Web.Features.Theming.IThemeResolver ThemeResolver
+@{
+    // Combined preset + community theme list for both pickers below —
+    // ThemeResolver aggregates every registered IThemeCatalog, so a new
+    // community theme shows up here the moment it's in the manifest, with no
+    // per-surface list to keep in sync.
+    var themes = await ThemeResolver.GetAllThemesAsync();
+}
 <partial name="Shared/_StatusMessages" model="Model" />
 @if (Model.BioPage is null)
 {
@@ -16,7 +24,7 @@
         <textarea name="bioText" id="bio-text" rows="3" maxlength="2000"></textarea>
         <label for="bio-theme">Theme</label>
         <select name="theme" id="bio-theme">
-            @foreach (var theme in ThemeCatalog.All)
+            @foreach (var theme in themes)
             {
                 <option value="@theme.Id">@theme.Label</option>
             }
@@ -43,7 +51,7 @@ else
                 <textarea name="bioText" id="bio-text" rows="3" maxlength="2000">@Model.BioPage.BioText</textarea>
                 <label for="bio-theme">Theme</label>
                 <select name="theme" id="bio-theme">
-                    @foreach (var theme in ThemeCatalog.All)
+                    @foreach (var theme in themes)
                     {
                         <option value="@theme.Id" selected="@(Model.BioPage.Theme == theme.Id)">@theme.Label</option>
                     }
