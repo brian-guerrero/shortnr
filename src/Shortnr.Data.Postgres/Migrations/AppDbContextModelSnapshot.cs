@@ -1038,6 +1038,9 @@ namespace Shortnr.Data.Postgres.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<string>("PreferredTheme")
+                        .HasColumnType("text");
+
                     b.Property<string>("Subject")
                         .IsRequired()
                         .HasMaxLength(255)

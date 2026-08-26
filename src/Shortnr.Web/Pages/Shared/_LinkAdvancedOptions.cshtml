@@ -1,4 +1,8 @@
 @model LinkAdvancedOptionsViewModel
+@inject Shortnr.Web.Features.Theming.IThemeResolver ThemeResolver
+@{
+    var previewThemes = await ThemeResolver.GetAllThemesAsync();
+}
 <button type="button" class="secondary" style="margin-bottom: 0.75rem;"
         @@click="showAdvanced = !showAdvanced" aria-expanded="false" :aria-expanded="showAdvanced ? 'true' : 'false'">
     <span x-text="showAdvanced ? 'Hide advanced options' : 'Advanced options'"></span>
@@ -95,7 +99,7 @@
             <label for="preview_theme">Redirect preview style <small>(shown when visitors click the link)</small></label>
             <select name="preview_theme" id="preview_theme">
                 <option value="" selected="@(Model.PreviewTheme == "")">No preview</option>
-                @foreach (var theme in ThemeCatalog.All)
+                @foreach (var theme in previewThemes)
                 {
                     <option value="@theme.Id" selected="@(Model.PreviewTheme == theme.Id)">@theme.Label</option>
                 }

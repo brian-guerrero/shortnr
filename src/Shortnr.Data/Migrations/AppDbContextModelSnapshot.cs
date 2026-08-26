@@ -1001,6 +1001,9 @@ namespace Shortnr.Data.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("PreferredTheme")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Subject")
                         .IsRequired()
                         .HasMaxLength(255)

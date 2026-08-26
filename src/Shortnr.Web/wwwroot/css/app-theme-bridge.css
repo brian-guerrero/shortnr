@@ -1,0 +1,30 @@
+/*
+ * App-wide theming bridge.
+ *
+ * The app chrome (nav, dashboard, settings — everything styled by site.css)
+ * reads --sn-* tokens; bio pages and the redirect-preview page read the
+ * smaller --pv-* palette a theme's stylesheet defines (see Theme.cs /
+ * IThemeResolver). This file maps the --pv-* tokens a selected app theme
+ * exposes onto the subset of --sn-* tokens they can cover, so picking a
+ * theme from the command palette (Features/Theming, _CommandPalette.cshtml)
+ * reskins the app chrome too, without duplicating a third palette per theme.
+ *
+ * Deliberately partial: --sn-surface-muted, --sn-line, --sn-accent-secondary,
+ * the --sn-status-* colors, and --sn-code-block-* have no --pv-* counterpart
+ * and keep falling back to the light/dark defaults regardless of the active
+ * theme. Widening --pv-* to cover them is a breaking change to the published
+ * community theme contract (CommunityThemeCatalog's checksum + content
+ * validation, and the shortnr-themes manifest) — tracked as future work, not
+ * done here. The var() fallbacks below are what makes this file a no-op when
+ * no theme (or the "default" theme) is selected: html[data-theme] is only
+ * rendered by _Layout.cshtml when the resolved theme's stylesheet is linked.
+ */
+
+html[data-theme]:not([data-theme="default"]) {
+    --sn-paper: var(--pv-bg, var(--sn-paper));
+    --sn-ink: var(--pv-fg, var(--sn-ink));
+    --sn-surface: var(--pv-card, var(--sn-surface));
+    --sn-accent: var(--pv-accent, var(--sn-accent));
+    --sn-accent-ink: var(--pv-accent-fg, var(--sn-accent-ink));
+    --sn-mid-gray: var(--pv-muted, var(--sn-mid-gray));
+}

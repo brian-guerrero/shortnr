@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
 using Shortnr.Data.Entities;
+using Shortnr.Web.Features.Theming;
 
 namespace Shortnr.Web.Features.Authentication;
 
@@ -9,7 +10,11 @@ namespace Shortnr.Web.Features.Authentication;
 /// Resolves the current authenticated user's database identity.
 /// Registered as a scoped service so it can hold per-request state.
 /// </summary>
-public class UserIdentityService(AppDbContext db, IConfiguration config, IHttpContextAccessor httpContextAccessor)
+public class UserIdentityService(
+    AppDbContext db,
+    IConfiguration config,
+    IHttpContextAccessor httpContextAccessor,
+    IThemeResolver themeResolver)
     : IUserIdentityService
 {
     // Resolved at most once per principal per request (the service is scoped) —
@@ -87,6 +92,20 @@ public class UserIdentityService(AppDbContext db, IConfiguration config, IHttpCo
                     Role = m.Role
                 })
             .FirstOrDefaultAsync();
+    }
+
+    /// <inheritdoc />
+    public async Task<Theme> ResolveThemePreferenceAsync(ClaimsPrincipal principal)
+    {
+        var userId = await ResolveOwnerUserIdAsync(principal);
+        if (userId is null) return ThemeCatalog.Default;
+
+        var preferredTheme = await db.Users
+            .Where(u => u.Id == userId.Value)
+            .Select(u => u.PreferredTheme)
+            .FirstOrDefaultAsync();
+
+        return await themeResolver.ResolveAsync(preferredTheme);
     }
 }
 
