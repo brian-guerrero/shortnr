@@ -54,13 +54,16 @@ public class SocialCache : ISocialCache
     public void Set(long socialAccountId, SocialData data)
     {
         _cache[socialAccountId] = new CacheEntry(data, DateTime.UtcNow);
-        _logger.LogDebug("Cached social data for account {AccountId}", socialAccountId);
+        // socialAccountId is the SocialAccount row's internal database primary key
+        // (a long), not a credential or PII — CodeQL's sensitive-data heuristic flags
+        // it purely because the parameter name contains "account".
+        _logger.LogDebug("Cached social data for account {AccountId}", socialAccountId); // lgtm[cs/cleartext-storage-of-sensitive-information]
     }
 
     public void Invalidate(long socialAccountId)
     {
         _cache.TryRemove(socialAccountId, out _);
-        _logger.LogDebug("Invalidated cache for account {AccountId}", socialAccountId);
+        _logger.LogDebug("Invalidated cache for account {AccountId}", socialAccountId); // lgtm[cs/cleartext-storage-of-sensitive-information]
     }
 
     private async Task<SocialData?> LoadFromDatabaseAsync(long socialAccountId, CancellationToken ct)
@@ -110,7 +113,7 @@ public class SocialCache : ISocialCache
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to load social data from database for account {AccountId}", socialAccountId);
+            _logger.LogWarning(ex, "Failed to load social data from database for account {AccountId}", socialAccountId); // lgtm[cs/cleartext-storage-of-sensitive-information]
             return null;
         }
     }
