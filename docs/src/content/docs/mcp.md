@@ -155,21 +155,21 @@ back to API-key auth.
 
 ### Signing/encryption certificates
 
-OpenIddict needs a certificate to sign tokens and one to encrypt them.
+OpenIddict needs a certificate to sign tokens and one for token encryption.
 
 - **In `Development`**, this is automatic — `AddDevelopmentSigningCertificate()`/`AddDevelopmentEncryptionCertificate()` generate ephemeral certs with no configuration needed.
 - **Everywhere else**, you must supply persistent certificates via config/secrets. Ephemeral certs would regenerate on every process restart, silently invalidating every outstanding access/refresh token on each redeploy or cold start.
 
 | Setting | Description |
 |---------|-------------|
-| `OAuth__SigningCertificate` | Base64-encoded PKCS#12 (`.pfx`) certificate used to sign tokens. Key usage must include **Digital Signature**. |
+| `OAuth__SigningCertificate` | Base64-encoded PKCS#12 (`.pfx`) certificate used to sign access tokens and authorization codes. Key usage must include **Digital Signature**. |
 | `OAuth__SigningCertificatePassword` | Password for the signing PFX, if it has one. Optional — omit entirely if the PFX has no password. |
-| `OAuth__EncryptionCertificate` | Base64-encoded PKCS#12 (`.pfx`) certificate used to encrypt tokens. Key usage must include **Key Encipherment** (and typically **Data Encipherment**) — a signing-only certificate here fails at startup with `The specified certificate is not a key encryption certificate.` |
+| `OAuth__EncryptionCertificate` | Base64-encoded PKCS#12 (`.pfx`) certificate used to encrypt authorization codes and refresh tokens (not access tokens &mdash; access token encryption is disabled via `DisableAccessTokenEncryption()`). Key usage must include **Key Encipherment** (and typically **Data Encipherment**). |
 | `OAuth__EncryptionCertificatePassword` | Password for the encryption PFX, if it has one. |
 
 Missing either certificate throws a clear `InvalidOperationException` naming the missing config key at startup; a certificate with the wrong key usage throws the OpenIddict error above instead — both fail fast rather than serving requests with no signing/encryption key.
 
-**Generating self-signed certs** (fine for this purpose — they're never presented to a client, only used internally to sign/encrypt opaque tokens). PowerShell:
+**Generating self-signed certs** (fine for this purpose — they're never presented to a client, only used internally to sign JWTs and encrypt auth codes/refresh tokens). PowerShell:
 
 ```powershell
 foreach ($pair in @(
