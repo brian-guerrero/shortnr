@@ -38,10 +38,29 @@ jobs:
         run: dotnet build --no-restore --configuration Release
 
       - name: Unit tests
-        run: dotnet test tests/Shortnr.Tests.Unit/Shortnr.Tests.Unit.csproj --no-build --configuration Release
+        run: >
+          dotnet test tests/Shortnr.Tests.Unit/Shortnr.Tests.Unit.csproj
+          --no-build --configuration Release
+          --logger "trx;LogFileName=unit-tests.trx"
+          --collect:"XPlat Code Coverage"
+          --results-directory ./TestResults/unit
 
       - name: Integration tests
-        run: dotnet test tests/Shortnr.Tests.Integration/Shortnr.Tests.Integration.csproj --no-build --configuration Release --filter "Category!=Postgres"
+        run: >
+          dotnet test tests/Shortnr.Tests.Integration/Shortnr.Tests.Integration.csproj
+          --no-build --configuration Release --filter "Category!=Postgres"
+          --logger "trx;LogFileName=integration-tests.trx"
+          --collect:"XPlat Code Coverage"
+          --results-directory ./TestResults/integration
+
+      - name: Upload test results and coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-build-and-test
+          path: TestResults/**
+          retention-days: 14
+          if-no-files-found: warn
 
   test-postgres-parity:
     name: Postgres parity tests
@@ -71,4 +90,81 @@ jobs:
       # Docker, which ubuntu-latest runners have preinstalled. GitHub Actions sets CI=true
       # automatically, which PostgresAppHostFixture uses for a longer resource-wait timeout.
       - name: Postgres parity tests
-        run: dotnet test tests/Shortnr.Tests.Integration/Shortnr.Tests.Integration.csproj --configuration Release --filter "Category=Postgres"
+        run: >
+          dotnet test tests/Shortnr.Tests.Integration/Shortnr.Tests.Integration.csproj
+          --configuration Release --filter "Category=Postgres"
+          --logger "trx;LogFileName=postgres-parity-tests.trx"
+          --collect:"XPlat Code Coverage"
+          --results-directory ./TestResults/postgres
+
+      - name: Upload test results and coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-postgres-parity
+          path: TestResults/**
+          retention-days: 14
+          if-no-files-found: warn
+
+  test-reports:
+    name: Publish test & coverage reports
+    needs: [build-and-test, test-postgres-parity]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - name: Download test results and coverage
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-*
+          path: TestResults
+          merge-multiple: true
+
+      - name: Publish test results (trx)
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Test results
+          path: 'TestResults/**/*.trx'
+          reporter: dotnet-trx
+          fail-on-error: false
+          fail-on-empty: false
+
+      - name: Setup .NET
+        if: always()
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install ReportGenerator
+        if: always()
+        run: dotnet tool install -g dotnet-reportgenerator-globaltool
+
+      - name: Generate coverage report (cobertura)
+        if: always()
+        continue-on-error: true
+        run: >
+          "$HOME/.dotnet/tools/reportgenerator"
+          "-reports:TestResults/**/*.cobertura.xml"
+          "-targetdir:CoverageReport"
+          "-reporttypes:Html;MarkdownSummaryGithub"
+
+      - name: Add coverage summary
+        if: always()
+        run: |
+          if [ -f CoverageReport/SummaryGithub.md ]; then
+            cat CoverageReport/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No coverage report was generated (no .cobertura.xml files found)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload HTML coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-html
+          path: CoverageReport
+          retention-days: 14
+          if-no-files-found: warn
