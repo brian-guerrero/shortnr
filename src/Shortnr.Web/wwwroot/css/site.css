@@ -1153,22 +1153,52 @@ details.dropdown.user-menu[open] > summary {
               padding 0.15s ease-out, border-width 0.15s ease-out, margin 0.15s ease-out;
 }
 .bulk-toolbar.is-active {
-  /* Generous enough for the count/clear line plus the action-form line
-     wrapping onto a second (or third, on narrow screens) row without
-     clipping any button — see PRD-019 bulk-toolbar review notes. */
   max-height: 10rem;
   opacity: 1;
   padding-top: var(--sn-space-2);
   padding-bottom: var(--sn-space-2);
   border-width: var(--sn-border-width-heavy);
   margin-bottom: var(--sn-space-3);
+  /* The Actions menu below pops out of the toolbar's flow via
+     position: absolute; overflow must open back up once the toolbar itself
+     is done animating in, or the popover gets clipped at the toolbar's own
+     box edge. Safe to flip instantly — overflow isn't in the transition
+     list above, and the menu can't be open while the toolbar is collapsed. */
+  overflow: visible;
 }
 .bulk-count { font-weight: 700; margin-right: var(--sn-space-1); }
-.bulk-actions {
-  display: inline-flex;
+/* All non-destructive bulk actions collapse into one dropdown (same
+   details.dropdown pattern as the nav user menu) instead of a row of
+   same-sized buttons — that flat layout read as N equally-weighted, easily
+   confused actions (PRD-019 bulk-toolbar UX review). Delete stays outside
+   as its own visible, confirm-gated button since it's destructive. */
+.bulk-actions-menu > summary {
+  font-size: var(--sn-text-small);
+  padding: var(--sn-space-1) var(--sn-space-2);
+  border-color: var(--sn-line);
+  background: var(--sn-surface);
+}
+.bulk-actions-menu > summary:hover,
+.bulk-actions-menu[open] > summary {
+  box-shadow: var(--sn-shadow-active);
+}
+/* Move/tag rows carry a text input or select alongside their submit button;
+   the plain dropdown button rule (display: block; width: 100%) would stack
+   them, so these get their own flex row instead. */
+.bulk-actions-menu .bulk-menu-form {
+  display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: var(--sn-space-2);
+  padding: var(--sn-space-1) var(--sn-space-3);
+}
+.bulk-actions-menu .bulk-menu-form button {
+  width: auto;
+  flex-shrink: 0;
+}
+.bulk-actions-menu .bulk-menu-form input,
+.bulk-actions-menu .bulk-menu-form select {
+  flex: 1;
+  min-width: 0;
 }
 .bulk-workspace-select { max-width: 10rem; }
 .bulk-tag-form input { max-width: 8rem; }
@@ -1443,6 +1473,26 @@ input[data-select-all]:checked {
   padding: 0 var(--sn-space-1);
 }
 .inline-form.palette-item-form { display: block; }
+/* User-menu entry point into the same palette the nav's ⌘K icon opens
+   (data-palette-opener on both — see command-palette.js's shared click
+   handler). The dropdown's generic button rule (details.dropdown > ul
+   button, above) already gives it the block/left-aligned look every other
+   menu row has; matching that selector's specificity here just pushes the
+   kbd hint to the trailing edge instead of block-stacking under the label. */
+details.dropdown > ul button.menu-quick-settings {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sn-space-3);
+}
+.menu-quick-settings kbd {
+  font-family: var(--sn-font-mono);
+  font-size: var(--sn-text-small);
+  border: var(--sn-border-width) solid var(--sn-line);
+  border-radius: var(--sn-border-radius);
+  padding: 0 var(--sn-space-1);
+  background: var(--sn-surface);
+}
 .nav-palette-opener {
   --sn-btn-lift: var(--sn-shadow-offset-sm);
   --sn-btn-press: 1px;
