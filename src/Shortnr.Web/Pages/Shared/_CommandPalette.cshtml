@@ -1,18 +1,24 @@
 @inject Microsoft.Extensions.Configuration.IConfiguration _config
 @inject Shortnr.Web.Features.Authentication.IUserIdentityService _identity
 @inject Shortnr.Web.Features.Workspaces.WorkspaceService _workspaceService
+@inject Shortnr.Web.Features.Theming.IThemeResolver _themeResolver
 @using System.Security.Claims
 @{
     var authEnabled = User.Identity?.IsAuthenticated == true;
     var userId = authEnabled ? await _identity.ResolveOwnerUserIdAsync(User) : null;
     var workspaces = userId is not null ? await _workspaceService.GetWorkspacesForUserAsync(userId.Value) : [];
     var workspaceCtx = authEnabled ? await _identity.ResolveActiveWorkspaceContextAsync(User) : null;
+    var themes = authEnabled ? await _themeResolver.GetAllThemesAsync() : [];
+    var activeTheme = authEnabled ? await _identity.ResolveThemePreferenceAsync(User) : null;
 }
 @* PRD-019 command palette (Cmd+K). v1 scope: navigate, create link, switch
-   workspace, toggle dark mode. Opened by the JS trigger in the nav and by
-   Cmd/Ctrl+K from anywhere on the page; closed with Esc, the backdrop, or the
-   X. Rendered server-side so the workspace list and nav visibility match the
-   rest of the site — no separate JSON endpoint. *@
+   workspace, toggle dark mode, switch theme. Opened by the JS trigger in the
+   nav and by Cmd/Ctrl+K from anywhere on the page; closed with Esc, the
+   backdrop, or the X. Rendered server-side so the workspace/theme lists and
+   nav visibility match the rest of the site — no separate JSON endpoint.
+   The theme list lives in its own panel (data-palette-panel="themes") rather
+   than a flat root-level group: "Switch theme" opens it, Back or Esc returns
+   to the root panel — see command-palette.js's openPanel/activePanel. *@
 <div class="palette" data-palette hidden>
     <div class="palette-backdrop" data-palette-close></div>
     <div class="palette-panel" role="dialog" aria-modal="true" aria-label="Command palette">
@@ -23,56 +29,89 @@
             <button type="button" class="banner-close" data-palette-close aria-label="Close palette">×</button>
         </div>
         <div class="palette-groups" data-palette-groups>
-            <div class="palette-group">
-                <p class="palette-group-label">Navigate</p>
-                <a class="palette-item" href="/dashboard" data-palette-command="Go to dashboard"><kbd>d</kbd> Dashboard</a>
-                <a class="palette-item" href="/" data-palette-command="Create a new short link"><kbd>n</kbd> Create short link</a>
-                @if (_config.GetValue<bool>("AiInsights:Enabled", defaultValue: false))
-                {
-                    <a class="palette-item" href="/insights" data-palette-command="Open AI insights"><kbd>i</kbd> AI insights</a>
-                }
-                <a class="palette-item" href="/bio/edit" data-palette-command="Edit bio page"><kbd>b</kbd> Bio page</a>
-                <a class="palette-item" href="/settings/domains" data-palette-command="Manage domains"><kbd>m</kbd> Domains</a>
-                <a class="palette-item" href="/settings/workspaces" data-palette-command="Manage workspaces"><kbd>w</kbd> Workspaces</a>
-                <a class="palette-item" href="/settings/api-keys" data-palette-command="Manage API keys"><kbd>k</kbd> API keys</a>
-            </div>
-            @if (authEnabled && workspaces.Count > 0)
-            {
+            <div data-palette-panel="root">
                 <div class="palette-group">
-                    <p class="palette-group-label">Switch workspace</p>
-                    @foreach (var ws in workspaces)
+                    <p class="palette-group-label">Navigate</p>
+                    <a class="palette-item" href="/dashboard" data-palette-command="Go to dashboard"><kbd>d</kbd> Dashboard</a>
+                    <a class="palette-item" href="/" data-palette-command="Create a new short link"><kbd>n</kbd> Create short link</a>
+                    @if (_config.GetValue<bool>("AiInsights:Enabled", defaultValue: false))
                     {
-                        var active = workspaceCtx?.WorkspaceId == ws.Id;
-                        <form method="post" action="/workspace/switch" class="palette-item-form" data-palette-command="Switch to workspace @ws.Name">
-                            <input type="hidden" name="slug" value="@ws.Slug">
-                            <button type="submit" class="palette-item palette-item-action @(active ? "is-active" : null)">
-                                <kbd>@(char.ToLowerInvariant(string.IsNullOrEmpty(ws.Name) ? 'w' : ws.Name[0]))</kbd> @ws.Name
-                                @if (active) { <span class="muted">· current</span> }
+                        <a class="palette-item" href="/insights" data-palette-command="Open AI insights"><kbd>i</kbd> AI insights</a>
+                    }
+                    <a class="palette-item" href="/bio/edit" data-palette-command="Edit bio page"><kbd>b</kbd> Bio page</a>
+                    <a class="palette-item" href="/settings/domains" data-palette-command="Manage domains"><kbd>m</kbd> Domains</a>
+                    <a class="palette-item" href="/settings/workspaces" data-palette-command="Manage workspaces"><kbd>w</kbd> Workspaces</a>
+                    <a class="palette-item" href="/settings/api-keys" data-palette-command="Manage API keys"><kbd>k</kbd> API keys</a>
+                </div>
+                @if (authEnabled && workspaces.Count > 0)
+                {
+                    <div class="palette-group">
+                        <p class="palette-group-label">Switch workspace</p>
+                        @foreach (var ws in workspaces)
+                        {
+                            var active = workspaceCtx?.WorkspaceId == ws.Id;
+                            <form method="post" action="/workspace/switch" class="palette-item-form" data-palette-command="Switch to workspace @ws.Name">
+                                <input type="hidden" name="slug" value="@ws.Slug">
+                                <button type="submit" class="palette-item palette-item-action @(active ? "is-active" : null)">
+                                    <kbd>@(char.ToLowerInvariant(string.IsNullOrEmpty(ws.Name) ? 'w' : ws.Name[0]))</kbd> @ws.Name
+                                    @if (active) { <span class="muted">· current</span> }
+                                </button>
+                            </form>
+                        }
+                        <form method="post" action="/workspace/switch" class="palette-item-form" data-palette-command="Switch to personal workspace">
+                            <input type="hidden" name="slug" value="personal">
+                            <button type="submit" class="palette-item palette-item-action @(workspaceCtx is null ? "is-active" : null)">
+                                <kbd>p</kbd> Personal
+                                @if (workspaceCtx is null) { <span class="muted">· current</span> }
                             </button>
                         </form>
-                    }
-                    <form method="post" action="/workspace/switch" class="palette-item-form" data-palette-command="Switch to personal workspace">
-                        <input type="hidden" name="slug" value="personal">
-                        <button type="submit" class="palette-item palette-item-action @(workspaceCtx is null ? "is-active" : null)">
-                            <kbd>p</kbd> Personal
-                            @if (workspaceCtx is null) { <span class="muted">· current</span> }
+                    </div>
+                }
+                <div class="palette-group">
+                    <p class="palette-group-label">Actions</p>
+                    @if (authEnabled && themes.Count > 0)
+                    {
+                        <button class="palette-item palette-item-action" data-palette-command="Switch theme" data-palette-open-panel="themes">
+                            Switch theme <span class="muted">· @(activeTheme?.Label ?? "Default")</span>
                         </button>
-                    </form>
+                    }
+                    <button type="button" class="palette-item palette-item-action" data-palette-command="Toggle light or dark theme" data-palette-toggle-scheme>
+                        <kbd>t</kbd> Toggle color theme
+                    </button>
+                    <a class="palette-item" href="/api/docs" data-palette-command="Open API docs"><kbd>a</kbd> API docs</a>
+                </div>
+            </div>
+            @if (authEnabled && themes.Count > 0)
+            {
+                <div data-palette-panel="themes" hidden>
+                    <div class="palette-group">
+                        <button type="button" class="palette-item palette-item-action" data-palette-command="Back" data-palette-back>
+                            ← Back
+                        </button>
+                    </div>
+                    <div class="palette-group">
+                        <p class="palette-group-label">Theme</p>
+                        @foreach (var t in themes)
+                        {
+                            var isActiveTheme = activeTheme?.Id == t.Id;
+                            <form method="post" action="/theme/switch" class="palette-item-form" data-palette-command="Switch to @t.Label theme">
+                                <input type="hidden" name="themeId" value="@t.Id">
+                                <button type="submit" class="palette-item palette-item-action @(isActiveTheme ? "is-active" : null)">
+                                    @t.Label
+                                    @if (t.IsCommunity) { <span class="muted">· community</span> }
+                                    @if (isActiveTheme) { <span class="muted">· current</span> }
+                                </button>
+                            </form>
+                        }
+                    </div>
                 </div>
             }
-            <div class="palette-group">
-                <p class="palette-group-label">Actions</p>
-                <button type="button" class="palette-item palette-item-action" data-palette-command="Toggle light or dark theme" data-palette-toggle-scheme>
-                    <kbd>t</kbd> Toggle color theme
-                </button>
-                <a class="palette-item" href="/api/docs" data-palette-command="Open API docs"><kbd>a</kbd> API docs</a>
-            </div>
         </div>
         <p class="palette-empty" data-palette-empty hidden>No matching commands</p>
         <p class="palette-footer">
             <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
             <span><kbd>↵</kbd> select</span>
-            <span><kbd>esc</kbd> close</span>
+            <span><kbd>esc</kbd> back/close</span>
         </p>
     </div>
 </div>

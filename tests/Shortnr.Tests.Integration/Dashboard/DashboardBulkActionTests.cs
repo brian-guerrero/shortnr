@@ -507,6 +507,27 @@ public class DashboardBulkActionTests : IAsyncLifetime
         Assert.Contains("value=\"acme\"", html);
     }
 
+    [Fact]
+    public async Task Layout_Palette_IncludesThemeGroupWithActiveMarker()
+    {
+        var client = AuthenticatedClient();
+        var response = await client.GetAsync("/dashboard");
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        // The root panel's entry point into the themes sub-panel...
+        Assert.Contains("data-palette-open-panel=\"themes\"", html);
+        Assert.Contains("Switch theme", html);
+        // ...which is rendered (hidden until opened) with every preset listed...
+        Assert.Contains("data-palette-panel=\"themes\"", html);
+        Assert.Contains("action=\"/theme/switch\"", html);
+        Assert.Contains("Switch to Midnight theme", html);
+        Assert.Contains("value=\"midnight\"", html);
+        // ...and with no stored preference, Default is the active one.
+        Assert.Contains("Switch to Default theme", html);
+        Assert.Contains("value=\"default\"", html);
+    }
+
     private static string? ExtractUndoToken(string html)
     {
         var match = Regex.Match(html, @"name=""token"" value=""([^""]+)""");

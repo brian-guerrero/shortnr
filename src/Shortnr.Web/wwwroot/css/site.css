@@ -1419,7 +1419,7 @@ input[data-select-all]:checked {
   background: var(--sn-surface);
 }
 .palette-item:hover { background: var(--sn-surface-muted); }
-.palette-item.is-highlighted {
+.palette-item.is-highlighted, .palette-item-form.is-highlighted .palette-item {
   background: var(--sn-accent);
   color: var(--sn-accent-ink);
 }
