@@ -6,6 +6,7 @@ public static class ShortLinksModule
     {
         services.AddSingleton<QrService>();
         services.AddSingleton<ShortenRateLimiter>();
+        services.AddSingleton<BulkLinkUndoService>();
         services.AddScoped<ViewRenderService>();
         return services;
     }

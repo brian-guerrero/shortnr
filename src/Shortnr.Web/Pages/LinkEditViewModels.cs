@@ -1,4 +1,5 @@
 using Shortnr.Data.Entities;
+using Shortnr.Web.Features.ClickTracking;
 
 namespace Shortnr.Web.Pages;
 
@@ -129,7 +130,7 @@ public class LinkAdvancedOptionsViewModel
 
 public class LinkEditSuccessViewModel
 {
-    public List<ShortenedUrl> Links { get; init; } = [];
+    public List<LinkRowViewModel> Links { get; init; } = [];
     public string Message { get; init; } = "";
 }
 
@@ -143,6 +144,6 @@ public class LinkTransferViewModel
 
 public class LinkTransferSuccessViewModel
 {
-    public List<ShortenedUrl> Links { get; init; } = [];
+    public List<LinkRowViewModel> Links { get; init; } = [];
     public string Message { get; init; } = "";
 }

@@ -151,7 +151,7 @@ public static class ApiEndpoints
 
         app.MapGet("/{shortCode}", async (string shortCode, AppDbContext db,
             Channel<ClickRecord> clickChannel, HttpContext context,
-            ViewRenderService viewRender, ILoggerFactory loggerFactory) =>
+            ViewRenderService viewRender, ILoggerFactory loggerFactory, IThemeResolver themes) =>
         {
             var logger = loggerFactory.CreateLogger("Shortnr.Api.Redirect");
 
@@ -218,7 +218,7 @@ public static class ApiEndpoints
             }
 
             var resolvedTheme = link.PreviewTheme ?? link.Workspace?.DefaultPreviewTheme;
-            if (resolvedTheme is not null && ThemeCatalog.IsValid(resolvedTheme))
+            if (resolvedTheme is not null && await themes.IsValidAsync(resolvedTheme))
             {
                 var destHost = new Uri(destination).Host;
                 var previewUrl = $"/preview?url={Uri.EscapeDataString(destination)}&theme={Uri.EscapeDataString(resolvedTheme)}&host={Uri.EscapeDataString(destHost)}";
