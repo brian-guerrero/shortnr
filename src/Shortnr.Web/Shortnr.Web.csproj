@@ -13,39 +13,33 @@
     <!-- Design-time only, needed so `dotnet ef` tooling can use this project as the
          startup project when scaffolding Postgres migrations
          (project src\Shortnr.Data.Postgres\Shortnr.Data.Postgres.csproj). -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="DnsClient" Version="1.8.0" />
-    <PackageReference Include="MailKit" Version="4.17.0" />
-    <PackageReference Include="MaxMind.GeoIP2" Version="6.1.0" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
+    <PackageReference Include="DnsClient" />
+    <PackageReference Include="MailKit" />
+    <PackageReference Include="MaxMind.GeoIP2" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <!-- PRD-023 LLM layer: Microsoft.Extensions.AI's IChatClient is the transport abstraction
          used by Features/Insights/Llm; Microsoft.Extensions.AI.OpenAI bridges the OpenAI SDK
          (used for both the OpenAI and OpenRouter providers, which are OpenAI-wire-compatible)
          to IChatClient; CommunityToolkit.Aspire.OllamaSharp provides OllamaApiClient + its
          IChatClient adapter for the Ollama provider (paired with
          CommunityToolkit.Aspire.Hosting.Ollama in Shortnr.AppHost.csproj for local dev). -->
-    <PackageReference Include="Microsoft.Extensions.AI" Version="10.9.0" />
-    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.9.0" />
-    <PackageReference Include="CommunityToolkit.Aspire.OllamaSharp" Version="13.4.0" />
-    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
-    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.0.0" />
-    <PackageReference Include="OpenIddict.AspNetCore" Version="7.6.0" />
-    <PackageReference Include="OpenIddict.EntityFrameworkCore" Version="7.6.0" />
-    <PackageReference Include="QRCoder" Version="1.8.0" />
-    <PackageReference Include="Microsoft.Web.LibraryManager.Build" Version="3.0.114" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.10" />
-    <PackageReference Include="Scalar.AspNetCore" Version="2.16.17" />
-    <PackageReference Include="System.Threading.RateLimiting" Version="10.0.10" />
-    <PackageReference Include="uaParser.Net" Version="1.0.1" />
+    <PackageReference Include="Microsoft.Extensions.AI" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
+    <PackageReference Include="CommunityToolkit.Aspire.OllamaSharp" />
+    <PackageReference Include="Microsoft.OpenApi" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" />
+    <PackageReference Include="OpenIddict.AspNetCore" />
+    <PackageReference Include="OpenIddict.EntityFrameworkCore" />
+    <PackageReference Include="QRCoder" />
+    <PackageReference Include="Microsoft.Web.LibraryManager.Build" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
+    <PackageReference Include="Scalar.AspNetCore" />
+    <PackageReference Include="System.Threading.RateLimiting" />
+    <PackageReference Include="uaParser.Net" />
   </ItemGroup>
-
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-  </PropertyGroup>
 
 </Project>
