@@ -1,4 +1,5 @@
 global using Xunit;
+global using Microsoft.Data.Sqlite;
 global using Microsoft.Extensions.DependencyInjection;
 global using Shortnr.Web.Features.ShortLinks;
 global using Shortnr.Web.Features.ShortLinks.Models;
