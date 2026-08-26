@@ -3,7 +3,7 @@
  *
  * The checkboxes live in the search-results table (swapped by HTMX on every
  * search/filter); the toolbar sits above it and stays in sync client-side.
- * The forms submit the selected ids with hx-include="[name='selected']:checked"
+ * The forms submit the selected ids with hx-include="[name='ids']:checked"
  * and the result (refreshed table + OOB toast) swaps in server-side.
  */
 (function () {
@@ -14,7 +14,7 @@
     }
 
     function selectedCount() {
-        return document.querySelectorAll('[name="selected"]:checked').length;
+        return document.querySelectorAll('[name="ids"]:checked').length;
     }
 
     function updateToolbar() {
