@@ -73,7 +73,7 @@ builder.Services
     .AddDomainsFeature()
     .AddWorkspacesFeature()
     .AddBioPagesFeature()
-    .AddThemingFeature()
+    .AddThemingFeature(builder.Configuration)
     .AddWebhooksFeature()
     .AddApiFeature()
     .AddMcpFeature()
@@ -248,6 +248,8 @@ app.UseRateLimiter();
 app.MapDefaultEndpoints();
 app.MapRazorPages();
 app.MapAuthenticationEndpoints(app.Configuration);
+app.MapCommunityThemeEndpoints();
+app.MapThemeEndpoints(app.Configuration);
 
 app.MapApiEndpoints();
 app.MapApiV1Endpoints();

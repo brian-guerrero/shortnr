@@ -11,6 +11,7 @@ public class EditModel : PageModel, IStatusMessages
     private readonly AppDbContext _db;
     private readonly UserIdentityService _identity;
     private readonly ShortenRateLimiter _shortenLimiter;
+    private readonly IThemeResolver _themes;
 
     public BioPage? BioPage { get; set; }
     public List<ShortenedUrl> OwnerLinks { get; set; } = [];
@@ -19,11 +20,12 @@ public class EditModel : PageModel, IStatusMessages
     public bool IsHtmxRequest { get; set; }
     public ActiveWorkspaceContext? Workspace { get; set; }
 
-    public EditModel(AppDbContext db, UserIdentityService identity, ShortenRateLimiter shortenLimiter)
+    public EditModel(AppDbContext db, UserIdentityService identity, ShortenRateLimiter shortenLimiter, IThemeResolver themes)
     {
         _db = db;
         _identity = identity;
         _shortenLimiter = shortenLimiter;
+        _themes = themes;
     }
 
     public async Task<IActionResult> OnGet()
@@ -62,7 +64,7 @@ public class EditModel : PageModel, IStatusMessages
             return await EditorPartialAsync(error: $"The bio page code '{slug}' is already taken.");
 
         var displayName = (Request.Form["displayName"].FirstOrDefault() ?? "").Trim();
-        var theme = NormaliseTheme(Request.Form["theme"].FirstOrDefault());
+        var theme = await NormaliseThemeAsync(Request.Form["theme"].FirstOrDefault());
 
         _db.BioPages.Add(new BioPage
         {
@@ -95,7 +97,7 @@ public class EditModel : PageModel, IStatusMessages
         bioPage.DisplayName = displayName.Length > 0 ? displayName : bioPage.DisplayName;
         bioPage.AvatarUrl = CleanUrl(Request.Form["avatarUrl"].FirstOrDefault());
         bioPage.BioText = (Request.Form["bioText"].FirstOrDefault() ?? "").Trim();
-        bioPage.Theme = NormaliseTheme(Request.Form["theme"].FirstOrDefault());
+        bioPage.Theme = await NormaliseThemeAsync(Request.Form["theme"].FirstOrDefault());
         await _db.SaveChangesAsync();
 
         await LoadEditorAsync();
@@ -378,8 +380,8 @@ public class EditModel : PageModel, IStatusMessages
         return null;
     }
 
-    private static string NormaliseTheme(string? theme) =>
-        ThemeCatalog.Resolve(theme).Id;
+    private async Task<string> NormaliseThemeAsync(string? theme) =>
+        (await _themes.ResolveAsync(theme)).Id;
 
     private static string? CleanUrl(string? url)
     {

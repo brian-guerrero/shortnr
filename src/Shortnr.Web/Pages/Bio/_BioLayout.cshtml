@@ -1,5 +1,6 @@
+@inject Shortnr.Web.Features.Theming.IThemeResolver ThemeResolver
 @{
-    var theme = ThemeCatalog.Resolve((string?)ViewData["BioTheme"]).Id;
+    var theme = await ThemeResolver.ResolveAsync((string?)ViewData["BioTheme"]);
     var title = (string?)ViewData["BioTitle"] ?? "shortnr";
 }
 @* Bio pages opt out of the app's dark scheme: the theme here is the page
@@ -7,7 +8,7 @@
    Pinning light also keeps the brutal theme's ink borders and hard shadows
    dark on a visitor whose OS is set to dark. *@
 <!DOCTYPE html>
-<html lang="en" data-bio-theme="@theme" data-color-scheme="light">
+<html lang="en" data-bio-theme="@theme.Id" data-theme="@theme.Id" data-color-scheme="light">
 
 <head>
     <meta charset="utf-8" />
@@ -17,79 +18,24 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="/css/site.css">
+    @* One shared palette per theme — the same file the redirect-preview
+       layout links. Presets set --pv-* at :root under
+       wwwroot/css/themes/preview-<id>.css; community themes set the same
+       tokens scoped to [data-theme="id"] (the attribute above) via
+       CommunityThemeCatalog's checksum-validated, disk-cached CSS. This
+       layout used to bake its own --bio-* palette per preset and bridge
+       community themes' --pv-* tokens into it with an extra <style> block;
+       consuming --pv-* directly here removes both the duplication and the
+       bridge. *@
+    <link rel="stylesheet" href="/@theme.PreviewStylesheetPath">
     <style>
         /* All bio themes use brutalist styling: sharp corners, hard shadows,
-           bold borders. Each theme has its own color palette but shares the
-           same structural treatment (DSG-002 §5). */
-        [data-bio-theme="default"] {
-            --bio-bg: var(--sn-paper);
-            --bio-fg: var(--sn-ink);
-            --bio-accent: var(--sn-accent);
-            --bio-card: var(--sn-surface);
-            --bio-muted: var(--sn-mid-gray);
-            --bio-accent-fg: var(--sn-accent-ink);
-        }
-        [data-bio-theme="sunset"] {
-            --bio-bg: #f9e3cf;
-            --bio-fg: #5a3d2b;
-            --bio-accent: #e85d3f;
-            --bio-card: #fff7ef;
-            --bio-muted: #9a6b4a;
-            --bio-accent-fg: #ffffff;
-        }
-        [data-bio-theme="ocean"] {
-            --bio-bg: #d9eaf5;
-            --bio-fg: #1f3a5f;
-            --bio-accent: #1d6fa5;
-            --bio-card: #f2f9fd;
-            --bio-muted: #4a6886;
-            --bio-accent-fg: #ffffff;
-        }
-        [data-bio-theme="forest"] {
-            --bio-bg: #dcead9;
-            --bio-fg: #2f4a2e;
-            --bio-accent: #3a7d3f;
-            --bio-card: #f2f8f1;
-            --bio-muted: #557754;
-            --bio-accent-fg: #ffffff;
-        }
-        [data-bio-theme="midnight"] {
-            --bio-bg: #1e2229;
-            --bio-fg: #e6e9ef;
-            --bio-accent: #7aa2f7;
-            --bio-card: #2a303b;
-            --bio-muted: #9aa4b2;
-            --bio-accent-fg: #10141a;
-        }
-        /* Shared with the redirect-preview page's themes of the same name. */
-        [data-bio-theme="minimal"] {
-            --bio-bg: #faf9f7;
-            --bio-fg: #37352f;
-            --bio-accent: #2383e2;
-            --bio-card: #ffffff;
-            --bio-muted: #7d7a74;
-            --bio-accent-fg: #ffffff;
-        }
-        [data-bio-theme="corporate"] {
-            --bio-bg: #f5f6f8;
-            --bio-fg: #1a1a2e;
-            --bio-accent: #2563eb;
-            --bio-card: #ffffff;
-            --bio-muted: #64748b;
-            --bio-accent-fg: #ffffff;
-        }
-        [data-bio-theme="dark"] {
-            --bio-bg: #1a1b1e;
-            --bio-fg: #e4e4e7;
-            --bio-accent: #60a5fa;
-            --bio-card: #27272a;
-            --bio-muted: #a1a1aa;
-            --bio-accent-fg: #1a1b1e;
-        }
-
+           bold borders. Each theme has its own color palette (the --pv-*
+           tokens linked above) but shares the same structural treatment
+           (DSG-002 §5). */
         body {
-            background: var(--bio-bg);
-            color: var(--bio-fg);
+            background: var(--pv-bg);
+            color: var(--pv-fg);
             margin: 0;
             min-height: 100vh;
             font-family: var(--sn-font-body);
@@ -100,10 +46,10 @@
             padding: 3rem 1rem;
         }
         .bio-card {
-            background: var(--bio-card);
+            background: var(--pv-card);
             width: 100%;
             max-width: 480px;
-            border: var(--sn-border-width-heavy) solid var(--bio-fg);
+            border: var(--sn-border-width-heavy) solid var(--pv-fg);
             border-radius: 0;
             padding: 2rem;
             box-shadow: var(--sn-shadow-offset-lg);
@@ -111,7 +57,7 @@
         .bio-avatar {
             width: 88px;
             height: 88px;
-            border: var(--sn-border-width-heavy) solid var(--bio-fg);
+            border: var(--sn-border-width-heavy) solid var(--pv-fg);
             border-radius: 0;
             object-fit: cover;
             display: block;
@@ -122,11 +68,11 @@
             font-family: var(--sn-font-display);
             font-size: var(--sn-text-h1);
             margin: 0 0 0.25rem;
-            color: var(--bio-fg);
+            color: var(--pv-fg);
         }
         .bio-text {
             text-align: center;
-            color: var(--bio-muted);
+            color: var(--pv-muted);
             margin: 0 0 1.5rem;
             white-space: pre-wrap;
         }
@@ -141,10 +87,10 @@
             display: block;
             text-align: center;
             padding: 0.8rem 1rem;
-            background: var(--bio-accent);
-            color: var(--bio-accent-fg);
+            background: var(--pv-accent);
+            color: var(--pv-accent-fg);
             text-decoration: none;
-            border: var(--sn-border-width-heavy) solid var(--bio-fg);
+            border: var(--sn-border-width-heavy) solid var(--pv-fg);
             border-radius: 0;
             box-shadow: var(--sn-shadow-offset);
             font-weight: 700;
@@ -152,8 +98,8 @@
         }
         .bio-links a:hover {
             transform: translate(1px, 1px);
-            box-shadow: 3px 3px 0 var(--bio-fg);
-            color: var(--bio-accent-fg);
+            box-shadow: 3px 3px 0 var(--pv-fg);
+            color: var(--pv-accent-fg);
         }
         .bio-links a:active {
             transform: translate(3px, 3px);
@@ -161,11 +107,11 @@
         }
         .brand-footer {
             font-size: 0.75rem;
-            color: var(--bio-muted);
+            color: var(--pv-muted);
             margin-top: 1.5rem;
         }
         .brand-footer a {
-            color: var(--bio-muted);
+            color: var(--pv-muted);
             text-decoration: underline;
         }
         .bio-404 {

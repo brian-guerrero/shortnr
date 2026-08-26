@@ -1,0 +1,131 @@
+@model Shortnr.Web.Features.ClickTracking.LinkDetailViewModel
+@* PRD-019 link-detail drill-down. Swapped into #link-detail on the dashboard via
+   the per-row "Stats" button — a single HTMX partial fetch (<500ms), with the
+   chart JSON embedded so the inline script can build the canvases against the
+   DSG-002 tokens without a second round trip. *@
+<div class="modal-overlay" data-modal-overlay>
+    <article class="modal" role="dialog" aria-modal="true" aria-labelledby="link-detail-title">
+        <header class="modal-head">
+            <div>
+                <h3 id="link-detail-title">@Model.DisplayText</h3>
+                <p class="modal-url" title="@Model.LongUrl">@Model.LongUrl</p>
+            </div>
+            <button type="button" class="btn-sm" data-modal-close aria-label="Close link stats">Close</button>
+        </header>
+        <div class="modal-body">
+            <div class="detail-meta">
+                <div class="detail-meta-item">
+                    <span class="muted">Clicks</span>
+                    <strong>@Model.ClickCount</strong>
+                </div>
+                <div class="detail-meta-item">
+                    <span class="muted">Created</span>
+                    <strong>@Model.CreatedAtUtc.ToLocalTime().ToString("g")</strong>
+                </div>
+                <div class="detail-meta-item">
+                    <span class="muted">Last clicked</span>
+                    <strong>@(Model.LastClickedAtUtc?.ToLocalTime().ToString("g") ?? "—")</strong>
+                </div>
+                <div class="detail-meta-item">
+                    <span class="muted">Domain</span>
+                    <strong>@(Model.DomainHostname.Length > 0 ? Model.DomainHostname : "default")</strong>
+                </div>
+            </div>
+
+            <div class="detail-grid">
+                <article class="detail-panel">
+                    <header><h3>Clicks (30 days)</h3></header>
+                    <canvas id="detail-timeline" height="120"></canvas>
+                </article>
+                <article class="detail-panel">
+                    <header><h3>Devices</h3></header>
+                    <canvas id="detail-devices" height="120"></canvas>
+                </article>
+            </div>
+
+            <div class="detail-grid">
+                <article class="detail-panel">
+                    <header><h3>Top referrers</h3></header>
+                    @if (Model.Referrers.Count == 0)
+                    {
+                        <partial name="Shared/_EmptyState" model="@(new EmptyStateViewModel { Message = "No referrers yet", CssClass = "empty-state-centered" })" />
+                    }
+                    else
+                    {
+                        <table>
+                            <thead>
+                                <tr><th>Source</th><th>Clicks</th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var r in Model.Referrers)
+                                {
+                                    <tr><td>@r.Name</td><td>@r.Count</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </article>
+                <article class="detail-panel">
+                    <header><h3>Geography</h3></header>
+                    @if (Model.Geo.Count == 0)
+                    {
+                        <partial name="Shared/_EmptyState" model="@(new EmptyStateViewModel { Message = "No geo data yet", CssClass = "empty-state-centered" })" />
+                    }
+                    else
+                    {
+                        <table>
+                            <thead>
+                                <tr><th>Country</th><th>Clicks</th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var g in Model.Geo)
+                                {
+                                    <tr><td>@g.Name</td><td>@g.Count</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                        @if (Model.Cities.Count > 0)
+                        {
+                            <p class="detail-cities muted">
+                                Top cities: @string.Join(", ", Model.Cities.Select(c => $"{c.Name} ({c.Count})"))
+                            </p>
+                        }
+                    }
+                </article>
+            </div>
+
+            <div class="detail-utmtags">
+                @if (Model.Tags.Count > 0)
+                {
+                    <div>
+                        <span class="muted">Tags</span>
+                        <span class="badge-group">
+                            @foreach (var tag in Model.Tags)
+                            {
+                                <partial name="Shared/_Badge" model="@(new BadgeViewModel { Kind = StatusKind.Plain, Text = tag, PreserveCase = true })" />
+                            }
+                        </span>
+                    </div>
+                }
+                @if (Model.Utm.Count > 0)
+                {
+                    <div>
+                        <span class="muted">UTM</span>
+                        <span class="badge-group">
+                            @foreach (var u in Model.Utm)
+                            {
+                                <partial name="Shared/_Badge" model="@(new BadgeViewModel { Kind = StatusKind.Info, Text = u.Name, PreserveCase = true })" />
+                            }
+                        </span>
+                    </div>
+                }
+            </div>
+
+            <p class="detail-footer">
+                <a href="@Model.DisplayHref" target="_blank" rel="noopener">Open @Model.DisplayText</a>
+            </p>
+        </div>
+    </article>
+</div>
+
+<script id="link-detail-chart-data" type="application/json">@Html.Raw(Model.ChartJson)</script>

@@ -12,6 +12,10 @@
         <header>Countries Reached</header>
         <h2>@Model.TotalCountries</h2>
     </article>
+    <article class="metric">
+        <header>Clicks (7 days)</header>
+        <h2>@Model.ClicksLast7Days</h2>
+    </article>
 </div>
 
 @if (Model.GeoBreakdown.Count == 0)

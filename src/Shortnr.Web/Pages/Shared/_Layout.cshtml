@@ -1,9 +1,21 @@
 ﻿@inject Microsoft.Extensions.Configuration.IConfiguration _config
+@inject Shortnr.Web.Features.Authentication.IUserIdentityService _identity
+@using Shortnr.Web.Features.Theming
 @{
     var authEnabled = _config.GetValue<bool>("Authentication:Enabled", defaultValue: true);
+    // Default (no explicit preference) leaves data-color-scheme unset here so
+    // the client-side toggle/OS-preference logic below still owns it, same as
+    // before this feature existed. Any other theme pins the scheme from
+    // Theme.IsDark, the same contract _BioLayout/_PreviewLayout use for their
+    // content — see app-theme-bridge.css for what the theme's stylesheet
+    // actually reskins.
+    var theme = await _identity.ResolveThemePreferenceAsync(User);
+    var themePinned = theme.Id != ThemeCatalog.DefaultId;
 }
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="@theme.Id"
+      data-color-scheme="@(themePinned ? (theme.IsDark ? "dark" : "light") : null)"
+      data-theme-pinned="@(themePinned ? "true" : null)">
 
 <head>
     <meta charset="utf-8" />
@@ -13,17 +25,27 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="/css/site.css">
+    @* One shared palette per theme, same file _BioLayout/_PreviewLayout link
+       (see Theme.PreviewStylesheetPath) — not a third per-surface palette.
+       app-theme-bridge.css (linked right after) maps the --pv-* tokens this
+       exposes onto the --sn-* tokens the app chrome actually reads. *@
+    <link rel="stylesheet" href="/@theme.PreviewStylesheetPath">
+    <link rel="stylesheet" href="/css/app-theme-bridge.css">
     @* Inline and before the body on purpose: resolving the scheme after first
-       paint is what causes a flash of the wrong theme. *@
+       paint is what causes a flash of the wrong theme. Skipped when the
+       server already pinned data-color-scheme above (a non-default theme is
+       active) so a pinned scheme isn't clobbered by localStorage/OS. *@
     <script>
         (function () {
-            var scheme;
-            try { scheme = localStorage.getItem('sn-color-scheme'); } catch (e) { scheme = null; }
-            if (scheme !== 'light' && scheme !== 'dark') {
-                scheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-            }
             var root = document.documentElement;
-            root.setAttribute('data-color-scheme', scheme);
+            if (!root.hasAttribute('data-color-scheme')) {
+                var scheme;
+                try { scheme = localStorage.getItem('sn-color-scheme'); } catch (e) { scheme = null; }
+                if (scheme !== 'light' && scheme !== 'dark') {
+                    scheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                }
+                root.setAttribute('data-color-scheme', scheme);
+            }
             // The mobile nav only collapses behind the hamburger once this
             // class lands, so a phone with JavaScript disabled still gets
             // the full, wrapped link list instead of an unreachable menu.
@@ -108,7 +130,19 @@
         @RenderBody()
     </main>
 
+    @* Out-of-band swap target for bulk-action toast confirmations (PRD-019):
+       the toast travels here so it is never nested inside the swapped table. *@
+    <div id="bulk-toast-wrap" aria-live="polite"></div>
+
     @await RenderSectionAsync("Scripts", required: false)
+
+    @if (!authEnabled || User.Identity?.IsAuthenticated == true)
+    {
+        @await Html.PartialAsync("Shared/_CommandPalette")
+    }
+    <script src="/js/bulk-actions.js" defer></script>
+    <script src="/js/command-palette.js" defer></script>
+    <script src="/js/link-detail.js" defer></script>
 
     <footer class="site-footer">
         <p>This product includes GeoLite2 data created by MaxMind, available from <a href="https://www.maxmind.com" target="_blank" rel="noopener">https://www.maxmind.com</a>.</p>
