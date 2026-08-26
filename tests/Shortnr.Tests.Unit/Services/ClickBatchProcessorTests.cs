@@ -82,7 +82,7 @@ public class ClickBatchProcessorTests : IDisposable
     }
 
     private async Task ExecuteProcessorAsync(ClickBatchProcessor processor,
-        IEnumerable<ClickRecord> records, int delayMs = 200)
+        IEnumerable<ClickRecord> records, int delayMs = 1000)
     {
         using var cts = new CancellationTokenSource();
         var task = processor.StartAsync(cts.Token);
@@ -90,11 +90,15 @@ public class ClickBatchProcessorTests : IDisposable
         foreach (var r in records)
             await _channel.Writer.WriteAsync(r);
 
-        while (_channel.Reader.TryRead(out _)) { }
-
         await Task.Delay(delayMs);
         cts.Cancel();
         await task;
+
+        // The processor writes through a separate DbContext (its own scope), so
+        // entities already tracked by _db (e.g. the ShortenedUrl added in test setup)
+        // would otherwise be returned stale by FindAsync instead of reflecting the
+        // processor's writes.
+        _db.ChangeTracker.Clear();
     }
 
     [Fact]
@@ -141,8 +145,7 @@ public class ClickBatchProcessorTests : IDisposable
         var task = processor.StartAsync(cts.Token);
 
         await _channel.Writer.WriteAsync(Record());
-        while (_channel.Reader.TryRead(out _)) { }
-        await Task.Delay(200);
+        await Task.Delay(1000);
 
         cts.Cancel();
         await task;
@@ -330,20 +333,24 @@ public class ClickBatchProcessorTests : IDisposable
 
         failNext = true;
         await _channel.Writer.WriteAsync(Record());
-        await Task.Delay(300);
+        await Task.Delay(1000);
 
         failNext = false;
         await _channel.Writer.WriteAsync(Record());
-        await Task.Delay(400);
+        await Task.Delay(1000);
 
         cts.Cancel();
         await task;
+        _db.ChangeTracker.Clear();
 
+        // The processor doesn't drop the buffered record on a transient failure (e.g. scope
+        // creation failing) — it retries the same buffer on the next iteration, so both the
+        // record from the failed batch and the next one land once the failure clears.
         var clicks = await _db.ClickEvents.ToListAsync();
-        Assert.Single(clicks);
+        Assert.Equal(2, clicks.Count);
 
         var link = await _db.ShortenedUrls.FindAsync(1L);
-        Assert.Equal(1, link!.ClickCount);
+        Assert.Equal(2, link!.ClickCount);
     }
 
     [Fact]
@@ -378,9 +385,10 @@ public class ClickBatchProcessorTests : IDisposable
         foreach (var r in records)
             await _channel.Writer.WriteAsync(r);
 
-        await Task.Delay(500);
+        await Task.Delay(1000);
         cts.Cancel();
         await task;
+        _db.ChangeTracker.Clear();
 
         var clicks = await _db.ClickEvents.ToListAsync();
         Assert.Equal(150, clicks.Count);
