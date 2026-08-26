@@ -122,13 +122,6 @@
                         <button type="button" class="scheme-toggle" data-scheme-toggle
                                 aria-pressed="false" aria-label="Switch to dark theme" hidden>☾</button>
                     </li>
-                    @if (!authEnabled || User.Identity?.IsAuthenticated == true)
-                    {
-                        <li>
-                            <button type="button" class="btn-sm nav-palette-opener" data-palette-opener
-                                    aria-label="Open command palette (Ctrl+K)">⌘K</button>
-                        </li>
-                    }
                 </ul>
             </nav>
         </div>

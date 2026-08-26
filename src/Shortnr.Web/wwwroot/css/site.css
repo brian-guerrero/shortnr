@@ -1473,6 +1473,26 @@ input[data-select-all]:checked {
   padding: 0 var(--sn-space-1);
 }
 .inline-form.palette-item-form { display: block; }
+/* User-menu entry point into the same palette the nav's ⌘K icon opens
+   (data-palette-opener on both — see command-palette.js's shared click
+   handler). The dropdown's generic button rule (details.dropdown > ul
+   button, above) already gives it the block/left-aligned look every other
+   menu row has; matching that selector's specificity here just pushes the
+   kbd hint to the trailing edge instead of block-stacking under the label. */
+details.dropdown > ul button.menu-quick-settings {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sn-space-3);
+}
+.menu-quick-settings kbd {
+  font-family: var(--sn-font-mono);
+  font-size: var(--sn-text-small);
+  border: var(--sn-border-width) solid var(--sn-line);
+  border-radius: var(--sn-border-radius);
+  padding: 0 var(--sn-space-1);
+  background: var(--sn-surface);
+}
 .nav-palette-opener {
   --sn-btn-lift: var(--sn-shadow-offset-sm);
   --sn-btn-press: 1px;

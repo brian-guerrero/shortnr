@@ -181,6 +181,21 @@
         if (!palette.hidden && e.target.closest('[data-palette-close]')) close();
     });
 
+    // Every trigger — the nav's ⌘K icon and the "Quick settings" entry in
+    // the user menu — shares this one attribute; neither had a listener
+    // before, so clicking them did nothing (only the global Cmd/Ctrl+K
+    // keydown below actually opened the palette). A trigger living inside a
+    // <details class="dropdown"> (the user menu) also needs that dropdown
+    // closed, or it hangs open behind the palette's backdrop.
+    document.addEventListener('click', function (e) {
+        var opener = e.target.closest('[data-palette-opener]');
+        if (!opener) return;
+        e.preventDefault();
+        var menu = opener.closest('details.dropdown');
+        if (menu) menu.removeAttribute('open');
+        open();
+    });
+
     input.addEventListener('input', function () {
         filterItems(input.value);
         highlight(visibleItems()[0] || null);
