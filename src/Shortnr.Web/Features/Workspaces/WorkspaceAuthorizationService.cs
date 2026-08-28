@@ -3,7 +3,7 @@ using Shortnr.Data.Entities;
 
 namespace Shortnr.Web.Features.Workspaces;
 
-public class WorkspaceAuthorizationService(WorkspaceService workspaceService)
+public sealed class WorkspaceAuthorizationService(WorkspaceService workspaceService)
 {
     public async Task<bool> CanCreateLinkAsync(long? workspaceId, long? userId)
     {

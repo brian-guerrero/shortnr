@@ -14,7 +14,7 @@ namespace Shortnr.Web.Features.ShortLinks;
 /// built inline in C#. Used only for the pixel interstitial, which must be a bare
 /// full HTML document with no layout.
 /// </summary>
-public class ViewRenderService(
+public sealed class ViewRenderService(
     IRazorViewEngine viewEngine,
     ITempDataProvider tempDataProvider,
     ILogger<ViewRenderService> logger)

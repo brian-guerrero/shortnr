@@ -10,7 +10,7 @@ namespace Shortnr.Web.Features.Authentication;
 /// Resolves the current authenticated user's database identity.
 /// Registered as a scoped service so it can hold per-request state.
 /// </summary>
-public class UserIdentityService(
+public sealed class UserIdentityService(
     AppDbContext db,
     IConfiguration config,
     IHttpContextAccessor httpContextAccessor,

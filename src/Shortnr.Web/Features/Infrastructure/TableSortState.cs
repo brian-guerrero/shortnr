@@ -7,6 +7,9 @@ namespace Shortnr.Web.Features.Infrastructure;
 /// </summary>
 public class TableSortState
 {
+    private static readonly IReadOnlyDictionary<string, string?> EmptyQuery
+        = new Dictionary<string, string?>();
+
     public required string SortParam { get; init; }
 
     public required string DirParam { get; init; }
@@ -24,8 +27,7 @@ public class TableSortState
     public string? HxInclude { get; init; }
 
     /// <summary>Extra query pairs preserved across a sort, e.g. the clicks-per-page limit.</summary>
-    public IReadOnlyDictionary<string, string?> ExtraQuery { get; init; }
-        = new Dictionary<string, string?>();
+    public IReadOnlyDictionary<string, string?> ExtraQuery { get; init; } = EmptyQuery;
 
     public static TableSortState FromQuery(
         HttpRequest request,
@@ -43,7 +45,7 @@ public class TableSortState
             CurrentSort = request.Query[sortParam].FirstOrDefault() ?? "",
             CurrentDir = request.Query[dirParam].FirstOrDefault() ?? "",
             HxInclude = hxInclude,
-            ExtraQuery = extraQuery ?? new Dictionary<string, string?>(),
+            ExtraQuery = extraQuery ?? EmptyQuery,
         };
 
     /// <summary>Builds the header model for one column, resolving active state and the next direction.</summary>

@@ -14,7 +14,7 @@ namespace Shortnr.Web.Features.Authentication;
 /// <see cref="UserIdentityService"/> treats it as a direct id rather than an
 /// OIDC subject.
 /// </summary>
-public class ApiKeyHandler(
+public sealed class ApiKeyHandler(
     IOptionsMonitor<AuthenticationSchemeOptions> options,
     ILoggerFactory logger,
     UrlEncoder encoder,

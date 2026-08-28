@@ -12,7 +12,7 @@ namespace Shortnr.Web.Features.Insights;
 /// already suggested for a link (pending, accepted or dismissed) is never
 /// re-proposed. Called by <see cref="AiInsightsHostedService"/> on a timer.
 /// </summary>
-public class AiInsightsService(AppDbContext db, IOptions<AiInsightsOptions> options)
+public sealed class AiInsightsService(AppDbContext db, IOptions<AiInsightsOptions> options)
 {
     /// <summary>Returns the number of new suggestion rows created.</summary>
     public async Task<int> RunAnalysisAsync(CancellationToken ct = default)
