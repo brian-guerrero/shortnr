@@ -15,7 +15,7 @@ namespace Shortnr.Web.Features.ShortLinks;
 /// after a restart the snapshot is gone and the delete stays deleted.
 /// </para>
 /// </summary>
-public class BulkLinkUndoService
+public sealed class BulkLinkUndoService
 {
     private static readonly TimeSpan Ttl = TimeSpan.FromMinutes(5);
     private const int MaxSnapshots = 20;

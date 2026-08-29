@@ -167,13 +167,12 @@ public partial class DomainsModel : PageModel, IStatusMessages
             linksToMigrate = linksToMigrate.Where(l => l.WorkspaceId == workspaceId);
         else
             linksToMigrate = linksToMigrate.Where(l => l.OwnerUserId == ownerUserId);
-        var links = await linksToMigrate.ToListAsync();
 
-        foreach (var link in links)
-        {
-            if (!existingCodes.Contains(link.ShortCode))
-                link.DomainId = domain.Id;
-        }
+        if (existingCodes.Count > 0)
+            linksToMigrate = linksToMigrate.Where(l => !existingCodes.Contains(l.ShortCode));
+
+        await linksToMigrate
+            .ExecuteUpdateAsync(s => s.SetProperty(l => l.DomainId, domain.Id));
     }
 
     public async Task<IActionResult> OnPostDelete(long id)

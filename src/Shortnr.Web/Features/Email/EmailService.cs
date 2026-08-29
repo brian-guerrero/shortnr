@@ -4,7 +4,7 @@ using MimeKit;
 
 namespace Shortnr.Web.Features.Email;
 
-public class EmailService(IOptions<SmtpOptions> options, ILogger<EmailService> logger)
+public sealed class EmailService(IOptions<SmtpOptions> options, ILogger<EmailService> logger)
 {
     private readonly SmtpOptions _options = options.Value;
 

@@ -9,7 +9,7 @@ namespace Shortnr.Web.Features.Insights.Llm;
 /// <c>AiInsights:Llm:InputPricePerMillion</c>/<c>OutputPricePerMillion</c> config.
 /// Models not in the table price at $0 unless the config override is set.
 /// </summary>
-public class LlmPricing(IOptions<LlmOptions> options)
+public sealed class LlmPricing(IOptions<LlmOptions> options)
 {
     public decimal EstimateCost(int inputTokens, int outputTokens, string model)
     {

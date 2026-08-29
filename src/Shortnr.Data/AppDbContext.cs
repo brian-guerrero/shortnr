@@ -239,6 +239,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<ClickEvent>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.ShortenedUrlId, e.ClickedAtUtc });
             entity.Property(e => e.IpAddress).HasMaxLength(64);
             entity.Property(e => e.UserAgent).HasMaxLength(512);
             entity.Property(e => e.Referer).HasMaxLength(2048);

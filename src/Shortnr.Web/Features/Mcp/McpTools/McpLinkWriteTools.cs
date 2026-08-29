@@ -565,7 +565,7 @@ public static class McpLinkWriteTools
         if (name.Length == 0)
             return (null, null, null);
 
-        var snippet = await db.PixelSnippets.FirstOrDefaultAsync(p => p.Name.ToLower() == name.ToLower(), ct);
+        var snippet = await db.PixelSnippets.FirstOrDefaultAsync(p => p.Name == name, ct);
         if (snippet is null)
             return (null, null, $"Error: no pixel snippet named '{name}'. Use list_pixel_snippets to see available names.");
 

@@ -13,7 +13,7 @@ namespace Shortnr.Web.Features.Insights.Llm;
 /// input the user typed. Scoped like <see cref="LlmUsageService"/> since it writes through the
 /// request-scoped <see cref="AppDbContext"/>.
 /// </summary>
-public class LlmInsightHistoryService(AppDbContext db)
+public sealed class LlmInsightHistoryService(AppDbContext db)
 {
     public async Task RecordAsync(long? ownerUserId, LlmOperation operation, string inputSummary, LlmInsightResult result, CancellationToken ct = default)
     {

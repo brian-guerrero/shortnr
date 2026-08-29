@@ -8,7 +8,7 @@ namespace Shortnr.Web.Features.Insights;
 /// during startup or tests. Mirrors the Channel-based background processors but
 /// is timer-driven because there is no request path feeding it work.
 /// </summary>
-public class AiInsightsHostedService(
+public sealed class AiInsightsHostedService(
     IServiceScopeFactory scopeFactory,
     IOptions<AiInsightsOptions> options,
     ILogger<AiInsightsHostedService> logger) : BackgroundService

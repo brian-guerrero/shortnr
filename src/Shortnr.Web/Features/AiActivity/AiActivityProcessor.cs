@@ -8,7 +8,7 @@ namespace Shortnr.Web.Features.AiActivity;
 // Drains the queue of AI/MCP activity records written by MCP tools and inserts
 // AiActivityLog rows. Kept off the request path so a tool call's audit entry
 // never delays the response (mirrors ClickBatchProcessor / UserProvisioningProcessor).
-public class AiActivityProcessor : BackgroundService
+public sealed class AiActivityProcessor : BackgroundService
 {
     private readonly Channel<AiActivityRecord> _channel;
     private readonly IServiceScopeFactory _scopeFactory;

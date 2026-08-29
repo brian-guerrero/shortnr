@@ -9,7 +9,7 @@ namespace Shortnr.Web.Features.Domains;
 /// so the file fetch resolves back into the app's own
 /// /.well-known/shortnr-verify.txt endpoint.
 /// </summary>
-public class DomainVerifierService(HttpClient httpClient, ITxtDnsResolver txtDns)
+public sealed class DomainVerifierService(HttpClient httpClient, ITxtDnsResolver txtDns)
 {
     public async Task<bool> VerifyAsync(string hostname, string expectedToken, CancellationToken cancellationToken = default)
     {

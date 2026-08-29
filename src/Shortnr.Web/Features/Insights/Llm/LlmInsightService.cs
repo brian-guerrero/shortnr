@@ -11,7 +11,7 @@ namespace Shortnr.Web.Features.Insights.Llm;
 /// page keeps rendering and the deterministic PRD-006 insights stay visible.
 /// Short-circuits (disabled, unconfigured, over budget) never hit the network.
 /// </summary>
-public class LlmInsightService(
+public sealed class LlmInsightService(
     IChatClient chatClient,
     LlmUsageService usage,
     LlmPricing pricing,
