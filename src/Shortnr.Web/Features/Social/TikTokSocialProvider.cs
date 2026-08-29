@@ -18,6 +18,10 @@ public class TikTokSocialProvider : ISocialPlatformProvider
     public SocialProvider Provider => SocialProvider.TikTok;
     public IReadOnlyList<string> RequiredScopes => ["user.info.basic", "video.list"];
 
+    public bool IsConfigured =>
+        !string.IsNullOrWhiteSpace(_config["Social:TikTok:ClientId"]) &&
+        !string.IsNullOrWhiteSpace(_config["Social:TikTok:ClientSecret"]);
+
     public TikTokSocialProvider(
         IHttpClientFactory httpClientFactory,
         IConfiguration config,

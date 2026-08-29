@@ -17,6 +17,10 @@ public class InstagramSocialProvider : ISocialPlatformProvider
     public SocialProvider Provider => SocialProvider.Instagram;
     public IReadOnlyList<string> RequiredScopes => ["user_profile", "user_media"];
 
+    public bool IsConfigured =>
+        !string.IsNullOrWhiteSpace(_config["Social:Instagram:ClientId"]) &&
+        !string.IsNullOrWhiteSpace(_config["Social:Instagram:ClientSecret"]);
+
     public InstagramSocialProvider(
         IHttpClientFactory httpClientFactory,
         IConfiguration config,

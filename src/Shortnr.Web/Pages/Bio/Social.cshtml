@@ -18,6 +18,7 @@
         {
             var linked = Model.LinkedAccounts.FirstOrDefault(a => a.Provider == provider);
             var isLinked = linked is not null && linked.IsLinked;
+            var isConfigured = Model.IsProviderConfigured(provider);
 
             <div class="social-provider-card" style="border: var(--sn-border-width) solid var(--sn-ink); padding: 1rem; margin-bottom: 1rem; background: var(--sn-surface);">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -26,6 +27,10 @@
                         @if (isLinked)
                         {
                             <span class="badge badge-success">Linked as @linked!.Username</span>
+                        }
+                        else if (!isConfigured)
+                        {
+                            <span class="badge badge-neutral">Not configured</span>
                         }
                         else
                         {
@@ -47,7 +52,7 @@
                                 <button type="submit" class="error btn-sm">Unlink</button>
                             </form>
                         }
-                        else
+                        else if (isConfigured)
                         {
                             <a href="/bio/social?handler=Connect&provider=@provider" class="button">Connect</a>
                         }

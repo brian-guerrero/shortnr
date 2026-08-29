@@ -27,6 +27,9 @@ public class SocialModel : PageModel, IStatusMessages
 
     public IReadOnlyList<SocialAccount> LinkedAccounts { get; private set; } = [];
 
+    public bool IsProviderConfigured(SocialProvider provider) =>
+        _socialService.GetProvider(provider)?.IsConfigured == true;
+
     public SocialModel(SocialAccountService socialService, IUserIdentityService identity, AppDbContext db)
     {
         _socialService = socialService;
@@ -63,7 +66,11 @@ public class SocialModel : PageModel, IStatusMessages
         if (socialProvider is null) return BadRequest("Unknown provider.");
 
         var providerService = _socialService.GetProvider(socialProvider.Value);
-        if (providerService is null) return BadRequest("Provider not configured.");
+        if (providerService is null || !providerService.IsConfigured)
+        {
+            ErrorMessage = $"{socialProvider.Value} isn't configured yet. Ask your admin to set Social:{socialProvider.Value}:ClientId/ClientSecret.";
+            return RedirectToPage();
+        }
 
         var redirectUri = Url.Page("/Bio/Social", "Callback", new { provider = socialProvider.Value }, Request.Scheme)!;
         var state = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{socialProvider.Value}:{Guid.NewGuid():N}"));

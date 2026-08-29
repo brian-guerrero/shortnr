@@ -17,6 +17,10 @@ public class TwitterSocialProvider : ISocialPlatformProvider
     public SocialProvider Provider => SocialProvider.Twitter;
     public IReadOnlyList<string> RequiredScopes => ["tweet.read", "users.read", "offline.access"];
 
+    public bool IsConfigured =>
+        !string.IsNullOrWhiteSpace(_config["Social:Twitter:ClientId"]) &&
+        !string.IsNullOrWhiteSpace(_config["Social:Twitter:ClientSecret"]);
+
     public TwitterSocialProvider(
         IHttpClientFactory httpClientFactory,
         IConfiguration config,

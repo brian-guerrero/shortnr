@@ -15,6 +15,15 @@ public interface ISocialPlatformProvider
     SocialProvider Provider { get; }
 
     /// <summary>
+    /// True when this provider's OAuth client id/secret are configured.
+    /// Callers must check this before offering a Connect flow — the
+    /// authorization URL builders fall back to an empty client id rather
+    /// than throwing, which would otherwise send the user to a broken
+    /// third-party OAuth screen.
+    /// </summary>
+    bool IsConfigured { get; }
+
+    /// <summary>
     /// Fetches the latest posts/clips and follower/subscriber count from the
     /// platform. Returns null on transient failure so callers can fall back
     /// to cached data.

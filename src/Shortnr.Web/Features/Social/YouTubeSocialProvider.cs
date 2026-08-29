@@ -17,6 +17,10 @@ public class YouTubeSocialProvider : ISocialPlatformProvider
     public SocialProvider Provider => SocialProvider.YouTube;
     public IReadOnlyList<string> RequiredScopes => ["https://www.googleapis.com/auth/youtube.readonly"];
 
+    public bool IsConfigured =>
+        !string.IsNullOrWhiteSpace(_config["Social:YouTube:ClientId"]) &&
+        !string.IsNullOrWhiteSpace(_config["Social:YouTube:ClientSecret"]);
+
     public YouTubeSocialProvider(
         IHttpClientFactory httpClientFactory,
         IConfiguration config,
