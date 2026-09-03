@@ -16,17 +16,20 @@ public class WebhookDeliveryService : BackgroundService
     private readonly Channel<WebhookDeliveryRecord> _channel;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly EventBusPublisher _eventBus;
     private readonly ILogger<WebhookDeliveryService> _logger;
 
     public WebhookDeliveryService(
         Channel<WebhookDeliveryRecord> channel,
         IServiceScopeFactory scopeFactory,
         IHttpClientFactory httpClientFactory,
+        EventBusPublisher eventBus,
         ILogger<WebhookDeliveryService> logger)
     {
         _channel = channel;
         _scopeFactory = scopeFactory;
         _httpClientFactory = httpClientFactory;
+        _eventBus = eventBus;
         _logger = logger;
     }
 
@@ -109,6 +112,12 @@ public class WebhookDeliveryService : BackgroundService
                         webhook.LastFailureAtUtc = null;
                         await db.SaveChangesAsync(ct);
                     }
+
+                    // Fan the successful delivery out to the distributed event bus (PRD-018)
+                    // as a webhook.fired event. No-op when EventBus:Provider=InProcess; swallowed
+                    // on broker failure so delivery success is not affected.
+                    await _eventBus.PublishAsync(EventBusRoutingKeys.WebhookFired,
+                        new WebhookFiredData(webhook.Id, record.EventType, webhook.Url, DateTime.UtcNow));
                     return;
                 }
 

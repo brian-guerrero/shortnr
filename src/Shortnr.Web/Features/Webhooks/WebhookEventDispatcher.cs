@@ -9,11 +9,13 @@ public class WebhookEventDispatcher
 {
     private readonly Channel<WebhookDeliveryRecord> _channel;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly EventBusPublisher _eventBus;
 
-    public WebhookEventDispatcher(Channel<WebhookDeliveryRecord> channel, IServiceScopeFactory scopeFactory)
+    public WebhookEventDispatcher(Channel<WebhookDeliveryRecord> channel, IServiceScopeFactory scopeFactory, EventBusPublisher eventBus)
     {
         _channel = channel;
         _scopeFactory = scopeFactory;
+        _eventBus = eventBus;
     }
     public async Task DispatchLinkCreatedAsync(ShortenedUrl link, string scheme, string host)
     {
@@ -111,5 +113,10 @@ public class WebhookEventDispatcher
                 });
             }
         }
+
+        // Fan the event out to the distributed event bus (PRD-018) in addition to the
+        // in-process webhook Channel. No-op when EventBus:Provider=InProcess; swallowed
+        // on broker failure so the request path never crashes.
+        await _eventBus.PublishAsync(eventType, payload);
     }
 }

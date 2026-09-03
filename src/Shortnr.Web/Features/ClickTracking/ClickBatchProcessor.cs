@@ -16,10 +16,11 @@ public class ClickBatchProcessor : BackgroundService
     private readonly GeoIpService _geoIp;
     private readonly Channel<object> _sseChannel;
     private readonly WebhookEventDispatcher _webhookDispatcher;
+    private readonly EventBusPublisher _eventBus;
 
     public ClickBatchProcessor(Channel<ClickRecord> channel, IServiceScopeFactory scopeFactory,
         ILogger<ClickBatchProcessor> logger, GeoIpService geoIp, Channel<object> sseChannel,
-        WebhookEventDispatcher webhookDispatcher)
+        WebhookEventDispatcher webhookDispatcher, EventBusPublisher eventBus)
     {
         _channel = channel;
         _scopeFactory = scopeFactory;
@@ -27,6 +28,7 @@ public class ClickBatchProcessor : BackgroundService
         _geoIp = geoIp;
         _sseChannel = sseChannel;
         _webhookDispatcher = webhookDispatcher;
+        _eventBus = eventBus;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -225,6 +227,15 @@ public class ClickBatchProcessor : BackgroundService
                     batchTime,
                     "https",
                     "shortnr.example.com");
+
+                // Fan each link's click event out to the distributed event bus (PRD-018) in
+                // addition to the in-process webhook Channel. No-op when EventBus:Provider=
+                // InProcess; swallowed on broker failure so the request path never crashes.
+                foreach (var (_, data) in ownerLinkClicks)
+                {
+                    await _eventBus.PublishAsync(WebhookEventTypes.LinkClicked,
+                        new ClickEventData(data.ShortCode, data.LongUrl, data.Domain, data.ClickDelta, data.TotalClicks, batchTime));
+                }
             }
         }
         catch (Exception ex)

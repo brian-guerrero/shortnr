@@ -80,7 +80,8 @@ builder.Services
     .AddEmailFeature(builder.Configuration)
     .AddAiActivityFeature()
     .AddAiInsightsFeature(builder.Configuration)
-    .AddInfrastructureFeature(builder.Configuration);
+    .AddInfrastructureFeature(builder.Configuration)
+    .AddEventBusFeature(builder.Configuration);
 
 // ── Cross-cutting: authentication schemes, policies, rate limiting ──────────
 // These span multiple feature boundaries and are wired at the composition root.
@@ -243,8 +244,21 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
-
 app.MapDefaultEndpoints();
+
+// Dedicated RabbitMQ health endpoint for the distributed event bus (PRD-018 Requirement 5),
+// mapped in every environment (not just Development) so k8s liveness probes can hit it in
+// production. Only exists when the RabbitMQ provider is opted in.
+if (EventBusProviderHelper.ResolveProvider(builder.Configuration) == EventBusProvider.RabbitMQ)
+{
+    app.MapHealthChecks("/health/rabbitmq", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+    {
+        // Only the RabbitMQ check is part of this endpoint; "/health" (Development) still
+        // aggregates it alongside the platform checks.
+        Predicate = registration => registration.Tags.Contains("rabbitmq")
+    });
+}
+
 app.MapRazorPages();
 app.MapAuthenticationEndpoints(app.Configuration);
 
