@@ -122,11 +122,13 @@ public static class McpStreamingTools
                 OwnerUserId = ownerUserId.Value,
                 CreatedAtUtc = DateTime.UtcNow
             });
-            await db.SaveChangesAsync(ct);
             imported.Add(new ImportedLink(code, domainHostname, target, campaign));
 
             Report(progress, processed, rows.Count, $"Imported {imported.Count}/{rows.Count} links.");
         }
+
+        if (imported.Count > 0)
+            await db.SaveChangesAsync(ct);
 
         if (imported.Count > 0)
         {
@@ -179,48 +181,56 @@ public static class McpStreamingTools
         var browsers = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         var countries = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
 
+        var linkIds = links.Select(l => l.Id).ToList();
+
+        Report(progress, 0, links.Count, "Aggregating click events across all links.");
+
+        var baseQuery = db.ClickEvents.Where(e => linkIds.Contains(e.ShortenedUrlId));
+        if (fromValue.Value is not null)
+            baseQuery = baseQuery.Where(e => e.ClickedAtUtc >= fromValue.Value);
+        if (toValue.Value is not null)
+            baseQuery = baseQuery.Where(e => e.ClickedAtUtc < toValue.Value.Value.AddDays(1));
+
+        var perLinkCounts = await baseQuery
+            .GroupBy(e => e.ShortenedUrlId)
+            .Select(g => new { LinkId = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        var countLookup = perLinkCounts.ToDictionary(x => x.LinkId, x => x.Count);
         var processed = 0;
         foreach (var link in links)
         {
-            ct.ThrowIfCancellationRequested();
             processed++;
             Report(progress, processed, links.Count, $"Aggregating clicks for {link.ShortCode} ({processed}/{links.Count} links).");
 
-            var clickQuery = db.ClickEvents.Where(e => e.ShortenedUrlId == link.Id);
-            if (fromValue.Value is not null)
-                clickQuery = clickQuery.Where(e => e.ClickedAtUtc >= fromValue.Value);
-            if (toValue.Value is not null)
-                clickQuery = clickQuery.Where(e => e.ClickedAtUtc < toValue.Value.Value.AddDays(1));
-
-            var count = await clickQuery.CountAsync(ct);
-            if (count == 0)
+            if (!countLookup.TryGetValue(link.Id, out var count) || count == 0)
                 continue;
 
             totals.TotalClicks += count;
             totals.LinksWithClicks++;
             perLink.Add(new LinkAggregate(link.ShortCode, link.Domain, count));
+        }
 
-            var dayRows = await clickQuery
-                .GroupBy(e => e.ClickedAtUtc.Date)
-                .Select(g => new { Date = g.Key, Count = g.Count() })
+        var dayRows = await baseQuery
+            .GroupBy(e => e.ClickedAtUtc.Date)
+            .Select(g => new { Date = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+        foreach (var row in dayRows)
+            timeline[row.Date] = row.Count;
+
+        foreach (var (key, target) in new[]
+        {
+            (baseQuery.Where(e => e.Referer != "").GroupBy(e => e.Referer), referrers),
+            (baseQuery.Where(e => e.DeviceFamily != null && e.DeviceFamily != "").GroupBy(e => e.DeviceFamily!), devices),
+            (baseQuery.Where(e => e.Browser != null && e.Browser != "").GroupBy(e => e.Browser!), browsers),
+            (baseQuery.Where(e => e.CountryName != null).GroupBy(e => e.CountryName!), countries)
+        })
+        {
+            var rows = await key
+                .Select(g => new { Name = g.Key, Count = g.Count() })
                 .ToListAsync(ct);
-            foreach (var row in dayRows)
-                timeline[row.Date] = timeline.GetValueOrDefault(row.Date) + row.Count;
-
-            foreach (var (key, target) in new[]
-            {
-                (clickQuery.Where(e => e.Referer != "").GroupBy(e => e.Referer), referrers),
-                (clickQuery.Where(e => e.DeviceFamily != null && e.DeviceFamily != "").GroupBy(e => e.DeviceFamily!), devices),
-                (clickQuery.Where(e => e.Browser != null && e.Browser != "").GroupBy(e => e.Browser!), browsers),
-                (clickQuery.Where(e => e.CountryName != null).GroupBy(e => e.CountryName!), countries)
-            })
-            {
-                var rows = await key
-                    .Select(g => new { Name = g.Key, Count = g.Count() })
-                    .ToListAsync(ct);
-                foreach (var row in rows)
-                    target[row.Name] = target.GetValueOrDefault(row.Name) + row.Count;
-            }
+            foreach (var row in rows)
+                target[row.Name] = row.Count;
         }
 
         return McpToolGuard.Json(new AggregateResult(

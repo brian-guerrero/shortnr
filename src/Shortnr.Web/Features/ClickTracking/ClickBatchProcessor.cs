@@ -212,10 +212,15 @@ public class ClickBatchProcessor : BackgroundService
                 .Select(id => id!.Value)
                 .Distinct();
 
+            var linkOwnerLookup = links.ToDictionary(
+                l => l.Id,
+                l => (Personal: l.OwnerUserId, Workspace: l.Workspace?.OwnerUserId));
+
             foreach (var ownerId in ownerIds)
             {
                 var ownerLinkClicks = linkClicks
-                    .Where(kvp => links.Any(l => l.Id == kvp.Key && (l.OwnerUserId == ownerId || l.Workspace?.OwnerUserId == ownerId)))
+                    .Where(kvp => linkOwnerLookup.TryGetValue(kvp.Key, out var owner)
+                        && (owner.Personal == ownerId || owner.Workspace == ownerId))
                     .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
                 await _webhookDispatcher.DispatchLinkClickedBatchAsync(

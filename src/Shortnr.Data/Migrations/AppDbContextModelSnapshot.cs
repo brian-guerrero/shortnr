@@ -466,7 +466,7 @@ namespace Shortnr.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ShortenedUrlId");
+                    b.HasIndex("ShortenedUrlId", "ClickedAtUtc");
 
                     b.ToTable("ClickEvents");
                 });

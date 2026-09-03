@@ -5,7 +5,7 @@ using Shortnr.Data.Entities;
 
 namespace Shortnr.Web.Features.Webhooks;
 
-public class WebhookEventDispatcher
+public sealed class WebhookEventDispatcher
 {
     private readonly Channel<WebhookDeliveryRecord> _channel;
     private readonly IServiceScopeFactory _scopeFactory;

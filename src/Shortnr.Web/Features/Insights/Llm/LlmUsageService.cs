@@ -11,7 +11,7 @@ namespace Shortnr.Web.Features.Insights.Llm;
 /// optional <c>AiInsights:Llm:MonthlyBudget</c> is enforced from that month-to-date
 /// spend. Scoped because it writes through the request-scoped <see cref="AppDbContext"/>.
 /// </summary>
-public class LlmUsageService(
+public sealed class LlmUsageService(
     AppDbContext db,
     IOptions<LlmOptions> options,
     LlmPricing pricing,

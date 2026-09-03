@@ -890,9 +890,9 @@ public async Task<IActionResult> OnPostEdit(long code, string url, string slug, 
         if (!string.IsNullOrWhiteSpace(search))
         {
             var lower = search.ToLowerInvariant();
-            linkQ = linkQ.Where(l => l.LongUrl.ToLower().Contains(lower)
-                || l.ShortCode.ToLower().Contains(lower)
-                || (l.Domain != null && l.Domain.Hostname.ToLower().Contains(lower)));
+            linkQ = linkQ.Where(l => EF.Functions.Like(l.LongUrl, $"%{lower}%")
+                || EF.Functions.Like(l.ShortCode, $"%{lower}%")
+                || (l.Domain != null && EF.Functions.Like(l.Domain.Hostname, $"%{lower}%")));
         }
         if (!string.IsNullOrEmpty(domain))
         {

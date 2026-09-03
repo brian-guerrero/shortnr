@@ -3,7 +3,7 @@ using System.IO.Compression;
 
 namespace Shortnr.Web.Features.GeoIp;
 
-public class GeoIpUpdateService : BackgroundService
+public sealed class GeoIpUpdateService : BackgroundService
 {
     private static readonly string DownloadUrl =
         "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key={0}&suffix=tar.gz";
