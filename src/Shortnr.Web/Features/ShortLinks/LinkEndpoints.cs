@@ -187,9 +187,18 @@ public static class ApiEndpoints
             }
 
             var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
-            var ip = !string.IsNullOrWhiteSpace(forwardedFor)
-                ? forwardedFor.Split(',')[0].Trim()
-                : context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            string? ip;
+            if (string.IsNullOrWhiteSpace(forwardedFor))
+            {
+                ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            }
+            else
+            {
+                var span = forwardedFor.AsSpan();
+                var comma = span.IndexOf(',');
+                if (comma >= 0) span = span[..comma];
+                ip = span.Trim().ToString();
+            }
 
             var userAgent = context.Request.Headers["User-Agent"].FirstOrDefault() ?? "";
 
