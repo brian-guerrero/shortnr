@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -733,13 +734,14 @@ public async Task<IActionResult> OnPostEdit(long code, string url, string slug, 
             .Select(g => new { Day = g.Key, Count = g.LongCount() })
             .ToListAsync();
         var timeline = new List<TimelinePoint>(30);
+        var countsByDay = rawDays.ToDictionary(d => d.Day, d => d.Count);
         for (var i = 0; i < 30; i++)
         {
             var day = since.AddDays(i);
             timeline.Add(new TimelinePoint
             {
-                Label = day.ToString("MMM d"),
-                Count = rawDays.FirstOrDefault(d => d.Day == day)?.Count ?? 0
+                Label = day.ToString("MMM d", CultureInfo.InvariantCulture),
+                Count = countsByDay.GetValueOrDefault(day)
             });
         }
 
@@ -857,13 +859,21 @@ public async Task<IActionResult> OnPostEdit(long code, string url, string slug, 
         return referer.Length > 40 ? referer[..40] : referer;
     }
 
-    private static string DeviceClass(string deviceFamily) => deviceFamily.ToLowerInvariant() switch
+    private static readonly Dictionary<string, string> DeviceClasses = new(StringComparer.OrdinalIgnoreCase)
     {
-        "mobile" or "smartphone" or "phone" or "ios" or "android" => "Mobile",
-        "tablet" or "ipad" => "Tablet",
-        "unknown" or "" => "Unknown",
-        _ => "Desktop"
+        ["mobile"] = "Mobile",
+        ["smartphone"] = "Mobile",
+        ["phone"] = "Mobile",
+        ["ios"] = "Mobile",
+        ["android"] = "Mobile",
+        ["tablet"] = "Tablet",
+        ["ipad"] = "Tablet",
+        ["unknown"] = "Unknown",
+        [""] = "Unknown"
     };
+
+    private static string DeviceClass(string deviceFamily) =>
+        DeviceClasses.TryGetValue(deviceFamily, out var cls) ? cls : "Desktop";
 
     private static NameCountStat? FromUtm(string param, string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : new NameCountStat { Name = $"{param}: {value}", Count = 1 };
