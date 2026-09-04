@@ -5,7 +5,7 @@ using MaxMind.GeoIP2.Responses;
 
 namespace Shortnr.Web.Features.GeoIp;
 
-public class GeoIpService : IDisposable
+public sealed class GeoIpService : IDisposable
 {
     private DatabaseReader? _reader;
     private readonly string _databasePath;
