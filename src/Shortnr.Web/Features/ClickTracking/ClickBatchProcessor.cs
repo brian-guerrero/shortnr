@@ -8,7 +8,7 @@ using Shortnr.Data.Entities;
 
 namespace Shortnr.Web.Features.ClickTracking;
 
-public class ClickBatchProcessor : BackgroundService
+public sealed class ClickBatchProcessor : BackgroundService
 {
     private readonly Channel<ClickRecord> _channel;
     private readonly IServiceScopeFactory _scopeFactory;
@@ -184,6 +184,7 @@ public class ClickBatchProcessor : BackgroundService
         {
             var linkIds = clickCountDelta.Keys.ToList();
             var links = await db.ShortenedUrls
+                .AsNoTracking()
                 .Where(l => linkIds.Contains(l.Id))
                 .Include(l => l.Domain)
                 .Include(l => l.Workspace)

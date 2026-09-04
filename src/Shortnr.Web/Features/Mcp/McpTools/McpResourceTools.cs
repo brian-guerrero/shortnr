@@ -63,9 +63,6 @@ public static class McpResourceTools
 
         var total = await query.CountAsync(ct);
         var links = await query
-            .Include(l => l.Domain)
-            .Include(l => l.Tags)
-            .Include(l => l.Workspace)
             .OrderByDescending(l => l.CreatedAtUtc)
             .Skip(pageOffset)
             .Take(pageSize)
@@ -234,6 +231,7 @@ public static class McpResourceTools
             return McpToolGuard.JsonError($"This resource requires the '{ApiKeyScopes.McpRead}' scope.");
 
         var memberships = await db.WorkspaceMembers
+            .AsNoTracking()
             .Where(m => m.UserId == ownerUserId && m.JoinedAtUtc != null)
             .Select(m => new { m.WorkspaceId, m.Role, Workspace = m.Workspace! })
             .OrderBy(x => x.Workspace.Name)
