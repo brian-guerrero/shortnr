@@ -22,6 +22,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Workspace> Workspaces => Set<Workspace>();
     public DbSet<WorkspaceMember> WorkspaceMembers => Set<WorkspaceMember>();
     public DbSet<Webhook> Webhooks => Set<Webhook>();
+    public DbSet<SocialAccount> SocialAccounts => Set<SocialAccount>();
 
     public override int SaveChanges()
     {
@@ -81,6 +82,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                     e.CreatedAtUtc = now;
                     break;
                 case Webhook e when e.CreatedAtUtc == default:
+                    e.CreatedAtUtc = now;
+                    break;
+                case SocialAccount e when e.CreatedAtUtc == default:
                     e.CreatedAtUtc = now;
                     break;
             }
@@ -379,6 +383,22 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.Url).IsRequired().HasMaxLength(2048);
             entity.Property(e => e.Secret).IsRequired().HasMaxLength(128);
             entity.Property(e => e.EventTypes).IsRequired().HasMaxLength(512);
+
+            entity.HasOne(e => e.Owner)
+                .WithMany()
+                .HasForeignKey(e => e.OwnerUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SocialAccount>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Platform).IsRequired().HasMaxLength(32);
+            entity.Property(e => e.PlatformAccountId).IsRequired().HasMaxLength(128);
+            entity.Property(e => e.DisplayName).IsRequired().HasMaxLength(256);
+            entity.Property(e => e.AccessTokenEncrypted).IsRequired();
+            entity.Property(e => e.RefreshTokenEncrypted);
+            entity.HasIndex(e => new { e.OwnerUserId, e.Platform, e.PlatformAccountId }).IsUnique();
 
             entity.HasOne(e => e.Owner)
                 .WithMany()

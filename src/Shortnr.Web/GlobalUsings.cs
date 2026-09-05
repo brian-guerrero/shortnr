@@ -18,3 +18,4 @@ global using Shortnr.Web.Features.Insights;
 global using Shortnr.Web.Features.Insights.Llm;
 global using Shortnr.Web.Features.Infrastructure;
 global using Shortnr.Web.Features.Theming;
+global using Shortnr.Web.Features.Social;
