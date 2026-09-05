@@ -34,6 +34,18 @@ public class ShortenedUrlMetadata
     public string? IosDeepLink { get; set; }
     public string? AndroidDeepLink { get; set; }
 
+    /// <summary>
+    /// Cached Open Graph metadata fetched from the destination URL on first
+    /// share (PRD-021). Bio sub-links that are shared directly unfurl with their
+    /// own title/description/image instead of a generic redirect card. The
+    /// triple is refetched when <see cref="OgFetchedAtUtc"/> falls outside the
+    /// configured <c>Social:UnfurlCacheHours</c> window.
+    /// </summary>
+    public string? OgTitle { get; set; }
+    public string? OgDescription { get; set; }
+    public string? OgImage { get; set; }
+    public DateTime? OgFetchedAtUtc { get; set; }
+
     public ShortenedUrl? ShortenedUrl { get; set; }
     public PixelSnippet? PixelSnippet { get; set; }
 }
