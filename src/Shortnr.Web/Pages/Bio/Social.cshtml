@@ -1,0 +1,58 @@
+@page
+@model Shortnr.Web.Pages.Bio.SocialModel
+@{
+    Layout = Model.IsHtmxRequest ? null : "_Layout";
+}
+
+<section class="stack-md">
+    <h2>Linked Social Accounts</h2>
+
+    @if (Model.Accounts.Count == 0)
+    {
+        <p>No social accounts linked yet. Connect your accounts to display them on your bio page.</p>
+    }
+    else
+    {
+        <table>
+            <thead>
+                <tr>
+                    <th>Platform</th>
+                    <th>Account</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var account in Model.Accounts)
+                {
+                    <tr>
+                        <td>@account.Platform</td>
+                        <td>@account.DisplayName</td>
+                        <td>
+                            @switch (account.HealthStatus)
+                            {
+                                case Shortnr.Web.Features.Social.TokenHealthStatus.Healthy:
+                                    <span class="status-success">@account.HealthDescription</span>
+                                    break;
+                                case Shortnr.Web.Features.Social.TokenHealthStatus.ExpiringSoon:
+                                    <span class="status-info">@account.HealthDescription</span>
+                                    break;
+                                case Shortnr.Web.Features.Social.TokenHealthStatus.RefreshFailed:
+                                    <span class="status-error">@account.HealthDescription</span>
+                                    break;
+                            }
+                        </td>
+                        <td>
+                            <form method="post" asp-page-handler="Remove" class="inline-form"
+                                  hx-post="?handler=Remove&id=@account.Id"
+                                  hx-confirm="Unlink this @account.Platform account?">
+                                <input type="hidden" name="id" value="@account.Id" />
+                                <button type="submit" class="btn btn-sm">Unlink</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>
