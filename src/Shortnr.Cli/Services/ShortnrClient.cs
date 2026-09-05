@@ -16,7 +16,7 @@ public interface IShortnrClient
     Task<Result> DeleteLinkAsync(string shortCode, CancellationToken ct);
 }
 
-public class ShortnrClient : IShortnrClient
+public sealed class ShortnrClient : IShortnrClient
 {
     private readonly HttpClient _http;
 

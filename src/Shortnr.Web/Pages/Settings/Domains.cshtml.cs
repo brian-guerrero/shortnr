@@ -151,9 +151,7 @@ public partial class DomainsModel : PageModel, IStatusMessages
             othersQuery = othersQuery.Where(d => d.WorkspaceId == workspaceId);
         else
             othersQuery = othersQuery.Where(d => d.OwnerUserId == ownerUserId);
-        var others = await othersQuery.ToListAsync();
-        foreach (var other in others)
-            other.IsDefault = false;
+        await othersQuery.ExecuteUpdateAsync(s => s.SetProperty(d => d.IsDefault, false));
 
         domain.IsDefault = true;
 

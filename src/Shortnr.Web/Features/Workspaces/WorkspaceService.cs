@@ -6,7 +6,7 @@ using Shortnr.Data.Entities;
 
 namespace Shortnr.Web.Features.Workspaces;
 
-public partial class WorkspaceService(AppDbContext db, EmailService emailService, IHttpContextAccessor httpContextAccessor)
+public sealed partial class WorkspaceService(AppDbContext db, EmailService emailService, IHttpContextAccessor httpContextAccessor)
 {
     [GeneratedRegex(@"^[a-zA-Z0-9][a-zA-Z0-9_-]{2,31}$")]
     private static partial Regex SlugPattern();

@@ -72,8 +72,6 @@ public static class McpLinkReadTools
             return $"Error: invalid sort '{sort}'. Expected 'created', 'clicks_desc' or 'clicks_asc'.";
 
         var links = await ordered
-            .Include(l => l.Domain)
-            .Include(l => l.Tags)
             .Take(limit)
             .Select(l => new LinkListItem(
                 l.ShortCode,
@@ -215,6 +213,7 @@ public static class McpLinkReadTools
 
         var ids = top.Select(t => t.ShortenedUrlId).ToList();
         var links = await db.ShortenedUrls
+            .AsNoTracking()
             .Where(l => ids.Contains(l.Id))
             .Include(l => l.Domain)
             .Include(l => l.Metadata)
