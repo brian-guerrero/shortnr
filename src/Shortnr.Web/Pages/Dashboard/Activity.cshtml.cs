@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
 
@@ -10,32 +9,20 @@ namespace Shortnr.Web.Pages;
 /// AI assistants performed through the MCP API on behalf of the current owner.
 /// Mirrors the Dashboard page's access-control and owner-scoping conventions.
 /// </summary>
-public class ActivityModel : PageModel
+public class ActivityModel(AppDbContext db, UserIdentityService identity)
+    : AuthorizedPageModel(identity)
 {
-    private readonly AppDbContext _db;
-    private readonly UserIdentityService _identity;
-
-    public ActivityModel(AppDbContext db, UserIdentityService identity)
-    {
-        _db = db;
-        _identity = identity;
-    }
-
     public List<AiActivityRow> Activity { get; set; } = [];
 
     public async Task<IActionResult> OnGet()
     {
-        if (_identity.IsAuthEnabled && User.Identity?.IsAuthenticated != true)
-        {
-            if (Request.Headers["HX-Request"].Count > 0)
-                return Unauthorized();
+        var gate = EnforceAccess();
+        if (gate is not null)
+            return gate;
 
-            return RedirectToPage("/Index");
-        }
+        var ownerUserId = await ResolveOwnerUserIdAsync();
 
-        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
-
-        if (Request.Headers["HX-Request"].Count > 0)
+        if (IsHtmxRequest)
         {
             return Partial("Shared/_AiActivity", await LoadActivityAsync(ownerUserId));
         }
@@ -46,7 +33,7 @@ public class ActivityModel : PageModel
 
     private async Task<List<AiActivityRow>> LoadActivityAsync(long? ownerUserId)
     {
-        var query = _db.AiActivityLogs.AsNoTracking().AsQueryable();
+        var query = db.AiActivityLogs.AsNoTracking().AsQueryable();
         if (ownerUserId is not null)
             query = query.Where(a => a.OwnerUserId == ownerUserId);
 

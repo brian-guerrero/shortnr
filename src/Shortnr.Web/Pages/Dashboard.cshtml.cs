@@ -1,62 +1,45 @@
+using System.Linq.Expressions;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
 using Shortnr.Data.Entities;
 
 namespace Shortnr.Web.Pages;
 
-public class DashboardModel : PageModel
+public class DashboardModel(AppDbContext db, UserIdentityService identity)
+    : AuthorizedPageModel(identity)
 {
-    private readonly AppDbContext _db;
-    private readonly UserIdentityService _identity;
-
-    public DashboardModel(AppDbContext db, UserIdentityService identity)
-    {
-        _db = db;
-        _identity = identity;
-    }
-
     public List<string> DomainOptions { get; set; } = [];
     public ActiveWorkspaceContext? Workspace { get; set; }
 
     public async Task<IActionResult> OnGet(string? search, string? linkSort, string? linkDir, string? clickSort, string? clickDir, int? clickLimit, string? domain)
     {
-        if (_identity.IsAuthEnabled && User.Identity?.IsAuthenticated != true)
-        {
-            if (Request.Headers["HX-Request"].Count > 0)
-                return Unauthorized();
+        var gate = EnforceAccess();
+        if (gate is not null)
+            return gate;
 
-            return RedirectToPage("/Index");
-        }
-
-        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
-        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+        var ownerUserId = await ResolveOwnerUserIdAsync();
+        Workspace = await ResolveWorkspaceAsync();
         var workspaceId = Workspace?.WorkspaceId;
 
-        if (Request.Headers["HX-Request"].Count > 0)
+        if (IsHtmxRequest)
         {
             var target = Request.Headers["HX-Target"].FirstOrDefault();
 
             if (target == "recent-clicks")
             {
-                var query = ApplyClickScoping(_db.ClickEvents.AsQueryable(), ownerUserId, workspaceId);
+                var query = db.ClickEvents.ScopeToOwner(ownerUserId, workspaceId);
 
-                query = (clickSort, clickDir == "desc") switch
+                var clickDesc = clickDir == "desc";
+                query = clickSort switch
                 {
-                    ("shortCode", false) => query.OrderBy(e => e.ShortenedUrl.ShortCode),
-                    ("shortCode", true) => query.OrderByDescending(e => e.ShortenedUrl.ShortCode),
-                    ("countryCode", false) => query.OrderBy(e => e.CountryCode ?? ""),
-                    ("countryCode", true) => query.OrderByDescending(e => e.CountryCode ?? ""),
-                    ("browser", false) => query.OrderBy(e => e.Browser ?? ""),
-                    ("browser", true) => query.OrderByDescending(e => e.Browser ?? ""),
-                    ("operatingSystem", false) => query.OrderBy(e => e.OperatingSystem ?? ""),
-                    ("operatingSystem", true) => query.OrderByDescending(e => e.OperatingSystem ?? ""),
-                    ("referer", false) => query.OrderBy(e => e.Referer),
-                    ("referer", true) => query.OrderByDescending(e => e.Referer),
-                    ("clickedAtUtc", false) => query.OrderBy(e => e.ClickedAtUtc),
-                    ("clickedAtUtc", true) => query.OrderByDescending(e => e.ClickedAtUtc),
+                    "shortCode" => Sort(query, e => e.ShortenedUrl.ShortCode, clickDesc),
+                    "countryCode" => Sort(query, e => e.CountryCode ?? "", clickDesc),
+                    "browser" => Sort(query, e => e.Browser ?? "", clickDesc),
+                    "operatingSystem" => Sort(query, e => e.OperatingSystem ?? "", clickDesc),
+                    "referer" => Sort(query, e => e.Referer, clickDesc),
+                    "clickedAtUtc" => Sort(query, e => e.ClickedAtUtc, clickDesc),
                     _ => query.OrderByDescending(e => e.ClickedAtUtc)
                 };
 
@@ -66,7 +49,7 @@ public class DashboardModel : PageModel
 
             if (target == "search-results")
             {
-                var linkQ = ApplyScoping(_db.ShortenedUrls.AsQueryable(), ownerUserId, workspaceId);
+                var linkQ = db.ShortenedUrls.ScopeToOwner(ownerUserId, workspaceId);
 
                 if (!string.IsNullOrWhiteSpace(search))
                 {
@@ -75,24 +58,16 @@ public class DashboardModel : PageModel
                         || l.ShortCode.ToLower().Contains(lower)
                         || (l.Domain != null && l.Domain.Hostname.ToLower().Contains(lower)));
                 }
-                if (!string.IsNullOrEmpty(domain))
+                linkQ = linkQ.FilterByDomain(domain);
+                var linkDesc = linkDir == "desc";
+                linkQ = linkSort switch
                 {
-                    linkQ = domain == "default"
-                        ? linkQ.Where(l => l.DomainId == null)
-                        : linkQ.Where(l => l.Domain != null && l.Domain.Hostname == domain);
-                }
-                linkQ = (linkSort, linkDir == "desc") switch
-                {
-                    ("shortCode", false) => linkQ.OrderBy(l => l.ShortCode),
-                    ("shortCode", true) => linkQ.OrderByDescending(l => l.ShortCode),
-                    ("domain", false) => linkQ.OrderBy(l => l.Domain == null ? "" : l.Domain.Hostname).ThenBy(l => l.ShortCode),
-                    ("domain", true) => linkQ.OrderByDescending(l => l.Domain == null ? "" : l.Domain.Hostname).ThenBy(l => l.ShortCode),
-                    ("longUrl", false) => linkQ.OrderBy(l => l.LongUrl),
-                    ("longUrl", true) => linkQ.OrderByDescending(l => l.LongUrl),
-                    ("clickCount", false) => linkQ.OrderBy(l => l.ClickCount),
-                    ("clickCount", true) => linkQ.OrderByDescending(l => l.ClickCount),
-                    ("createdAtUtc", false) => linkQ.OrderBy(l => l.CreatedAtUtc),
-                    ("createdAtUtc", true) => linkQ.OrderByDescending(l => l.CreatedAtUtc),
+                    "shortCode" => Sort(linkQ, l => l.ShortCode, linkDesc),
+                    // Equal hostnames stay in short-code order.
+                    "domain" => Sort(linkQ, l => l.Domain == null ? "" : l.Domain.Hostname, linkDesc).ThenBy(l => l.ShortCode),
+                    "longUrl" => Sort(linkQ, l => l.LongUrl, linkDesc),
+                    "clickCount" => Sort(linkQ, l => l.ClickCount, linkDesc),
+                    "createdAtUtc" => Sort(linkQ, l => l.CreatedAtUtc, linkDesc),
                     _ => linkQ.OrderByDescending(l => l.CreatedAtUtc)
                 };
 
@@ -104,7 +79,7 @@ public class DashboardModel : PageModel
                     .ToListAsync());
             }
 
-            var linkQuery = ApplyScoping(_db.ShortenedUrls.AsQueryable(), ownerUserId, workspaceId);
+            var linkQuery = db.ShortenedUrls.ScopeToOwner(ownerUserId, workspaceId);
 
             // Aggregate in SQL rather than pulling the whole link table into memory —
             // this branch runs on every dashboard poll.
@@ -116,7 +91,7 @@ public class DashboardModel : PageModel
                 .Select(l => new { shortCode = l.ShortCode, clickCount = l.ClickCount })
                 .ToListAsync();
 
-            var clickQuery = ApplyClickScoping(_db.ClickEvents.AsQueryable(), ownerUserId, workspaceId);
+            var clickQuery = db.ClickEvents.ScopeToOwner(ownerUserId, workspaceId);
 
             var geoRows = await clickQuery
                 .Where(e => e.CountryCode != null && e.CountryCode != "")
@@ -158,8 +133,9 @@ public class DashboardModel : PageModel
                 countryBreakdown = countryChartData
             });
 
-            var recentClicksQuery = ApplyClickScoping(_db.ClickEvents.AsQueryable(), ownerUserId, workspaceId);
-            recentClicksQuery = recentClicksQuery.OrderByDescending(e => e.ClickedAtUtc);
+            var recentClicksQuery = db.ClickEvents
+                .ScopeToOwner(ownerUserId, workspaceId)
+                .OrderByDescending(e => e.ClickedAtUtc);
             var clickLimitValue = clickLimit is >= 5 and <= 20 ? clickLimit.Value : 5;
             var recentClicks = await LoadRecentClicksAsync(recentClicksQuery, clickLimitValue);
 
@@ -178,32 +154,21 @@ public class DashboardModel : PageModel
         return Page();
     }
 
-    private static IQueryable<ShortenedUrl> ApplyScoping(IQueryable<ShortenedUrl> query, long? ownerUserId, long? workspaceId)
-    {
-        if (workspaceId is not null)
-            return query.Where(l => l.WorkspaceId == workspaceId);
-        if (ownerUserId is not null)
-            return query.Where(l => l.OwnerUserId == ownerUserId);
-        return query;
-    }
-
-    private static IQueryable<ClickEvent> ApplyClickScoping(IQueryable<ClickEvent> query, long? ownerUserId, long? workspaceId)
-    {
-        if (workspaceId is not null)
-            return query.Where(e => e.ShortenedUrl.WorkspaceId == workspaceId);
-        if (ownerUserId is not null)
-            return query.Where(e => e.ShortenedUrl.OwnerUserId == ownerUserId);
-        return query;
-    }
+    /// <summary>
+    /// Generic so the key stays strongly typed — an <c>Expression&lt;Func&lt;T, object&gt;&gt;</c>
+    /// would box the key and change the emitted ORDER BY.
+    /// </summary>
+    private static IOrderedQueryable<T> Sort<T, TKey>(IQueryable<T> query, Expression<Func<T, TKey>> key, bool descending) =>
+        descending ? query.OrderByDescending(key) : query.OrderBy(key);
 
     private async Task<List<string>> LoadDomainOptionsAsync()
     {
-        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
-        var query = _db.Domains.AsQueryable();
-        if (ownerUserId is not null)
-            query = query.Where(d => d.OwnerUserId == ownerUserId);
-
-        var hostnames = await query.OrderBy(d => d.Hostname).Select(d => d.Hostname).ToListAsync();
+        var ownerUserId = await ResolveOwnerUserIdAsync();
+        var hostnames = await db.Domains
+            .ScopeToOwner(ownerUserId, workspaceId: null)
+            .OrderBy(d => d.Hostname)
+            .Select(d => d.Hostname)
+            .ToListAsync();
         var options = new List<string>(hostnames.Count + 1) { "default" };
         options.AddRange(hostnames);
         return options;

@@ -23,6 +23,7 @@ public static class McpLinkWriteTools
         RequestContext<CallToolRequestParams> context,
         AppDbContext db,
         UserIdentityService identity,
+        ShortLinkService links,
         Channel<AiActivityRecord> activity,
         [Description("The destination URL (http or https)")] string url,
         [Description("Optional vanity slug: 1-64 chars, letters/digits/'-'/'_', starting with a letter or digit")] string? custom_slug = null,
@@ -34,17 +35,16 @@ public static class McpLinkWriteTools
         if (!McpToolGuard.HasScope(context, ApiKeyScopes.McpWrite)) return McpToolGuard.WriteScopeError;
 
         var target = url.Trim();
-        if (!Uri.TryCreate(target, UriKind.Absolute, out var uri) || (uri.Scheme != "http" && uri.Scheme != "https"))
-            return "Error: url must be an absolute http(s) URL.";
 
+        // "default" selects the bare instance host; anything else must be a
+        // verified domain this account owns.
         long? domainId = null;
         if (!string.IsNullOrWhiteSpace(domain))
         {
             var hostname = domain.Trim().ToLowerInvariant();
             if (hostname != "default")
             {
-                var resolved = await db.Domains.FirstOrDefaultAsync(
-                    d => d.Hostname == hostname && d.OwnerUserId == ownerUserId && d.IsVerified, ct);
+                var resolved = await links.ResolveVerifiedDomainAsync(hostname, ownerUserId, ct);
                 if (resolved is null)
                     return $"Error: '{hostname}' is not a verified domain owned by this account.";
                 domainId = resolved.Id;
@@ -52,44 +52,28 @@ public static class McpLinkWriteTools
         }
         else
         {
-            domainId = await db.Domains
-                .Where(d => d.OwnerUserId == ownerUserId && d.IsVerified && d.IsDefault)
-                .Select(d => (long?)d.Id)
-                .FirstOrDefaultAsync(ct);
+            domainId = (await links.ResolveDefaultDomainAsync(ownerUserId, ct))?.Id;
         }
 
-        string shortCode;
-        var slug = custom_slug?.Trim() ?? "";
-        if (slug.Length > 0)
-        {
-            if (!ShortLinkCodes.IsValidSlug(slug))
-                return "Error: custom_slug must be 1-64 chars: letters, digits, '-' or '_', starting with a letter or digit.";
-            if (await db.ShortenedUrls.AnyAsync(l => l.DomainId == domainId && l.ShortCode == slug, ct))
-                return $"Error: the short code '{slug}' is already in use on this domain.";
-            shortCode = slug;
-        }
-        else
-        {
-            shortCode = await ShortLinkCodes.GenerateUniqueCodeAsync(
-                code => db.ShortenedUrls.AnyAsync(l => l.DomainId == domainId && l.ShortCode == code, ct));
-        }
+        var outcome = await links.CreateAsync(
+            new NewLinkRequest(target, custom_slug, domainId, ownerUserId, WorkspaceId: null), ct);
 
-        var link = new ShortenedUrl
-        {
-            LongUrl = target,
-            ShortCode = shortCode,
-            DomainId = domainId,
-            OwnerUserId = ownerUserId.Value,
-            CreatedAtUtc = DateTime.UtcNow
-        };
-        db.ShortenedUrls.Add(link);
-        await db.SaveChangesAsync(ct);
+        if (outcome is not CreateLinkOutcome.Created created)
+            return outcome switch
+            {
+                CreateLinkOutcome.InvalidUrl => "Error: url must be an absolute http(s) URL.",
+                CreateLinkOutcome.InvalidSlug => "Error: custom_slug must be 1-64 chars: letters, digits, '-' or '_', starting with a letter or digit.",
+                CreateLinkOutcome.SlugTaken taken => $"Error: the short code '{taken.Slug}' is already in use on this domain.",
+                _ => "Error: could not create the link."
+            };
+
+        var link = created.Link;
 
         McpToolGuard.LogActivity(activity, ownerUserId.Value, McpToolGuard.ResolveApiKeyId(context),
             "create_short_link", nameof(ShortenedUrl), link.Id,
-            $"Created short link '{shortCode}' pointing to {target}");
+            $"Created short link '{link.ShortCode}' pointing to {target}");
 
-        return McpToolGuard.Json(new LinkResult(shortCode, link.Domain?.Hostname, target, 0));
+        return McpToolGuard.Json(new LinkResult(link.ShortCode, link.Domain?.Hostname, target, 0));
     }
 
     [McpServerTool(Name = "update_link", Title = "Update a short link")]
@@ -206,6 +190,7 @@ public static class McpLinkWriteTools
         RequestContext<CallToolRequestParams> context,
         AppDbContext db,
         UserIdentityService identity,
+        ShortLinkService links,
         Channel<AiActivityRecord> activity,
         [Description("The short code of the link to delete")] string short_code,
         [Description("Explicit confirmation: this permanently removes the link and cannot be undone")] bool? confirmed = null,
@@ -231,8 +216,7 @@ public static class McpLinkWriteTools
             return "Deletion cancelled.";
 
         var deletedCode = link.ShortCode;
-        db.ShortenedUrls.Remove(link);
-        await db.SaveChangesAsync(ct);
+        await links.DeleteAsync(link, ct);
 
         McpToolGuard.LogActivity(activity, ownerUserId.Value, McpToolGuard.ResolveApiKeyId(context),
             "delete_link", nameof(ShortenedUrl), link.Id,

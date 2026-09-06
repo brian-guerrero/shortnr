@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Shortnr.Data;
@@ -14,29 +13,16 @@ namespace Shortnr.Web.Pages;
 /// accept/reject actions. Returns 404 when the feature is disabled; mirrors the
 /// Dashboard/Activity access-control conventions.
 /// </summary>
-public class InsightsModel : PageModel
+public class InsightsModel(AppDbContext db, UserIdentityService identity, IConfiguration config,
+    IOptions<AiInsightsOptions> options) : AuthorizedPageModel(identity)
 {
-    private readonly AppDbContext _db;
-    private readonly UserIdentityService _identity;
-    private readonly IConfiguration _config;
-    private readonly AiInsightsOptions _options;
-
-    public InsightsModel(AppDbContext db, UserIdentityService identity, IConfiguration config,
-        IOptions<AiInsightsOptions> options)
-    {
-        _db = db;
-        _identity = identity;
-        _config = config;
-        _options = options.Value;
-    }
+    private readonly AiInsightsOptions _options = options.Value;
 
     public List<InsightSuggestionRow> Suggestions { get; set; } = [];
-    public string? StatusMessage { get; set; }
-    public string? ErrorMessage { get; set; }
     public int AnalysisIntervalHours => _options.AnalysisIntervalHours;
     public int MinClicksForAnalysis => _options.MinClicksForAnalysis;
 
-    private bool IsEnabled => _config.GetValue<bool>("AiInsights:Enabled", defaultValue: false);
+    private bool IsEnabled => config.GetValue<bool>("AiInsights:Enabled", defaultValue: false);
 
     public async Task<IActionResult> OnGet()
     {
@@ -66,7 +52,7 @@ public class InsightsModel : PageModel
         if (gate is not null)
             return gate;
 
-        var insightsService = new AiInsightsService(_db, Options.Create(_options));
+        var insightsService = new AiInsightsService(db, Options.Create(_options));
         var created = await insightsService.RunAnalysisAsync();
 
         return await ListPartialAsync(status: created == 0
@@ -88,12 +74,12 @@ public class InsightsModel : PageModel
             return await ListPartialAsync(error: "Suggestion has already been reviewed.");
 
         var tagName = suggestion.SuggestedTag;
-        var alreadyApplied = await _db.ShortenedUrlTags
+        var alreadyApplied = await db.ShortenedUrlTags
             .AnyAsync(t => t.ShortenedUrlId == suggestion.ShortenedUrlId && t.Name == tagName);
 
         if (!alreadyApplied)
         {
-            _db.ShortenedUrlTags.Add(new ShortenedUrlTag
+            db.ShortenedUrlTags.Add(new ShortenedUrlTag
             {
                 ShortenedUrlId = suggestion.ShortenedUrlId,
                 Name = tagName,
@@ -102,7 +88,7 @@ public class InsightsModel : PageModel
         }
 
         suggestion.Status = TagSuggestionStatus.Accepted;
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
 
         return await ListPartialAsync(status: $"Tag '{tagName}' applied to the link.");
     }
@@ -122,39 +108,24 @@ public class InsightsModel : PageModel
 
         var tagName = suggestion.SuggestedTag;
         suggestion.Status = TagSuggestionStatus.Dismissed;
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
 
         return await ListPartialAsync(status: $"Tag '{tagName}' dismissed.");
     }
 
-    private IActionResult? EnforceAccess()
-    {
-        if (!IsEnabled)
-            return NotFound();
-
-        if (_identity.IsAuthEnabled && User.Identity?.IsAuthenticated != true)
-            return Request.Headers["HX-Request"].Count > 0
-                ? Unauthorized()
-                : RedirectToPage("/Index");
-
-        return null;
-    }
+    protected override IActionResult? EnforceAccess() =>
+        !IsEnabled ? NotFound() : base.EnforceAccess();
 
     private async Task<List<InsightSuggestionRow>> LoadSuggestionsAsync()
     {
-        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
-        var workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(User);
+        var workspace = await identity.ResolveActiveWorkspaceContextAsync(User);
         var workspaceId = workspace?.WorkspaceId;
 
-        var query = _db.TagSuggestions
+        var query = db.TagSuggestions
             .AsNoTracking()
             .Where(s => s.Status == TagSuggestionStatus.Pending)
-            .AsQueryable();
-
-        if (workspaceId is not null)
-            query = query.Where(s => s.ShortenedUrl.WorkspaceId == workspaceId);
-        else if (ownerUserId is not null)
-            query = query.Where(s => s.ShortenedUrl.OwnerUserId == ownerUserId);
+            .ScopeToOwner(ownerUserId, workspaceId);
 
         return await query
             .OrderByDescending(s => s.CreatedAtUtc)
@@ -175,17 +146,13 @@ public class InsightsModel : PageModel
 
     private async Task<TagSuggestion?> FindScopedSuggestionAsync(long id)
     {
-        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
-        var workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(User);
+        var workspace = await identity.ResolveActiveWorkspaceContextAsync(User);
         var workspaceId = workspace?.WorkspaceId;
 
-        var query = _db.TagSuggestions.AsQueryable();
-        if (workspaceId is not null)
-            query = query.Where(s => s.ShortenedUrl.WorkspaceId == workspaceId);
-        else if (ownerUserId is not null)
-            query = query.Where(s => s.ShortenedUrl.OwnerUserId == ownerUserId);
-
-        return await query.FirstOrDefaultAsync(s => s.Id == id);
+        return await db.TagSuggestions
+            .ScopeToOwner(ownerUserId, workspaceId)
+            .FirstOrDefaultAsync(s => s.Id == id);
     }
 
     private async Task<IActionResult> ListPartialAsync(string? status = null, string? error = null)

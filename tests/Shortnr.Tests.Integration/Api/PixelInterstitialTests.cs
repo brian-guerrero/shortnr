@@ -12,27 +12,23 @@ namespace Shortnr.Tests.Integration.Api;
 /// JS-redirects to the destination, while links without a pixel keep the direct
 /// 302 fast path unchanged.
 /// </summary>
-public class PixelInterstitialTests : IAsyncLifetime
+public class PixelInterstitialTests : IntegrationTestBase
 {
-    private readonly ShortnrWebAppFactory _factory = new(authEnabled: false);
+    protected override bool AuthEnabled => false;
 
-    public Task InitializeAsync()
+    public override async Task InitializeAsync()
     {
-        using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        db.ClickEvents.RemoveRange(db.ClickEvents);
-        db.ShortenedUrls.RemoveRange(db.ShortenedUrls);
-        db.Domains.RemoveRange(db.Domains);
-        db.Users.RemoveRange(db.Users);
-        return db.SaveChangesAsync();
-    }
+        await base.InitializeAsync();
 
-    public Task DisposeAsync() => _factory.DisposeAsync().AsTask();
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await db.SaveChangesAsync();
+    }
 
     [Fact]
     public async Task Redirect_NoPixel_IsDirect302()
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.ShortenedUrls.Add(new ShortenedUrl
         {
@@ -42,7 +38,7 @@ public class PixelInterstitialTests : IAsyncLifetime
         });
         await db.SaveChangesAsync();
 
-        var response = await _factory.CreateClientNoRedirect().GetAsync("/plain");
+        var response = await Factory.CreateClientNoRedirect().GetAsync("/plain");
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.Equal("https://example.com/plain", response.Headers.Location?.ToString());
@@ -53,7 +49,7 @@ public class PixelInterstitialTests : IAsyncLifetime
     {
         await SeedPixelLinkAsync("meta", 1, "555123456");
 
-        var response = await _factory.CreateClientNoRedirect().GetAsync("/meta");
+        var response = await Factory.CreateClientNoRedirect().GetAsync("/meta");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
@@ -67,7 +63,7 @@ public class PixelInterstitialTests : IAsyncLifetime
     {
         await SeedPixelLinkAsync("google", 2, "AW-111222333");
 
-        var response = await _factory.CreateClientNoRedirect().GetAsync("/google");
+        var response = await Factory.CreateClientNoRedirect().GetAsync("/google");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
@@ -81,7 +77,7 @@ public class PixelInterstitialTests : IAsyncLifetime
         const string rawSnippet = "<script>console.log('custom pixel');</script>";
         await SeedPixelLinkAsync("custom", 3, rawSnippet);
 
-        var response = await _factory.CreateClientNoRedirect().GetAsync("/custom");
+        var response = await Factory.CreateClientNoRedirect().GetAsync("/custom");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
@@ -93,7 +89,7 @@ public class PixelInterstitialTests : IAsyncLifetime
     {
         await SeedPixelLinkAsync("no-id", 1, null);
 
-        var response = await _factory.CreateClientNoRedirect().GetAsync("/no-id");
+        var response = await Factory.CreateClientNoRedirect().GetAsync("/no-id");
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.Equal("https://example.com/no-id-dest", response.Headers.Location?.ToString());
@@ -101,7 +97,7 @@ public class PixelInterstitialTests : IAsyncLifetime
 
     private async Task SeedPixelLinkAsync(string shortCode, long pixelSnippetId, string? pixelId)
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.ShortenedUrls.Add(new ShortenedUrl
         {

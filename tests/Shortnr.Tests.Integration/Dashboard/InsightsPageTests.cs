@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
 using Shortnr.Data.Entities;
@@ -13,9 +12,6 @@ namespace Shortnr.Tests.Integration.Dashboard;
 /// </summary>
 public class InsightsPageTests : IAsyncLifetime
 {
-    private static readonly Regex AntiforgeryTokenRegex = new(
-        @"name=""__RequestVerificationToken""[^>]*value=""([^""]+)""",
-        RegexOptions.Compiled);
 
     private readonly ShortnrWebAppFactory _disabled = new(authEnabled: false, aiInsightsEnabled: false);
     private readonly ShortnrWebAppFactory _enabled = new(authEnabled: true, aiInsightsEnabled: true);
@@ -91,23 +87,11 @@ public class InsightsPageTests : IAsyncLifetime
         return _enabled.CreateClientNoRedirect();
     }
 
-    private static async Task<string> GetAntiforgeryTokenAsync(HttpClient client)
-    {
-        var page = await client.GetAsync("/insights");
-        var html = await page.Content.ReadAsStringAsync();
-        var match = AntiforgeryTokenRegex.Match(html);
-        Assert.True(match.Success, "Antiforgery token not found in insights page.");
-        return match.Groups[1].Value;
-    }
+    private static Task<string> GetAntiforgeryTokenAsync(HttpClient client) =>
+        TestForms.GetAntiforgeryTokenAsync(client, "/insights");
 
-    private static async Task<HttpResponseMessage> PostFormAsync(HttpClient client, string path, string token, params (string Name, string Value)[] fields)
-    {
-        var pairs = fields
-            .Select(f => new KeyValuePair<string, string>(f.Name, f.Value))
-            .ToList();
-        pairs.Add(new KeyValuePair<string, string>("__RequestVerificationToken", token));
-        return await client.PostAsync(path, new FormUrlEncodedContent(pairs));
-    }
+    private static Task<HttpResponseMessage> PostFormAsync(HttpClient client, string path, string token, params (string Name, string Value)[] fields) =>
+        TestForms.PostFormAsync(client, path, token, fields);
 
     // -------------------------------------------------------------------------
     // Feature gate

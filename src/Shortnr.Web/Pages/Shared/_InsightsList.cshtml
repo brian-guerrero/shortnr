@@ -1,16 +1,5 @@
 @model Shortnr.Web.Pages.InsightsModel
-@if (Model.ErrorMessage is not null)
-{
-    <mark class="banner status-error">
-        <strong>@Model.ErrorMessage</strong>
-    </mark>
-}
-@if (Model.StatusMessage is not null)
-{
-    <mark class="banner status-success">
-        <strong>@Model.StatusMessage</strong>
-    </mark>
-}
+<partial name="Shared/_StatusBanner" model="Model" />
 @if (Model.Suggestions.Count == 0)
 {
     <article class="ai-activity">

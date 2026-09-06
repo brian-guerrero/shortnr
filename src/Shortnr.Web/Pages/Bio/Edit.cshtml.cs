@@ -1,30 +1,16 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
 using Shortnr.Data.Entities;
 
 namespace Shortnr.Web.Pages.Bio;
 
-public class EditModel : PageModel
+public class EditModel(AppDbContext db, UserIdentityService identity, ShortenRateLimiter shortenLimiter,
+    ShortLinkService links) : AuthorizedPageModel(identity)
 {
-    private readonly AppDbContext _db;
-    private readonly UserIdentityService _identity;
-    private readonly ShortenRateLimiter _shortenLimiter;
-
     public BioPage? BioPage { get; set; }
     public List<ShortenedUrl> OwnerLinks { get; set; } = [];
-    public string? StatusMessage { get; set; }
-    public string? ErrorMessage { get; set; }
-    public bool IsHtmxRequest { get; set; }
     public ActiveWorkspaceContext? Workspace { get; set; }
-
-    public EditModel(AppDbContext db, UserIdentityService identity, ShortenRateLimiter shortenLimiter)
-    {
-        _db = db;
-        _identity = identity;
-        _shortenLimiter = shortenLimiter;
-    }
 
     public async Task<IActionResult> OnGet()
     {
@@ -32,8 +18,7 @@ public class EditModel : PageModel
         if (gate is not null)
             return gate;
 
-        IsHtmxRequest = Request.Headers["HX-Request"].Count > 0;
-        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+        Workspace = await identity.ResolveActiveWorkspaceContextAsync(User);
         await LoadEditorAsync();
         return Page();
     }
@@ -44,27 +29,27 @@ public class EditModel : PageModel
         if (gate is not null)
             return gate;
 
-        if (!await _shortenLimiter.TryAcquireAsync(HttpContext))
+        if (!await shortenLimiter.TryAcquireAsync(HttpContext))
             return new StatusCodeResult(StatusCodes.Status429TooManyRequests);
 
-        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(User);
         if (ownerUserId is null)
             return await EditorPartialAsync(error: "A bio page requires a signed-in account. Try again in a moment.");
 
-        if (await _db.BioPages.AnyAsync(b => b.OwnerUserId == ownerUserId))
+        if (await db.BioPages.AnyAsync(b => b.OwnerUserId == ownerUserId))
             return await EditorPartialAsync(error: "You already have a bio page.");
 
         var slug = (Request.Form["slug"].FirstOrDefault() ?? "").Trim();
         if (!ShortLinkCodes.IsValidSlug(slug))
             return await EditorPartialAsync(error: "Bio page code must be 1–64 characters: letters, digits, '-' and '_', starting with a letter or digit.");
 
-        if (await _db.BioPages.AnyAsync(b => b.Slug == slug))
+        if (await db.BioPages.AnyAsync(b => b.Slug == slug))
             return await EditorPartialAsync(error: $"The bio page code '{slug}' is already taken.");
 
         var displayName = (Request.Form["displayName"].FirstOrDefault() ?? "").Trim();
         var theme = NormaliseTheme(Request.Form["theme"].FirstOrDefault());
 
-        _db.BioPages.Add(new BioPage
+        db.BioPages.Add(new BioPage
         {
             OwnerUserId = ownerUserId.Value,
             Slug = slug,
@@ -74,7 +59,7 @@ public class EditModel : PageModel
             Theme = theme,
             CreatedAtUtc = DateTime.UtcNow
         });
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
 
         await LoadEditorAsync();
         StatusMessage = $"Bio page created at /bio/{slug}.";
@@ -96,7 +81,7 @@ public class EditModel : PageModel
         bioPage.AvatarUrl = CleanUrl(Request.Form["avatarUrl"].FirstOrDefault());
         bioPage.BioText = (Request.Form["bioText"].FirstOrDefault() ?? "").Trim();
         bioPage.Theme = NormaliseTheme(Request.Form["theme"].FirstOrDefault());
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
 
         await LoadEditorAsync();
         StatusMessage = "Bio page updated.";
@@ -113,9 +98,9 @@ public class EditModel : PageModel
         if (bioPage is null)
             return await EditorPartialAsync(error: "Create your bio page first.");
 
-        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+        Workspace = await identity.ResolveActiveWorkspaceContextAsync(User);
         var workspaceId = Workspace?.WorkspaceId;
-        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(User);
         var linkId = long.TryParse(Request.Form["linkId"].FirstOrDefault(), out var id) ? id : (long?)null;
         var newUrl = (Request.Form["newUrl"].FirstOrDefault() ?? "").Trim();
         var newSlug = (Request.Form["newSlug"].FirstOrDefault() ?? "").Trim();
@@ -123,12 +108,10 @@ public class EditModel : PageModel
         ShortenedUrl? link;
         if (linkId is not null)
         {
-            var linkQuery = _db.ShortenedUrls.Where(l => l.Id == linkId.Value);
-            if (workspaceId is not null)
-                linkQuery = linkQuery.Where(l => l.OwnerUserId == ownerUserId || l.WorkspaceId == workspaceId);
-            else
-                linkQuery = linkQuery.Where(l => l.OwnerUserId == ownerUserId);
-            link = await linkQuery.FirstOrDefaultAsync();
+            link = await db.ShortenedUrls
+                .Where(l => l.Id == linkId.Value)
+                .ScopeToOwnerIncludingWorkspace(ownerUserId, workspaceId)
+                .FirstOrDefaultAsync();
             if (link is null)
                 return await EditorPartialAsync(error: "Link not found.");
         }
@@ -147,16 +130,16 @@ public class EditModel : PageModel
         if (link is null)
             return await EditorPartialAsync(error: "Could not add that link.");
 
-        if (await _db.BioPageLinks.AnyAsync(b => b.BioPageId == bioPage.Id && b.ShortenedUrlId == link.Id))
+        if (await db.BioPageLinks.AnyAsync(b => b.BioPageId == bioPage.Id && b.ShortenedUrlId == link.Id))
             return await EditorPartialAsync(error: "That link is already on your bio page.");
 
-        var maxOrder = await _db.BioPageLinks
+        var maxOrder = await db.BioPageLinks
             .Where(b => b.BioPageId == bioPage.Id)
             .Select(b => (int?)b.SortOrder)
             .MaxAsync() ?? -1;
 
         var title = (Request.Form["title"].FirstOrDefault() ?? "").Trim();
-        _db.BioPageLinks.Add(new BioPageLink
+        db.BioPageLinks.Add(new BioPageLink
         {
             BioPageId = bioPage.Id,
             ShortenedUrlId = link.Id,
@@ -164,7 +147,7 @@ public class EditModel : PageModel
             SortOrder = maxOrder + 1,
             IsVisible = true
         });
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
 
         await LoadEditorAsync();
         StatusMessage = "Link added to your bio page.";
@@ -181,12 +164,12 @@ public class EditModel : PageModel
         if (bioPage is null)
             return await EditorPartialAsync(error: "Create your bio page first.");
 
-        var entry = await _db.BioPageLinks.FirstOrDefaultAsync(b => b.Id == id && b.BioPageId == bioPage.Id);
+        var entry = await db.BioPageLinks.FirstOrDefaultAsync(b => b.Id == id && b.BioPageId == bioPage.Id);
         if (entry is null)
             return await EditorPartialAsync(error: "Link not found on your bio page.");
 
-        _db.BioPageLinks.Remove(entry);
-        await _db.SaveChangesAsync();
+        db.BioPageLinks.Remove(entry);
+        await db.SaveChangesAsync();
 
         await LoadEditorAsync();
         StatusMessage = "Link removed from your bio page.";
@@ -203,7 +186,7 @@ public class EditModel : PageModel
         if (bioPage is null)
             return await EditorPartialAsync(error: "Create your bio page first.");
 
-        var entries = await _db.BioPageLinks
+        var entries = await db.BioPageLinks
             .Where(b => b.BioPageId == bioPage.Id)
             .OrderBy(b => b.SortOrder)
             .ThenBy(b => b.Id)
@@ -219,7 +202,7 @@ public class EditModel : PageModel
 
         (entries[index].SortOrder, entries[swapIndex].SortOrder) =
             (entries[swapIndex].SortOrder, entries[index].SortOrder);
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
 
         await LoadEditorAsync();
         return Partial("Shared/_BioEditor", this);
@@ -235,12 +218,12 @@ public class EditModel : PageModel
         if (bioPage is null)
             return await EditorPartialAsync(error: "Create your bio page first.");
 
-        var entry = await _db.BioPageLinks.FirstOrDefaultAsync(b => b.Id == id && b.BioPageId == bioPage.Id);
+        var entry = await db.BioPageLinks.FirstOrDefaultAsync(b => b.Id == id && b.BioPageId == bioPage.Id);
         if (entry is null)
             return await EditorPartialAsync(error: "Link not found on your bio page.");
 
         entry.IsVisible = !entry.IsVisible;
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
 
         await LoadEditorAsync();
         return Partial("Shared/_BioEditor", this);
@@ -256,13 +239,13 @@ public class EditModel : PageModel
 
     private async Task LoadEditorAsync()
     {
-        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
-        Workspace = await _identity.ResolveActiveWorkspaceContextAsync(User);
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(User);
+        Workspace = await identity.ResolveActiveWorkspaceContextAsync(User);
         var workspaceId = Workspace?.WorkspaceId;
 
         BioPage = ownerUserId is null
             ? null
-            : await _db.BioPages
+            : await db.BioPages
                 .Include(b => b.Links)
                 .ThenInclude(l => l.ShortenedUrl)
                 .ThenInclude(s => s!.Domain)
@@ -282,22 +265,21 @@ public class EditModel : PageModel
         }
         else
         {
-            var linkQuery = _db.ShortenedUrls.Include(l => l.Domain).AsQueryable();
-            if (workspaceId is not null)
-                linkQuery = linkQuery.Where(l => l.OwnerUserId == ownerUserId || l.WorkspaceId == workspaceId);
-            else
-                linkQuery = linkQuery.Where(l => l.OwnerUserId == ownerUserId);
-
-            OwnerLinks = await linkQuery.OrderByDescending(l => l.CreatedAtUtc).Take(100).ToListAsync();
+            OwnerLinks = await db.ShortenedUrls
+                .Include(l => l.Domain)
+                .ScopeToOwnerIncludingWorkspace(ownerUserId, workspaceId)
+                .OrderByDescending(l => l.CreatedAtUtc)
+                .Take(100)
+                .ToListAsync();
         }
     }
 
     private async Task<BioPage?> FindOwnedPageAsync()
     {
-        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(User);
         return ownerUserId is null
             ? null
-            : await _db.BioPages.FirstOrDefaultAsync(b => b.OwnerUserId == ownerUserId);
+            : await db.BioPages.FirstOrDefaultAsync(b => b.OwnerUserId == ownerUserId);
     }
 
     /// <summary>
@@ -307,48 +289,19 @@ public class EditModel : PageModel
     /// </summary>
     private async Task<(ShortenedUrl? Link, string? Error)> CreateLinkAsync(string url, string slug, long? ownerUserId, long? workspaceId)
     {
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)
-            || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
-            return (null, "Enter a valid http(s) URL.");
+        // Bio links always live on the instance host, so no domain is resolved here.
+        var outcome = await links.CreateAsync(new NewLinkRequest(url, slug, DomainId: null, ownerUserId, workspaceId));
 
-        string code;
-        if (slug.Length > 0)
+        return outcome switch
         {
-            if (!ShortLinkCodes.IsValidSlug(slug))
-                return (null, "Custom code must be 1–64 characters: letters, digits, '-' and '_', starting with a letter or digit.");
-            if (await _db.ShortenedUrls.AnyAsync(l => l.DomainId == null && l.ShortCode == slug))
-                return (null, $"The custom code '{slug}' is already taken.");
-            code = slug;
-        }
-        else
-        {
-            code = await ShortLinkCodes.GenerateUniqueCodeAsync(c =>
-                _db.ShortenedUrls.AnyAsync(l => l.DomainId == null && l.ShortCode == c));
-        }
-
-        var link = new ShortenedUrl
-        {
-            LongUrl = url,
-            ShortCode = code,
-            DomainId = null,
-            OwnerUserId = workspaceId is not null ? null : ownerUserId,
-            WorkspaceId = workspaceId,
-            CreatedAtUtc = DateTime.UtcNow
+            CreateLinkOutcome.Created created => (created.Link, null),
+            CreateLinkOutcome.InvalidUrl => (null, "Enter a valid http(s) URL."),
+            CreateLinkOutcome.InvalidSlug => (null, "Custom code must be 1–64 characters: letters, digits, '-' and '_', starting with a letter or digit."),
+            CreateLinkOutcome.SlugTaken taken => (null, $"The custom code '{taken.Slug}' is already taken."),
+            _ => (null, "Could not add that link.")
         };
-        _db.ShortenedUrls.Add(link);
-        await _db.SaveChangesAsync();
-        return (link, null);
     }
 
-    private IActionResult? EnforceAccess()
-    {
-        if (_identity.IsAuthEnabled && User.Identity?.IsAuthenticated != true)
-            return Request.Headers["HX-Request"].Count > 0
-                ? Unauthorized()
-                : RedirectToPage("/Index");
-
-        return null;
-    }
 
     private static string NormaliseTheme(string? theme) =>
         BioThemes.IsValid(theme) ? theme! : "default";

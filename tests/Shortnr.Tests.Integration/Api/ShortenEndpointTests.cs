@@ -1,6 +1,5 @@
 using System.Net;
 using System.Text;
-using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
 using Shortnr.Data.Entities;
@@ -13,24 +12,16 @@ namespace Shortnr.Tests.Integration.Api;
 /// the index page, plus that the default-domain filtered unique index rejects
 /// duplicate slugs at the database level.
 /// </summary>
-public class ShortenEndpointTests : IAsyncLifetime
+public class ShortenEndpointTests : IntegrationTestBase
 {
-    private static readonly Regex AntiforgeryTokenRegex = new(
-        @"name=""__RequestVerificationToken""[^>]*value=""([^""]+)""",
-        RegexOptions.Compiled);
+    protected override bool AuthEnabled => false;
 
-    private readonly ShortnrWebAppFactory _factory = new(authEnabled: false);
-
-    public Task InitializeAsync()
+    public override async Task InitializeAsync()
     {
-        using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        db.ClickEvents.RemoveRange(db.ClickEvents);
-        db.ShortenedUrls.RemoveRange(db.ShortenedUrls);
-        db.Domains.RemoveRange(db.Domains);
-        db.Users.RemoveRange(db.Users);
-        db.SaveChanges();
+        await base.InitializeAsync();
 
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.ShortenedUrls.Add(new ShortenedUrl
         {
             LongUrl = "https://example.com/duplicate",
@@ -38,16 +29,12 @@ public class ShortenEndpointTests : IAsyncLifetime
             CreatedAtUtc = DateTime.UtcNow
         });
         db.SaveChanges();
-
-        return Task.CompletedTask;
     }
-
-    public Task DisposeAsync() => _factory.DisposeAsync().AsTask();
 
     [Fact]
     public async Task PostWithCustomSlug_CreatesLinkWithThatCode()
     {
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         var token = await GetAntiforgeryTokenAsync(client);
 
         var response = await PostFormAsync(client, token,
@@ -58,7 +45,7 @@ public class ShortenEndpointTests : IAsyncLifetime
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("my-link", body);
 
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var link = await db.ShortenedUrls.SingleAsync(l => l.ShortCode == "my-link");
         Assert.Equal("https://example.com/vanity", link.LongUrl);
@@ -68,7 +55,7 @@ public class ShortenEndpointTests : IAsyncLifetime
     [Fact]
     public async Task PostWithCollidingSlug_ReturnsErrorAndCreatesNothing()
     {
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         var token = await GetAntiforgeryTokenAsync(client);
 
         var response = await PostFormAsync(client, token,
@@ -79,7 +66,7 @@ public class ShortenEndpointTests : IAsyncLifetime
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("already taken", body);
 
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         Assert.Equal(1, await db.ShortenedUrls.CountAsync(l => l.ShortCode == "dup123"));
     }
@@ -87,7 +74,7 @@ public class ShortenEndpointTests : IAsyncLifetime
     [Fact]
     public async Task PostWithInvalidSlug_ReturnsValidationError()
     {
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         var token = await GetAntiforgeryTokenAsync(client);
 
         var response = await PostFormAsync(client, token,
@@ -102,7 +89,7 @@ public class ShortenEndpointTests : IAsyncLifetime
     [Fact]
     public async Task PostWithoutSlug_GeneratesSixCharacterCode()
     {
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         var token = await GetAntiforgeryTokenAsync(client);
 
         var response = await PostFormAsync(client, token,
@@ -110,7 +97,7 @@ public class ShortenEndpointTests : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var link = await db.ShortenedUrls.SingleAsync(l => l.LongUrl == "https://example.com/random");
         Assert.Equal(6, link.ShortCode.Length);
@@ -119,7 +106,7 @@ public class ShortenEndpointTests : IAsyncLifetime
     [Fact]
     public async Task PostSameUrlWithoutSlug_ReturnsExistingCode()
     {
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         var token = await GetAntiforgeryTokenAsync(client);
 
         var response = await PostFormAsync(client, token,
@@ -129,7 +116,7 @@ public class ShortenEndpointTests : IAsyncLifetime
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("dup123", body);
 
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         Assert.Equal(1, await db.ShortenedUrls.CountAsync(l => l.ShortCode == "dup123"));
     }
@@ -137,7 +124,7 @@ public class ShortenEndpointTests : IAsyncLifetime
     [Fact]
     public async Task DefaultDomainDuplicateSlug_IsRejectedByDatabaseIndex()
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         await db.ShortenedUrls.AddAsync(new ShortenedUrl
@@ -160,21 +147,9 @@ public class ShortenEndpointTests : IAsyncLifetime
         });
     }
 
-    private static async Task<string> GetAntiforgeryTokenAsync(HttpClient client)
-    {
-        var page = await client.GetAsync("/");
-        var html = await page.Content.ReadAsStringAsync();
-        var match = AntiforgeryTokenRegex.Match(html);
-        Assert.True(match.Success, "Antiforgery token not found in index page.");
-        return match.Groups[1].Value;
-    }
+    private static Task<string> GetAntiforgeryTokenAsync(HttpClient client) =>
+        TestForms.GetAntiforgeryTokenAsync(client, "/");
 
-    private static async Task<HttpResponseMessage> PostFormAsync(HttpClient client, string token, params (string Name, string Value)[] fields)
-    {
-        var pairs = fields
-            .Select(f => new KeyValuePair<string, string>(f.Name, f.Value))
-            .ToList();
-        pairs.Add(new KeyValuePair<string, string>("__RequestVerificationToken", token));
-        return await client.PostAsync("/", new FormUrlEncodedContent(pairs));
-    }
+    private static Task<HttpResponseMessage> PostFormAsync(HttpClient client, string token, params (string Name, string Value)[] fields) =>
+        TestForms.PostFormAsync(client, "/", token, fields);
 }

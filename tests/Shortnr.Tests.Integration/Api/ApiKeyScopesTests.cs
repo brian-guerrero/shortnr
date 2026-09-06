@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Shortnr.Data;
@@ -15,24 +14,15 @@ namespace Shortnr.Tests.Integration.Api;
 /// from the REST API, legacy keys with empty scopes keeping full access, and the
 /// scope picker on the settings page.
 /// </summary>
-public class ApiKeyScopesTests : IAsyncLifetime
+public class ApiKeyScopesTests : IntegrationTestBase
 {
     private const string TestKey = "snr_testkey1234567890abcdef1234567890";
-    private static readonly Regex AntiforgeryTokenRegex = new(
-        @"name=""__RequestVerificationToken""[^>]*value=""([^""]+)""",
-        RegexOptions.Compiled);
-
-    private readonly ShortnrWebAppFactory _factory = new(authEnabled: true);
-
-    public Task InitializeAsync() => Task.CompletedTask;
-
-    public Task DisposeAsync() => _factory.DisposeAsync().AsTask();
 
     [Fact]
     public async Task ReadOnlyKey_CanListButCannotCreate()
     {
         await SeedUserAndKeyAsync("read-only", TestKey, ApiKeyScopes.LinksRead);
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestKey);
 
         var list = await client.GetAsync("/api/v1/links");
@@ -46,7 +36,7 @@ public class ApiKeyScopesTests : IAsyncLifetime
     public async Task WriteOnlyKey_CanCreateButCannotList()
     {
         await SeedUserAndKeyAsync("write-only", TestKey, ApiKeyScopes.LinksWrite);
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestKey);
 
         var create = await client.PostAsJsonAsync("/api/v1/links", new CreateLinkRequest { Url = "https://example.com/x" });
@@ -60,7 +50,7 @@ public class ApiKeyScopesTests : IAsyncLifetime
     public async Task McpOnlyKey_CannotUseRestApi()
     {
         await SeedUserAndKeyAsync("mcp-only", TestKey, ApiKeyScopes.McpRead);
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestKey);
 
         var list = await client.GetAsync("/api/v1/links");
@@ -74,7 +64,7 @@ public class ApiKeyScopesTests : IAsyncLifetime
     public async Task LegacyKeyWithEmptyScopes_HasFullAccess()
     {
         await SeedUserAndKeyAsync("legacy", TestKey, "");
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestKey);
 
         var create = await client.PostAsJsonAsync("/api/v1/links", new CreateLinkRequest { Url = "https://example.com/legacy" });
@@ -87,8 +77,8 @@ public class ApiKeyScopesTests : IAsyncLifetime
     [Fact]
     public async Task SettingsPage_StoresSelectedScopes()
     {
-        _factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
-        using (var scope = _factory.Services.CreateScope())
+        Factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
+        using (var scope = Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             db.Users.Add(new User
@@ -101,7 +91,7 @@ public class ApiKeyScopesTests : IAsyncLifetime
             await db.SaveChangesAsync();
         }
 
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         var token = await GetAntiforgeryTokenAsync(client);
 
         var response = await PostFormAsync(client, "/settings/api-keys", token,
@@ -111,7 +101,7 @@ public class ApiKeyScopesTests : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        using var scope2 = _factory.Services.CreateScope();
+        using var scope2 = Factory.Services.CreateScope();
         var db2 = scope2.ServiceProvider.GetRequiredService<AppDbContext>();
         var key = await db2.ApiKeys.SingleAsync(k => k.Label == "mcp key");
         Assert.Equal("mcp:read mcp:write", key.Scopes);
@@ -120,8 +110,8 @@ public class ApiKeyScopesTests : IAsyncLifetime
     [Fact]
     public async Task SettingsPage_NoScopeSelected_ShowsError()
     {
-        _factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
-        using (var scope = _factory.Services.CreateScope())
+        Factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
+        using (var scope = Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             db.Users.Add(new User
@@ -134,7 +124,7 @@ public class ApiKeyScopesTests : IAsyncLifetime
             await db.SaveChangesAsync();
         }
 
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         var token = await GetAntiforgeryTokenAsync(client);
 
         var response = await PostFormAsync(client, "/settings/api-keys", token, ("label", "scopeless"));
@@ -145,7 +135,7 @@ public class ApiKeyScopesTests : IAsyncLifetime
 
     private async Task<long> SeedUserAndKeyAsync(string subject, string key, string scopes)
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var user = new User
         {
@@ -170,21 +160,9 @@ public class ApiKeyScopesTests : IAsyncLifetime
         return user.Id;
     }
 
-    private static async Task<string> GetAntiforgeryTokenAsync(HttpClient client)
-    {
-        var page = await client.GetAsync("/settings/api-keys");
-        var html = await page.Content.ReadAsStringAsync();
-        var match = AntiforgeryTokenRegex.Match(html);
-        Assert.True(match.Success, "Antiforgery token not found in api-keys page.");
-        return match.Groups[1].Value;
-    }
+    private static Task<string> GetAntiforgeryTokenAsync(HttpClient client) =>
+        TestForms.GetAntiforgeryTokenAsync(client, "/settings/api-keys");
 
-    private static async Task<HttpResponseMessage> PostFormAsync(HttpClient client, string path, string token, params (string Name, string Value)[] fields)
-    {
-        var pairs = fields
-            .Select(f => new KeyValuePair<string, string>(f.Name, f.Value))
-            .ToList();
-        pairs.Add(new KeyValuePair<string, string>("__RequestVerificationToken", token));
-        return await client.PostAsync(path, new FormUrlEncodedContent(pairs));
-    }
+    private static Task<HttpResponseMessage> PostFormAsync(HttpClient client, string path, string token, params (string Name, string Value)[] fields) =>
+        TestForms.PostFormAsync(client, path, token, fields);
 }

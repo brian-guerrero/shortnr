@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -17,9 +16,6 @@ namespace Shortnr.Tests.Integration.Settings;
 /// </summary>
 public class DomainsSettingsTests : IAsyncLifetime
 {
-    private static readonly Regex AntiforgeryTokenRegex = new(
-        @"name=""__RequestVerificationToken""[^>]*value=""([^""]+)""",
-        RegexOptions.Compiled);
 
     /// <summary>Tokens the stub verifier claims to serve, keyed by hostname.</summary>
     private static readonly Dictionary<string, string> ServedTokens = new();
@@ -483,23 +479,11 @@ public class DomainsSettingsTests : IAsyncLifetime
         await db.SaveChangesAsync();
     }
 
-    private static async Task<string> GetAntiforgeryTokenAsync(HttpClient client)
-    {
-        var page = await client.GetAsync("/settings/domains");
-        var html = await page.Content.ReadAsStringAsync();
-        var match = AntiforgeryTokenRegex.Match(html);
-        Assert.True(match.Success, "Antiforgery token not found in settings page.");
-        return match.Groups[1].Value;
-    }
+    private static Task<string> GetAntiforgeryTokenAsync(HttpClient client) =>
+        TestForms.GetAntiforgeryTokenAsync(client, "/settings/domains");
 
-    private static async Task<HttpResponseMessage> PostFormAsync(HttpClient client, string path, string token, params (string Name, string Value)[] fields)
-    {
-        var pairs = fields
-            .Select(f => new KeyValuePair<string, string>(f.Name, f.Value))
-            .ToList();
-        pairs.Add(new KeyValuePair<string, string>("__RequestVerificationToken", token));
-        return await client.PostAsync(path, new FormUrlEncodedContent(pairs));
-    }
+    private static Task<HttpResponseMessage> PostFormAsync(HttpClient client, string path, string token, params (string Name, string Value)[] fields) =>
+        TestForms.PostFormAsync(client, path, token, fields);
 
     private sealed class StubVerifierFactory(bool authEnabled = false) : ShortnrWebAppFactory(authEnabled)
     {

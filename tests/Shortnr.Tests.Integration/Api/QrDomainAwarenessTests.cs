@@ -11,18 +11,16 @@ namespace Shortnr.Tests.Integration.Api;
 /// produces a QR code encoding that domain's URL (on both the /qr page and the
 /// /api/qr PNG endpoint), while default-host links keep the instance host.
 /// </summary>
-public class QrDomainAwarenessTests : IAsyncLifetime
+public class QrDomainAwarenessTests : IntegrationTestBase
 {
-    private readonly ShortnrWebAppFactory _factory = new(authEnabled: false);
+    protected override bool AuthEnabled => false;
 
-    public Task InitializeAsync()
+    public override async Task InitializeAsync()
     {
-        using var scope = _factory.Services.CreateScope();
+        await base.InitializeAsync();
+
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        db.ClickEvents.RemoveRange(db.ClickEvents);
-        db.ShortenedUrls.RemoveRange(db.ShortenedUrls);
-        db.Domains.RemoveRange(db.Domains);
-        db.Users.RemoveRange(db.Users);
 
         var domain = new Domain
         {
@@ -39,16 +37,12 @@ public class QrDomainAwarenessTests : IAsyncLifetime
             new ShortenedUrl { LongUrl = "https://example.com/default", ShortCode = "default", CreatedAtUtc = DateTime.UtcNow },
             new ShortenedUrl { LongUrl = "https://example.com/custom", ShortCode = "custom", DomainId = domain.Id, CreatedAtUtc = DateTime.UtcNow });
         db.SaveChanges();
-
-        return Task.CompletedTask;
     }
-
-    public Task DisposeAsync() => _factory.DisposeAsync().AsTask();
 
     [Fact]
     public async Task QrPage_CustomDomainLink_DisplaysDomainScopedUrl()
     {
-        var response = await _factory.CreateClient().GetAsync("/qr/custom");
+        var response = await Factory.CreateClient().GetAsync("/qr/custom");
         var body = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -59,7 +53,7 @@ public class QrDomainAwarenessTests : IAsyncLifetime
     [Fact]
     public async Task QrPage_DefaultLink_UsesInstanceHost()
     {
-        var response = await _factory.CreateClient().GetAsync("/qr/default");
+        var response = await Factory.CreateClient().GetAsync("/qr/default");
         var body = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -69,20 +63,20 @@ public class QrDomainAwarenessTests : IAsyncLifetime
     [Fact]
     public async Task QrPage_UnknownCode_ReturnsNotFound()
     {
-        var response = await _factory.CreateClient().GetAsync("/qr/nope");
+        var response = await Factory.CreateClient().GetAsync("/qr/nope");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]
     public async Task QrApi_CustomDomainLink_EncodesDomainScopedUrl()
     {
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         var response = await client.GetAsync("/api/qr/custom");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var bytes = await response.Content.ReadAsByteArrayAsync();
 
-        var qr = _factory.Services.GetRequiredService<QrService>();
+        var qr = Factory.Services.GetRequiredService<QrService>();
         var expected = qr.GeneratePng("http://go.example.com/custom");
         Assert.Equal(expected, bytes);
     }
@@ -90,13 +84,13 @@ public class QrDomainAwarenessTests : IAsyncLifetime
     [Fact]
     public async Task QrApi_DefaultLink_EncodesInstanceHostUrl()
     {
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         var response = await client.GetAsync("/api/qr/default");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var bytes = await response.Content.ReadAsByteArrayAsync();
 
-        var qr = _factory.Services.GetRequiredService<QrService>();
+        var qr = Factory.Services.GetRequiredService<QrService>();
         var expected = qr.GeneratePng("http://localhost/default");
         Assert.Equal(expected, bytes);
     }
@@ -104,7 +98,7 @@ public class QrDomainAwarenessTests : IAsyncLifetime
     [Fact]
     public async Task QrApi_UnknownCode_ReturnsNotFound()
     {
-        var response = await _factory.CreateClient().GetAsync("/api/qr/nope");
+        var response = await Factory.CreateClient().GetAsync("/api/qr/nope");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 }

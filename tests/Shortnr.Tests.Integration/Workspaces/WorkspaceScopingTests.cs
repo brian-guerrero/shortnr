@@ -14,28 +14,19 @@ namespace Shortnr.Tests.Integration.Workspaces;
 /// scoping is <b>exclusive</b> — with a workspace active, the user's personal links
 /// are hidden entirely. AI activity stays personal-only (no workspace FK).
 /// </summary>
-public class WorkspaceScopingTests : IAsyncLifetime
+public class WorkspaceScopingTests : IntegrationTestBase
 {
-    private readonly ShortnrWebAppFactory _factory = new(authEnabled: true);
 
     private User _alice = null!;
     private User _bob = null!;
     private Workspace _workspace = null!;
 
-    public async Task InitializeAsync()
+    public override async Task InitializeAsync()
     {
-        using var scope = _factory.Services.CreateScope();
+        await base.InitializeAsync();
+
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-        db.AiActivityLogs.RemoveRange(db.AiActivityLogs);
-        db.ClickEvents.RemoveRange(db.ClickEvents);
-        db.ShortenedUrls.RemoveRange(db.ShortenedUrls);
-        db.Domains.RemoveRange(db.Domains);
-        db.WorkspaceMembers.RemoveRange(db.WorkspaceMembers);
-        db.Workspaces.RemoveRange(db.Workspaces);
-        db.Users.RemoveRange(db.Users);
-        await db.SaveChangesAsync();
-
         _alice = new User { Issuer = ShortnrWebAppFactory.TestIssuer, Subject = "alice", Email = "alice@example.com", CreatedAtUtc = DateTime.UtcNow, LastLoginAtUtc = DateTime.UtcNow };
         _bob = new User { Issuer = ShortnrWebAppFactory.TestIssuer, Subject = "bob", Email = "bob@example.com", CreatedAtUtc = DateTime.UtcNow, LastLoginAtUtc = DateTime.UtcNow };
         db.Users.AddRange(_alice, _bob);
@@ -75,13 +66,11 @@ public class WorkspaceScopingTests : IAsyncLifetime
         await db.SaveChangesAsync();
     }
 
-    public async Task DisposeAsync() => await _factory.DisposeAsync();
-
     private HttpClient AuthenticatedClient(string subject)
     {
-        var authState = _factory.Services.GetRequiredService<TestAuthState>();
+        var authState = Factory.Services.GetRequiredService<TestAuthState>();
         authState.SetAuthenticatedUser(subject, ShortnrWebAppFactory.TestIssuer);
-        return _factory.CreateClientNoRedirect();
+        return Factory.CreateClientNoRedirect();
     }
 
     private static HttpRequestMessage HtmxGet(string url, string target) =>

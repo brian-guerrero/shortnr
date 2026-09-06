@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Shortnr.Tests.Integration.Infrastructure;
@@ -12,9 +11,6 @@ namespace Shortnr.Tests.Integration.Api;
 /// </summary>
 public class ShortenRateLimitTests : IAsyncLifetime
 {
-    private static readonly Regex AntiforgeryTokenRegex = new(
-        @"name=""__RequestVerificationToken""[^>]*value=""([^""]+)""",
-        RegexOptions.Compiled);
 
     private readonly LowLimitFactory _factory = new();
 
@@ -59,26 +55,14 @@ public class ShortenRateLimitTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.TooManyRequests, rejected.StatusCode);
     }
 
-    private async Task<string> GetAntiforgeryTokenAsync(HttpClient client)
-    {
-        var page = await client.GetAsync("/");
-        var html = await page.Content.ReadAsStringAsync();
-        var match = AntiforgeryTokenRegex.Match(html);
-        Assert.True(match.Success, "Antiforgery token not found in index page.");
-        return match.Groups[1].Value;
-    }
+    private static Task<string> GetAntiforgeryTokenAsync(HttpClient client) =>
+        TestForms.GetAntiforgeryTokenAsync(client, "/");
 
     private static Task<HttpResponseMessage> PostFormAsync(HttpClient client, string token, params (string Name, string Value)[] fields) =>
-        client.PostAsync("/", BuildForm(token, fields));
+        TestForms.PostFormAsync(client, token, fields);
 
-    private static FormUrlEncodedContent BuildForm(string token, params (string Name, string Value)[] fields)
-    {
-        var pairs = fields
-            .Select(f => new KeyValuePair<string, string>(f.Name, f.Value))
-            .ToList();
-        pairs.Add(new KeyValuePair<string, string>("__RequestVerificationToken", token));
-        return new FormUrlEncodedContent(pairs);
-    }
+    private static FormUrlEncodedContent BuildForm(string token, params (string Name, string Value)[] fields) =>
+        TestForms.BuildForm(token, fields);
 
     private sealed class LowLimitFactory : ShortnrWebAppFactory
     {

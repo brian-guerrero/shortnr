@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Shortnr.Data;
@@ -8,25 +7,16 @@ using Shortnr.Tests.Integration.Infrastructure;
 
 namespace Shortnr.Tests.Integration.Settings;
 
-public class WebhooksSettingsTests : IAsyncLifetime
+public class WebhooksSettingsTests : IntegrationTestBase
 {
-    private static readonly Regex AntiforgeryTokenRegex = new(
-        @"name=""__RequestVerificationToken""[^>]*value=""([^""]+)""",
-        RegexOptions.Compiled);
-
-    private readonly ShortnrWebAppFactory _factory = new();
-
-    public Task InitializeAsync() => Task.CompletedTask;
-
-    public Task DisposeAsync() => _factory.DisposeAsync().AsTask();
 
     [Fact]
     public async Task Get_WhenAuthenticated_ReturnsWebhooksPage()
     {
-        _factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
+        Factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
         await SeedUserAsync("alice", ShortnrWebAppFactory.TestIssuer);
 
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         var response = await client.GetAsync("/settings/webhooks");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -38,10 +28,10 @@ public class WebhooksSettingsTests : IAsyncLifetime
     [Fact]
     public async Task Post_WithValidData_CreatesWebhook()
     {
-        _factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
+        Factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
         await SeedUserAsync("alice", ShortnrWebAppFactory.TestIssuer);
 
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         var token = await GetAntiforgeryTokenAsync(client);
 
         var response = await PostFormAsync(client, "/settings/webhooks", token,
@@ -54,7 +44,7 @@ public class WebhooksSettingsTests : IAsyncLifetime
         Assert.Contains("Webhook created", body);
         Assert.Contains("Copy this secret now", body);
 
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var webhook = await db.Webhooks.SingleAsync();
         Assert.Equal("https://example.com/webhook", webhook.Url);
@@ -66,10 +56,10 @@ public class WebhooksSettingsTests : IAsyncLifetime
     [Fact]
     public async Task Post_WithPrivateIPUrl_ReturnsError()
     {
-        _factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
+        Factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
         await SeedUserAsync("alice", ShortnrWebAppFactory.TestIssuer);
 
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         var token = await GetAntiforgeryTokenAsync(client);
 
         var response = await PostFormAsync(client, "/settings/webhooks", token,
@@ -79,7 +69,7 @@ public class WebhooksSettingsTests : IAsyncLifetime
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("Private and internal IP addresses are not allowed", body);
 
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         Assert.Equal(0, await db.Webhooks.CountAsync());
     }
@@ -87,10 +77,10 @@ public class WebhooksSettingsTests : IAsyncLifetime
     [Fact]
     public async Task Post_WithLocalhostUrl_ReturnsError()
     {
-        _factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
+        Factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
         await SeedUserAsync("alice", ShortnrWebAppFactory.TestIssuer);
 
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         var token = await GetAntiforgeryTokenAsync(client);
 
         var response = await PostFormAsync(client, "/settings/webhooks", token,
@@ -100,7 +90,7 @@ public class WebhooksSettingsTests : IAsyncLifetime
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("localhost is not allowed", body);
 
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         Assert.Equal(0, await db.Webhooks.CountAsync());
     }
@@ -108,10 +98,10 @@ public class WebhooksSettingsTests : IAsyncLifetime
     [Fact]
     public async Task Post_WithNoEvents_ReturnsError()
     {
-        _factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
+        Factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
         await SeedUserAsync("alice", ShortnrWebAppFactory.TestIssuer);
 
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         var token = await GetAntiforgeryTokenAsync(client);
 
         var response = await PostFormAsync(client, "/settings/webhooks", token,
@@ -120,7 +110,7 @@ public class WebhooksSettingsTests : IAsyncLifetime
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("Select at least one valid event type", body);
 
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         Assert.Equal(0, await db.Webhooks.CountAsync());
     }
@@ -128,10 +118,10 @@ public class WebhooksSettingsTests : IAsyncLifetime
     [Fact]
     public async Task Post_WithNoUrl_ReturnsError()
     {
-        _factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
+        Factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
         await SeedUserAsync("alice", ShortnrWebAppFactory.TestIssuer);
 
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         var token = await GetAntiforgeryTokenAsync(client);
 
         var response = await PostFormAsync(client, "/settings/webhooks", token,
@@ -140,7 +130,7 @@ public class WebhooksSettingsTests : IAsyncLifetime
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("Enter a webhook URL", body);
 
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         Assert.Equal(0, await db.Webhooks.CountAsync());
     }
@@ -148,11 +138,11 @@ public class WebhooksSettingsTests : IAsyncLifetime
     [Fact]
     public async Task Revoke_DisablesWebhook()
     {
-        _factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
+        Factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
         await SeedUserAsync("alice", ShortnrWebAppFactory.TestIssuer);
         var webhookId = await SeedWebhookAsync("alice", ShortnrWebAppFactory.TestIssuer, "https://example.com/webhook");
 
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         var token = await GetAntiforgeryTokenAsync(client);
 
         var response = await PostFormAsync(client, "/settings/webhooks?handler=Revoke", token,
@@ -162,7 +152,7 @@ public class WebhooksSettingsTests : IAsyncLifetime
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("disabled", body);
 
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var webhook = await db.Webhooks.SingleAsync(w => w.Id == webhookId);
         Assert.False(webhook.IsActive);
@@ -171,11 +161,11 @@ public class WebhooksSettingsTests : IAsyncLifetime
     [Fact]
     public async Task Activate_ReEnablesWebhook()
     {
-        _factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
+        Factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
         await SeedUserAsync("alice", ShortnrWebAppFactory.TestIssuer);
         var webhookId = await SeedWebhookAsync("alice", ShortnrWebAppFactory.TestIssuer, "https://example.com/webhook", isActive: false);
 
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         var token = await GetAntiforgeryTokenAsync(client);
 
         var response = await PostFormAsync(client, "/settings/webhooks?handler=Activate", token,
@@ -185,7 +175,7 @@ public class WebhooksSettingsTests : IAsyncLifetime
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("re-enabled", body);
 
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var webhook = await db.Webhooks.SingleAsync(w => w.Id == webhookId);
         Assert.True(webhook.IsActive);
@@ -218,7 +208,7 @@ public class WebhooksSettingsTests : IAsyncLifetime
 
     private async Task SeedUserAsync(string subject, string issuer, ShortnrWebAppFactory? factory = null)
     {
-        factory ??= _factory;
+        factory ??= Factory;
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         if (!await db.Users.AnyAsync(u => u.Issuer == issuer && u.Subject == subject))
@@ -236,7 +226,7 @@ public class WebhooksSettingsTests : IAsyncLifetime
 
     private async Task<long> SeedWebhookAsync(string subject, string issuer, string url, bool isActive = true, ShortnrWebAppFactory? factory = null)
     {
-        factory ??= _factory;
+        factory ??= Factory;
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var user = await db.Users.SingleAsync(u => u.Issuer == issuer && u.Subject == subject);
@@ -254,21 +244,9 @@ public class WebhooksSettingsTests : IAsyncLifetime
         return webhook.Id;
     }
 
-    private static async Task<string> GetAntiforgeryTokenAsync(HttpClient client)
-    {
-        var page = await client.GetAsync("/settings/webhooks");
-        var html = await page.Content.ReadAsStringAsync();
-        var match = AntiforgeryTokenRegex.Match(html);
-        Assert.True(match.Success, "Antiforgery token not found in webhooks page.");
-        return match.Groups[1].Value;
-    }
+    private static Task<string> GetAntiforgeryTokenAsync(HttpClient client) =>
+        TestForms.GetAntiforgeryTokenAsync(client, "/settings/webhooks");
 
-    private static async Task<HttpResponseMessage> PostFormAsync(HttpClient client, string path, string token, params (string Name, string Value)[] fields)
-    {
-        var pairs = fields
-            .Select(f => new KeyValuePair<string, string>(f.Name, f.Value))
-            .ToList();
-        pairs.Add(new KeyValuePair<string, string>("__RequestVerificationToken", token));
-        return await client.PostAsync(path, new FormUrlEncodedContent(pairs));
-    }
+    private static Task<HttpResponseMessage> PostFormAsync(HttpClient client, string path, string token, params (string Name, string Value)[] fields) =>
+        TestForms.PostFormAsync(client, path, token, fields);
 }

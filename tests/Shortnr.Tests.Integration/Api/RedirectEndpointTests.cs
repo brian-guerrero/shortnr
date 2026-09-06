@@ -12,19 +12,18 @@ namespace Shortnr.Tests.Integration.Api;
 /// any other host resolves codes created under the instance default domain.
 /// Also covers the /.well-known/shortnr-verify.txt domain-verification endpoint.
 /// </summary>
-public class RedirectEndpointTests : IAsyncLifetime
+public class RedirectEndpointTests : IntegrationTestBase
 {
-    private readonly ShortnrWebAppFactory _factory = new(authEnabled: false);
+    protected override bool AuthEnabled => false;
+
     private Domain _domain = null!;
 
-    public Task InitializeAsync()
+    public override async Task InitializeAsync()
     {
-        using var scope = _factory.Services.CreateScope();
+        await base.InitializeAsync();
+
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        db.ClickEvents.RemoveRange(db.ClickEvents);
-        db.ShortenedUrls.RemoveRange(db.ShortenedUrls);
-        db.Domains.RemoveRange(db.Domains);
-        db.Users.RemoveRange(db.Users);
 
         _domain = new Domain
         {
@@ -41,23 +40,19 @@ public class RedirectEndpointTests : IAsyncLifetime
             new ShortenedUrl { LongUrl = "https://example.com/default", ShortCode = "default", CreatedAtUtc = DateTime.UtcNow },
             new ShortenedUrl { LongUrl = "https://example.com/custom", ShortCode = "custom", DomainId = _domain.Id, CreatedAtUtc = DateTime.UtcNow });
         db.SaveChanges();
-
-        return Task.CompletedTask;
     }
-
-    public Task DisposeAsync() => _factory.DisposeAsync().AsTask();
 
     [Fact]
     public async Task Redirect_DefaultHostUnknownCode_ReturnsNotFound()
     {
-        var response = await _factory.CreateClient().GetAsync("/nope");
+        var response = await Factory.CreateClient().GetAsync("/nope");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]
     public async Task Redirect_DefaultHost_ResolvesNullDomainCode()
     {
-        var client = _factory.CreateClientNoRedirect();
+        var client = Factory.CreateClientNoRedirect();
         var response = await client.GetAsync("/default");
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
@@ -67,7 +62,7 @@ public class RedirectEndpointTests : IAsyncLifetime
     [Fact]
     public async Task Redirect_CustomDomainHost_ResolvesDomainScopedCode()
     {
-        var client = _factory.CreateClientNoRedirect();
+        var client = Factory.CreateClientNoRedirect();
         var request = new HttpRequestMessage(HttpMethod.Get, "/custom");
         request.Headers.Host = "go.example.com";
 
@@ -80,7 +75,7 @@ public class RedirectEndpointTests : IAsyncLifetime
     [Fact]
     public async Task Redirect_DefaultHost_DoesNotResolveDomainScopedCode()
     {
-        var client = _factory.CreateClientNoRedirect();
+        var client = Factory.CreateClientNoRedirect();
         var response = await client.GetAsync("/custom");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -89,7 +84,7 @@ public class RedirectEndpointTests : IAsyncLifetime
     [Fact]
     public async Task Redirect_CustomDomainHost_DoesNotResolveDefaultDomainCode()
     {
-        var client = _factory.CreateClientNoRedirect();
+        var client = Factory.CreateClientNoRedirect();
         var request = new HttpRequestMessage(HttpMethod.Get, "/default");
         request.Headers.Host = "go.example.com";
 
@@ -101,7 +96,7 @@ public class RedirectEndpointTests : IAsyncLifetime
     [Fact]
     public async Task Redirect_UnverifiedDomainHost_FallsBackToDefaultDomain()
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.Domains.Add(new Domain
         {
@@ -114,7 +109,7 @@ public class RedirectEndpointTests : IAsyncLifetime
 
         // Host matches an unverified domain, so the default-domain code must
         // still resolve (host-based scoping only applies to verified domains).
-        var client = _factory.CreateClientNoRedirect();
+        var client = Factory.CreateClientNoRedirect();
         var request = new HttpRequestMessage(HttpMethod.Get, "/default");
         request.Headers.Host = "unverified.example.com";
 
@@ -127,7 +122,7 @@ public class RedirectEndpointTests : IAsyncLifetime
     [Fact]
     public async Task WellKnownVerificationFile_ServesTokenForRegisteredHost()
     {
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         var request = new HttpRequestMessage(HttpMethod.Get, "/.well-known/shortnr-verify.txt");
         request.Headers.Host = "go.example.com";
 
@@ -141,7 +136,7 @@ public class RedirectEndpointTests : IAsyncLifetime
     [Fact]
     public async Task WellKnownVerificationFile_UnregisteredHost_ReturnsNotFound()
     {
-        var response = await _factory.CreateClient().GetAsync("/.well-known/shortnr-verify.txt");
+        var response = await Factory.CreateClient().GetAsync("/.well-known/shortnr-verify.txt");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 }

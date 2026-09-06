@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
 using Shortnr.Data.Entities;
@@ -11,24 +10,15 @@ namespace Shortnr.Tests.Integration.Api;
 /// Verifies that the index page creates links on the signed-in owner's verified
 /// default domain, and still uses the instance host when no default is set.
 /// </summary>
-public class IndexDefaultDomainTests : IAsyncLifetime
+public class IndexDefaultDomainTests : IntegrationTestBase
 {
-    private static readonly Regex AntiforgeryTokenRegex = new(
-        @"name=""__RequestVerificationToken""[^>]*value=""([^""]+)""",
-        RegexOptions.Compiled);
 
-    private readonly ShortnrWebAppFactory _factory = new(authEnabled: true);
-
-    public async Task InitializeAsync()
+    public override async Task InitializeAsync()
     {
-        using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        db.ClickEvents.RemoveRange(db.ClickEvents);
-        db.ShortenedUrls.RemoveRange(db.ShortenedUrls);
-        db.Domains.RemoveRange(db.Domains);
-        db.Users.RemoveRange(db.Users);
-        await db.SaveChangesAsync();
+        await base.InitializeAsync();
 
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.Users.Add(new User
         {
             Issuer = ShortnrWebAppFactory.TestIssuer,
@@ -40,12 +30,10 @@ public class IndexDefaultDomainTests : IAsyncLifetime
         await db.SaveChangesAsync();
     }
 
-    public Task DisposeAsync() => _factory.DisposeAsync().AsTask();
-
     [Fact]
     public async Task PostWithoutSlug_WhenOwnerHasDefaultDomain_CreatesLinkOnThatDomain()
     {
-        using (var scope = _factory.Services.CreateScope())
+        using (var scope = Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var alice = await db.Users.SingleAsync(u => u.Subject == "alice");
@@ -71,7 +59,7 @@ public class IndexDefaultDomainTests : IAsyncLifetime
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("go.example.com", body);
 
-        using var scope2 = _factory.Services.CreateScope();
+        using var scope2 = Factory.Services.CreateScope();
         var db2 = scope2.ServiceProvider.GetRequiredService<AppDbContext>();
         var link = await db2.ShortenedUrls.SingleAsync(l => l.LongUrl == "https://example.com/on-domain");
         Assert.NotNull(link.DomainId);
@@ -80,7 +68,7 @@ public class IndexDefaultDomainTests : IAsyncLifetime
     [Fact]
     public async Task PostWithSlug_WhenOwnerHasDefaultDomain_CreatesLinkOnThatDomain()
     {
-        using (var scope = _factory.Services.CreateScope())
+        using (var scope = Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var alice = await db.Users.SingleAsync(u => u.Subject == "alice");
@@ -105,7 +93,7 @@ public class IndexDefaultDomainTests : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        using var scope2 = _factory.Services.CreateScope();
+        using var scope2 = Factory.Services.CreateScope();
         var db2 = scope2.ServiceProvider.GetRequiredService<AppDbContext>();
         var link = await db2.ShortenedUrls.SingleAsync(l => l.ShortCode == "dom-slug");
         Assert.NotNull(link.DomainId);
@@ -122,7 +110,7 @@ public class IndexDefaultDomainTests : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var link = await db.ShortenedUrls.SingleAsync(l => l.LongUrl == "https://example.com/no-domain");
         Assert.Null(link.DomainId);
@@ -131,7 +119,7 @@ public class IndexDefaultDomainTests : IAsyncLifetime
     [Fact]
     public async Task RecentLinks_ShowOwnersLinksAcrossDomains_WhenDefaultDomainIsSet()
     {
-        using (var scope = _factory.Services.CreateScope())
+        using (var scope = Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var alice = await db.Users.SingleAsync(u => u.Subject == "alice");
@@ -164,26 +152,14 @@ public class IndexDefaultDomainTests : IAsyncLifetime
 
     private HttpClient AuthenticatedClient()
     {
-        _factory.Services.GetRequiredService<TestAuthState>()
+        Factory.Services.GetRequiredService<TestAuthState>()
             .SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
-        return _factory.CreateClient();
+        return Factory.CreateClient();
     }
 
-    private static async Task<string> GetAntiforgeryTokenAsync(HttpClient client)
-    {
-        var page = await client.GetAsync("/");
-        var html = await page.Content.ReadAsStringAsync();
-        var match = AntiforgeryTokenRegex.Match(html);
-        Assert.True(match.Success, "Antiforgery token not found in index page.");
-        return match.Groups[1].Value;
-    }
+    private static Task<string> GetAntiforgeryTokenAsync(HttpClient client) =>
+        TestForms.GetAntiforgeryTokenAsync(client, "/");
 
-    private static async Task<HttpResponseMessage> PostFormAsync(HttpClient client, string token, params (string Name, string Value)[] fields)
-    {
-        var pairs = fields
-            .Select(f => new KeyValuePair<string, string>(f.Name, f.Value))
-            .ToList();
-        pairs.Add(new KeyValuePair<string, string>("__RequestVerificationToken", token));
-        return await client.PostAsync("/", new FormUrlEncodedContent(pairs));
-    }
+    private static Task<HttpResponseMessage> PostFormAsync(HttpClient client, string token, params (string Name, string Value)[] fields) =>
+        TestForms.PostFormAsync(client, "/", token, fields);
 }

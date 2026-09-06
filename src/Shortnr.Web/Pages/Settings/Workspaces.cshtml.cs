@@ -1,25 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using Shortnr.Data.Entities;
 
 namespace Shortnr.Web.Pages.Settings;
 
-public class WorkspacesModel : PageModel
+public class WorkspacesModel(WorkspaceService workspaceService, UserIdentityService identity)
+    : AuthorizedPageModel(identity)
 {
-    private readonly WorkspaceService _workspaceService;
-    private readonly UserIdentityService _identity;
-
     public List<Workspace> Workspaces { get; set; } = [];
-    public string? StatusMessage { get; set; }
-    public string? ErrorMessage { get; set; }
-    public bool IsHtmxRequest { get; set; }
     public string? ExpandedWorkspace { get; set; }
-
-    public WorkspacesModel(WorkspaceService workspaceService, UserIdentityService identity)
-    {
-        _workspaceService = workspaceService;
-        _identity = identity;
-    }
 
     public async Task<IActionResult> OnGet()
     {
@@ -27,7 +15,6 @@ public class WorkspacesModel : PageModel
         if (gate is not null)
             return gate;
 
-        IsHtmxRequest = Request.Headers["HX-Request"].Count > 0;
         Workspaces = await LoadWorkspacesAsync();
         return Page();
     }
@@ -38,7 +25,7 @@ public class WorkspacesModel : PageModel
         if (gate is not null)
             return gate;
 
-        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(User);
         if (ownerUserId is null)
             return await ListPartialAsync(error: "Unable to determine your account.");
 
@@ -53,7 +40,7 @@ public class WorkspacesModel : PageModel
         if (!WorkspaceService.IsValidSlug(slug))
             return await ListPartialAsync(error: "Slug must be 3–32 characters: letters, digits, '-' and '_', starting with a letter or digit.");
 
-        var workspace = await _workspaceService.CreateAsync(name, slug, ownerUserId.Value);
+        var workspace = await workspaceService.CreateAsync(name, slug, ownerUserId.Value);
         return await ListPartialAsync(status: $"Workspace '{workspace.Name}' created.");
     }
 
@@ -63,11 +50,11 @@ public class WorkspacesModel : PageModel
         if (gate is not null)
             return gate;
 
-        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(User);
         if (ownerUserId is null)
             return await ListPartialAsync(error: "Unable to determine your account.");
 
-        var deleted = await _workspaceService.DeleteWorkspaceAsync(id, ownerUserId.Value);
+        var deleted = await workspaceService.DeleteWorkspaceAsync(id, ownerUserId.Value);
         if (!deleted)
             return await ListPartialAsync(error: "Cannot delete this workspace. Make sure no links exist in it and you are the owner.");
 
@@ -80,7 +67,7 @@ public class WorkspacesModel : PageModel
         if (gate is not null)
             return gate;
 
-        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(User);
         if (ownerUserId is null)
             return await DetailPartialAsync(id, error: "Unable to determine your account.");
 
@@ -88,7 +75,7 @@ public class WorkspacesModel : PageModel
         if (email.Length == 0)
             return await DetailPartialAsync(id, error: "Enter an email address.");
 
-        var invited = await _workspaceService.InviteMemberAsync(id, email, role, ownerUserId.Value);
+        var invited = await workspaceService.InviteMemberAsync(id, email, role, ownerUserId.Value);
         if (!invited)
             return await DetailPartialAsync(id, error: "Invite failed. Make sure the email isn't already a member and you are the owner.");
 
@@ -101,11 +88,11 @@ public class WorkspacesModel : PageModel
         if (gate is not null)
             return gate;
 
-        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(User);
         if (ownerUserId is null)
             return await DetailPartialAsync(id, error: "Unable to determine your account.");
 
-        var updated = await _workspaceService.SetRoleByMemberIdAsync(memberId, role, ownerUserId.Value);
+        var updated = await workspaceService.SetRoleByMemberIdAsync(memberId, role, ownerUserId.Value);
         if (!updated)
             return await DetailPartialAsync(id, error: "Cannot change this member's role.");
 
@@ -118,11 +105,11 @@ public class WorkspacesModel : PageModel
         if (gate is not null)
             return gate;
 
-        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(User);
         if (ownerUserId is null)
             return await DetailPartialAsync(id, error: "Unable to determine your account.");
 
-        var removed = await _workspaceService.RemoveMemberByIdAsync(memberId, ownerUserId.Value);
+        var removed = await workspaceService.RemoveMemberByIdAsync(memberId, ownerUserId.Value);
         if (!removed)
             return await DetailPartialAsync(id, error: "Cannot remove this member. A workspace must keep at least one owner.");
 
@@ -135,11 +122,11 @@ public class WorkspacesModel : PageModel
         if (gate is not null)
             return gate;
 
-        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(User);
         if (ownerUserId is null)
             return await DetailPartialAsync(id, error: "Unable to determine your account.");
 
-        var resent = await _workspaceService.ResendInviteAsync(memberId, ownerUserId.Value);
+        var resent = await workspaceService.ResendInviteAsync(memberId, ownerUserId.Value);
         if (!resent)
             return await DetailPartialAsync(id, error: "Cannot resend invite. The member may have already joined.");
 
@@ -152,16 +139,16 @@ public class WorkspacesModel : PageModel
         if (gate is not null)
             return gate;
 
-        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(User);
         if (ownerUserId is null)
             return Content("Unauthorized");
 
-        var workspaces = await _workspaceService.GetWorkspacesForUserAsync(ownerUserId.Value);
+        var workspaces = await workspaceService.GetWorkspacesForUserAsync(ownerUserId.Value);
         var workspace = workspaces.FirstOrDefault(w => w.Id == id);
         if (workspace is null)
             return Content("Not found");
 
-        var members = await _workspaceService.GetMembersAsync(id);
+        var members = await workspaceService.GetMembersAsync(id);
         return Partial("Shared/_WorkspaceDetail", new WorkspaceDetailViewModel
         {
             WorkspaceId = id,
@@ -170,23 +157,14 @@ public class WorkspacesModel : PageModel
         });
     }
 
-    private IActionResult? EnforceAccess()
-    {
-        if (_identity.IsAuthEnabled && User.Identity?.IsAuthenticated != true)
-            return Request.Headers["HX-Request"].Count > 0
-                ? Unauthorized()
-                : RedirectToPage("/Index");
-
-        return null;
-    }
 
     private async Task<List<Workspace>> LoadWorkspacesAsync()
     {
-        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(User);
         if (ownerUserId is null)
             return [];
 
-        return await _workspaceService.GetWorkspacesForUserAsync(ownerUserId.Value);
+        return await workspaceService.GetWorkspacesForUserAsync(ownerUserId.Value);
     }
 
     private async Task<IActionResult> ListPartialAsync(string? status = null, string? error = null)

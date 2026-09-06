@@ -16,24 +16,19 @@ namespace Shortnr.Tests.Integration.Workspaces;
 /// cookie (see <see cref="SessionCookie_IsSameSiteLax"/>) plus membership
 /// validation before any cookie write.
 /// </summary>
-public class WorkspaceSwitchEndpointTests : IAsyncLifetime
+public class WorkspaceSwitchEndpointTests : IntegrationTestBase
 {
-    private readonly ShortnrWebAppFactory _factory = new(authEnabled: true);
 
     private User _alice = null!;
     private User _bob = null!;
     private Workspace _workspace = null!;
 
-    public async Task InitializeAsync()
+    public override async Task InitializeAsync()
     {
-        using var scope = _factory.Services.CreateScope();
+        await base.InitializeAsync();
+
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-        db.WorkspaceMembers.RemoveRange(db.WorkspaceMembers);
-        db.Workspaces.RemoveRange(db.Workspaces);
-        db.Users.RemoveRange(db.Users);
-        await db.SaveChangesAsync();
-
         _alice = new User { Issuer = ShortnrWebAppFactory.TestIssuer, Subject = "alice", Email = "alice@example.com", CreatedAtUtc = DateTime.UtcNow, LastLoginAtUtc = DateTime.UtcNow };
         _bob = new User { Issuer = ShortnrWebAppFactory.TestIssuer, Subject = "bob", Email = "bob@example.com", CreatedAtUtc = DateTime.UtcNow, LastLoginAtUtc = DateTime.UtcNow };
         db.Users.AddRange(_alice, _bob);
@@ -54,8 +49,6 @@ public class WorkspaceSwitchEndpointTests : IAsyncLifetime
         await db.SaveChangesAsync();
     }
 
-    public async Task DisposeAsync() => await _factory.DisposeAsync();
-
     private static HttpRequestMessage SwitchPost(string slug) =>
         new(HttpMethod.Post, "/workspace/switch")
         {
@@ -74,8 +67,8 @@ public class WorkspaceSwitchEndpointTests : IAsyncLifetime
     [Fact]
     public async Task PostSwitch_Unauthenticated_Returns401_NoCookieSet()
     {
-        _factory.Services.GetRequiredService<TestAuthState>().ClearUser();
-        var client = _factory.CreateClientNoRedirect();
+        Factory.Services.GetRequiredService<TestAuthState>().ClearUser();
+        var client = Factory.CreateClientNoRedirect();
 
         var response = await client.SendAsync(SwitchPost("acme"));
 
@@ -86,9 +79,9 @@ public class WorkspaceSwitchEndpointTests : IAsyncLifetime
     [Fact]
     public async Task PostSwitch_NonMember_RedirectsWithoutSettingCookie()
     {
-        var authState = _factory.Services.GetRequiredService<TestAuthState>();
+        var authState = Factory.Services.GetRequiredService<TestAuthState>();
         authState.SetAuthenticatedUser("bob", ShortnrWebAppFactory.TestIssuer);
-        var client = _factory.CreateClientNoRedirect();
+        var client = Factory.CreateClientNoRedirect();
 
         var response = await client.SendAsync(SwitchPost("acme"));
 
@@ -100,9 +93,9 @@ public class WorkspaceSwitchEndpointTests : IAsyncLifetime
     [Fact]
     public async Task PostSwitch_UnknownSlug_RedirectsWithoutSettingCookie()
     {
-        var authState = _factory.Services.GetRequiredService<TestAuthState>();
+        var authState = Factory.Services.GetRequiredService<TestAuthState>();
         authState.SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
-        var client = _factory.CreateClientNoRedirect();
+        var client = Factory.CreateClientNoRedirect();
 
         var response = await client.SendAsync(SwitchPost("no-such-workspace"));
 
@@ -117,9 +110,9 @@ public class WorkspaceSwitchEndpointTests : IAsyncLifetime
     [Fact]
     public async Task PostSwitch_AsMember_SetsHttpOnlySameSiteLaxCookie()
     {
-        var authState = _factory.Services.GetRequiredService<TestAuthState>();
+        var authState = Factory.Services.GetRequiredService<TestAuthState>();
         authState.SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
-        var client = _factory.CreateClientNoRedirect();
+        var client = Factory.CreateClientNoRedirect();
 
         var response = await client.SendAsync(SwitchPost("acme"));
         var setCookie = GetSwitchCookie(response);
@@ -136,9 +129,9 @@ public class WorkspaceSwitchEndpointTests : IAsyncLifetime
     [Fact]
     public async Task PostSwitch_Personal_DeletesWorkspaceCookie()
     {
-        var authState = _factory.Services.GetRequiredService<TestAuthState>();
+        var authState = Factory.Services.GetRequiredService<TestAuthState>();
         authState.SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
-        var client = _factory.CreateClientNoRedirect();
+        var client = Factory.CreateClientNoRedirect();
 
         var response = await client.SendAsync(SwitchPost("personal"));
         var setCookie = GetSwitchCookie(response);
@@ -163,7 +156,7 @@ public class WorkspaceSwitchEndpointTests : IAsyncLifetime
         // forge request arrives unauthenticated and is rejected with 401 before
         // any cookie write. Pin that default here so a future config change that
         // weakens SameSite is caught.
-        var cookieOptions = _factory.Services.GetRequiredService<IOptions<CookieAuthenticationOptions>>();
+        var cookieOptions = Factory.Services.GetRequiredService<IOptions<CookieAuthenticationOptions>>();
 
         Assert.Equal(SameSiteMode.Lax, cookieOptions.Value.Cookie.SameSite);
     }

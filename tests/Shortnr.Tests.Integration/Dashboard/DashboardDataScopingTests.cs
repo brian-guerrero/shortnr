@@ -10,24 +10,19 @@ namespace Shortnr.Tests.Integration.Dashboard;
 /// Verifies that dashboard HTMX partials and the /api/metrics endpoint return
 /// only the data that belongs to the currently authenticated user.
 /// </summary>
-public class DashboardDataScopingTests : IAsyncLifetime
+public class DashboardDataScopingTests : IntegrationTestBase
 {
-    private readonly ShortnrWebAppFactory _factory = new(authEnabled: true);
 
     // Two users seeded before each test.
     private User _alice = null!;
     private User _bob = null!;
 
-    public async Task InitializeAsync()
+    public override async Task InitializeAsync()
     {
-        using var scope = _factory.Services.CreateScope();
+        await base.InitializeAsync();
+
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-        db.ClickEvents.RemoveRange(db.ClickEvents);
-        db.ShortenedUrls.RemoveRange(db.ShortenedUrls);
-        db.Users.RemoveRange(db.Users);
-        await db.SaveChangesAsync();
-
         _alice = new User
         {
             Issuer = ShortnrWebAppFactory.TestIssuer,
@@ -62,13 +57,11 @@ public class DashboardDataScopingTests : IAsyncLifetime
         await db.SaveChangesAsync();
     }
 
-    public async Task DisposeAsync() => await _factory.DisposeAsync();
-
     private HttpClient AuthenticatedClient(string subject)
     {
-        var authState = _factory.Services.GetRequiredService<TestAuthState>();
+        var authState = Factory.Services.GetRequiredService<TestAuthState>();
         authState.SetAuthenticatedUser(subject, ShortnrWebAppFactory.TestIssuer);
-        return _factory.CreateClientNoRedirect();
+        return Factory.CreateClientNoRedirect();
     }
 
     private static HttpRequestMessage HtmxGet(string url, string target) =>

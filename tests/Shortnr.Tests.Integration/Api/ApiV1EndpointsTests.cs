@@ -13,19 +13,14 @@ namespace Shortnr.Tests.Integration.Api;
 /// Verifies the /api/v1 REST surface: API-key auth, create/list/get/update/delete
 /// link CRUD, click pagination, owner scoping and the per-key rate limit.
 /// </summary>
-public class ApiV1EndpointsTests : IAsyncLifetime
+public class ApiV1EndpointsTests : IntegrationTestBase
 {
     private const string TestKey = "snr_testkey1234567890abcdef1234567890";
-    private readonly ShortnrWebAppFactory _factory = new(authEnabled: true);
-
-    public Task InitializeAsync() => Task.CompletedTask;
-
-    public Task DisposeAsync() => _factory.DisposeAsync().AsTask();
 
     [Fact]
     public async Task WithoutKey_ReturnsUnauthorized()
     {
-        var response = await _factory.CreateClient().GetAsync("/api/v1/links");
+        var response = await Factory.CreateClient().GetAsync("/api/v1/links");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -33,7 +28,7 @@ public class ApiV1EndpointsTests : IAsyncLifetime
     [Fact]
     public async Task WithInvalidKey_ReturnsUnauthorized()
     {
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "snr_bogus");
 
         var response = await client.GetAsync("/api/v1/links");
@@ -46,7 +41,7 @@ public class ApiV1EndpointsTests : IAsyncLifetime
     {
         var ownerUserId = await SeedUserAndKeyAsync("api-owner", TestKey);
 
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestKey);
 
         var create = await client.PostAsJsonAsync("/api/v1/links", new CreateLinkRequest
@@ -64,7 +59,7 @@ public class ApiV1EndpointsTests : IAsyncLifetime
         Assert.Equal(1, list.Total);
         Assert.Contains(list.Links, l => l.ShortCode == created.ShortCode);
 
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var link = await db.ShortenedUrls.SingleAsync(l => l.ShortCode == created.ShortCode);
         Assert.Equal(ownerUserId, link.OwnerUserId);
@@ -74,7 +69,7 @@ public class ApiV1EndpointsTests : IAsyncLifetime
     public async Task CreateWithCustomSlug_AndDuplicateSlug_ReturnsConflict()
     {
         await SeedUserAndKeyAsync("api-owner", TestKey);
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestKey);
 
         var first = await client.PostAsJsonAsync("/api/v1/links", new CreateLinkRequest
@@ -98,7 +93,7 @@ public class ApiV1EndpointsTests : IAsyncLifetime
         var ownerUserId = await SeedUserAndKeyAsync("api-owner", TestKey);
         await SeedDomainAsync(ownerUserId, "go.example.com", verified: true, isDefault: true);
 
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestKey);
 
         var create = await client.PostAsJsonAsync("/api/v1/links", new CreateLinkRequest
@@ -111,7 +106,7 @@ public class ApiV1EndpointsTests : IAsyncLifetime
         Assert.Equal("go.example.com", created.Domain);
         Assert.Contains("//go.example.com/", created.ShortUrl);
 
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var link = await db.ShortenedUrls.SingleAsync(l => l.ShortCode == created.ShortCode);
         Assert.NotNull(link.DomainId);
@@ -122,7 +117,7 @@ public class ApiV1EndpointsTests : IAsyncLifetime
     {
         await SeedUserAndKeyAsync("api-owner", TestKey);
 
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestKey);
 
         var create = await client.PostAsJsonAsync("/api/v1/links", new CreateLinkRequest
@@ -141,7 +136,7 @@ public class ApiV1EndpointsTests : IAsyncLifetime
         var ownerUserId = await SeedUserAndKeyAsync("api-owner", TestKey);
         await SeedDomainAsync(ownerUserId, "go.example.com", verified: true);
 
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestKey);
 
         var create = await client.PostAsJsonAsync("/api/v1/links", new CreateLinkRequest
@@ -165,7 +160,7 @@ public class ApiV1EndpointsTests : IAsyncLifetime
         Assert.Equal("https://example.com/after", updated.LongUrl);
         Assert.Equal("go.example.com", updated.Domain);
 
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         Assert.Null(await db.ShortenedUrls.FirstOrDefaultAsync(l => l.ShortCode == "before"));
         var link = await db.ShortenedUrls.SingleAsync(l => l.ShortCode == "after");
@@ -177,7 +172,7 @@ public class ApiV1EndpointsTests : IAsyncLifetime
     public async Task Update_UnknownDomain_ReturnsValidationError()
     {
         await SeedUserAndKeyAsync("api-owner", TestKey);
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestKey);
 
         var create = await client.PostAsJsonAsync("/api/v1/links", new CreateLinkRequest
@@ -204,7 +199,7 @@ public class ApiV1EndpointsTests : IAsyncLifetime
         await SeedUserAndKeyAsync("api-owner", TestKey);
         var otherOwner = await SeedUserAndKeyAsync("other-owner", "snr_otherkey1234567890abcdef12345678");
 
-        using (var scope = _factory.Services.CreateScope())
+        using (var scope = Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             db.ShortenedUrls.Add(new ShortenedUrl
@@ -217,7 +212,7 @@ public class ApiV1EndpointsTests : IAsyncLifetime
             db.SaveChanges();
         }
 
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestKey);
 
         var get = await client.GetAsync("/api/v1/links/oth123");
@@ -231,7 +226,7 @@ public class ApiV1EndpointsTests : IAsyncLifetime
         var ownerUserId = await SeedUserAndKeyAsync("api-owner", TestKey);
         var linkId = await SeedLinkAsync(ownerUserId, "click001");
 
-        using (var scope = _factory.Services.CreateScope())
+        using (var scope = Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             db.ClickEvents.AddRange(
@@ -240,7 +235,7 @@ public class ApiV1EndpointsTests : IAsyncLifetime
             db.SaveChanges();
         }
 
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestKey);
 
         var response = await client.GetFromJsonAsync<ClickListResponse>("/api/v1/links/click001/clicks?pageSize=1");
@@ -254,7 +249,7 @@ public class ApiV1EndpointsTests : IAsyncLifetime
     {
         var ownerUserId = await SeedUserAndKeyAsync("api-owner", TestKey);
 
-        using (var scope = _factory.Services.CreateScope())
+        using (var scope = Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var key = await db.ApiKeys.SingleAsync(k => k.OwnerUserId == ownerUserId);
@@ -262,7 +257,7 @@ public class ApiV1EndpointsTests : IAsyncLifetime
             db.SaveChanges();
         }
 
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestKey);
 
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/v1/links")).StatusCode);
@@ -282,7 +277,7 @@ public class ApiV1EndpointsTests : IAsyncLifetime
     public async Task ExceedingMinuteBurstLimit_Returns429()
     {
         await SeedUserAndKeyAsync("api-owner", TestKey);
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestKey);
 
         HttpStatusCode last = default;
@@ -294,7 +289,7 @@ public class ApiV1EndpointsTests : IAsyncLifetime
 
     private async Task<long> SeedUserAndKeyAsync(string subject, string key)
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var user = new User
         {
@@ -320,7 +315,7 @@ public class ApiV1EndpointsTests : IAsyncLifetime
 
     private async Task SeedDomainAsync(long ownerUserId, string hostname, bool verified, bool isDefault = false)
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.Domains.Add(new Domain
         {
@@ -336,7 +331,7 @@ public class ApiV1EndpointsTests : IAsyncLifetime
 
     private async Task<long> SeedLinkAsync(long ownerUserId, string shortCode)
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var link = new ShortenedUrl
         {

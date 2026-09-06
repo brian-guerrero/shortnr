@@ -1,16 +1,5 @@
 @model Shortnr.Web.Pages.Settings.ApiKeysModel
-@if (Model.ErrorMessage is not null)
-{
-    <mark class="banner status-error">
-        <strong>@Model.ErrorMessage</strong>
-    </mark>
-}
-@if (Model.StatusMessage is not null)
-{
-    <mark class="banner status-success">
-        <strong>@Model.StatusMessage</strong>
-    </mark>
-}
+<partial name="Shared/_StatusBanner" model="Model" />
 @if (Model.CreatedKey is not null)
 {
     <mark class="banner status-info">
@@ -36,7 +25,7 @@ else
                     <td data-label="Key"><code>@key.KeyPrefix…</code></td>
                     <td data-label="Scopes">
                         <div class="badge-group">
-                            @foreach (var scope in Shortnr.Web.Features.Authentication.ApiKeyScopes.Resolve(key.Scopes))
+                            @foreach (var scope in ApiKeyScopes.Resolve(key.Scopes))
                             {
                                 <mark class="status-info">@scope</mark>
                             }

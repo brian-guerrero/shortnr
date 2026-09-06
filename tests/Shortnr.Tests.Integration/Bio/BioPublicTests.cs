@@ -11,13 +11,8 @@ namespace Shortnr.Tests.Integration.Bio;
 /// Verifies the public /bio/{slug} page: rendering, 404s, theme application,
 /// no-auth access, and that rendered links route through the real redirect.
 /// </summary>
-public class BioPublicTests : IAsyncLifetime
+public class BioPublicTests : IntegrationTestBase
 {
-    private readonly ShortnrWebAppFactory _factory = new(authEnabled: true);
-
-    public Task InitializeAsync() => Task.CompletedTask;
-
-    public Task DisposeAsync() => _factory.DisposeAsync().AsTask();
 
     [Fact]
     public async Task PublicPage_RendersVisibleLinks()
@@ -29,7 +24,7 @@ public class BioPublicTests : IAsyncLifetime
         await SeedBioPageLinkAsync(pageId, visibleLinkId, "My Remix", 0, true);
         await SeedBioPageLinkAsync(pageId, hiddenLinkId, "Secret", 1, false);
 
-        var response = await _factory.CreateClient().GetAsync("/bio/alicebio");
+        var response = await Factory.CreateClient().GetAsync("/bio/alicebio");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
@@ -43,7 +38,7 @@ public class BioPublicTests : IAsyncLifetime
     [Fact]
     public async Task PublicPage_UnknownSlug_Returns404()
     {
-        var response = await _factory.CreateClient().GetAsync("/bio/nope");
+        var response = await Factory.CreateClient().GetAsync("/bio/nope");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
@@ -58,7 +53,7 @@ public class BioPublicTests : IAsyncLifetime
         var linkId = await SeedLinkAsync(ownerId, "abc123", "https://example.com/one");
         await SeedBioPageLinkAsync(pageId, linkId, "Hidden", 0, false);
 
-        var response = await _factory.CreateClient().GetAsync("/bio/alicebio");
+        var response = await Factory.CreateClient().GetAsync("/bio/alicebio");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -71,7 +66,7 @@ public class BioPublicTests : IAsyncLifetime
         var linkId = await SeedLinkAsync(ownerId, "abc123", "https://example.com/one");
         await SeedBioPageLinkAsync(pageId, linkId, "Link", 0, true);
 
-        var response = await _factory.CreateClient().GetAsync("/bio/alicebio");
+        var response = await Factory.CreateClient().GetAsync("/bio/alicebio");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -84,7 +79,7 @@ public class BioPublicTests : IAsyncLifetime
         var linkId = await SeedLinkAsync(ownerId, "abc123", "https://example.com/one");
         await SeedBioPageLinkAsync(pageId, linkId, "Link", 0, true);
 
-        var body = await _factory.CreateClient().GetStringAsync("/bio/alicebio");
+        var body = await Factory.CreateClient().GetStringAsync("/bio/alicebio");
 
         Assert.Contains("data-bio-theme=\"ocean\"", body);
     }
@@ -97,7 +92,7 @@ public class BioPublicTests : IAsyncLifetime
         var linkId = await SeedLinkAsync(ownerId, "abc123", "https://example.com/one");
         await SeedBioPageLinkAsync(pageId, linkId, "Link", 0, true);
 
-        var body = await _factory.CreateClient().GetStringAsync("/bio/alicebio");
+        var body = await Factory.CreateClient().GetStringAsync("/bio/alicebio");
 
         Assert.Contains("data-bio-theme=\"brutal\"", body);
         Assert.Contains("[data-bio-theme=\"brutal\"] .bio-card", body);
@@ -111,7 +106,7 @@ public class BioPublicTests : IAsyncLifetime
         var linkId = await SeedLinkAsync(ownerId, "abc123", "https://example.com/one");
         await SeedBioPageLinkAsync(pageId, linkId, "My Remix", 0, true);
 
-        using var client = _factory.CreateClientNoRedirect();
+        using var client = Factory.CreateClientNoRedirect();
         var page = await client.GetAsync("/bio/alicebio");
         Assert.Equal(HttpStatusCode.OK, page.StatusCode);
         var body = await page.Content.ReadAsStringAsync();
@@ -124,7 +119,7 @@ public class BioPublicTests : IAsyncLifetime
 
     private async Task<long> SeedUserAsync(string subject)
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var user = new User
         {
@@ -140,7 +135,7 @@ public class BioPublicTests : IAsyncLifetime
 
     private async Task<long> SeedBioPageAsync(long ownerUserId, string slug, string displayName, string theme)
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var page = new BioPage
         {
@@ -157,7 +152,7 @@ public class BioPublicTests : IAsyncLifetime
 
     private async Task<long> SeedLinkAsync(long ownerUserId, string shortCode, string longUrl)
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var link = new ShortenedUrl
         {
@@ -173,7 +168,7 @@ public class BioPublicTests : IAsyncLifetime
 
     private async Task SeedBioPageLinkAsync(long bioPageId, long shortUrlId, string title, int sortOrder, bool isVisible)
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.BioPageLinks.Add(new BioPageLink
         {

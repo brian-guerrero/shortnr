@@ -6,18 +6,14 @@ namespace Shortnr.Tests.Integration.Infrastructure;
 /// Verifies the colour-scheme layer: the app shell ships the toggle and the
 /// no-flash resolver, and public bio pages opt out of it.
 /// </summary>
-public class ColorSchemeTests : IAsyncLifetime
+public class ColorSchemeTests : IntegrationTestBase
 {
-    private readonly ShortnrWebAppFactory _factory = new(authEnabled: false);
-
-    public Task InitializeAsync() => Task.CompletedTask;
-
-    public Task DisposeAsync() => _factory.DisposeAsync().AsTask();
+    protected override bool AuthEnabled => false;
 
     [Fact]
     public async Task Layout_RendersTheSchemeToggle()
     {
-        var html = await _factory.CreateClient().GetStringAsync("/");
+        var html = await Factory.CreateClient().GetStringAsync("/");
 
         Assert.Contains("data-scheme-toggle", html);
         Assert.Contains("aria-label=\"Switch to dark theme\"", html);
@@ -26,7 +22,7 @@ public class ColorSchemeTests : IAsyncLifetime
     [Fact]
     public async Task Layout_ResolvesTheSchemeBeforeTheStylesheetPaints()
     {
-        var html = await _factory.CreateClient().GetStringAsync("/");
+        var html = await Factory.CreateClient().GetStringAsync("/");
 
         // The resolver has to be inline and ahead of <body>, or the page paints
         // in the wrong scheme first and flashes.
@@ -44,7 +40,7 @@ public class ColorSchemeTests : IAsyncLifetime
         // visitor on a dark OS must not repaint someone's bio page. The
         // not-found body renders through the same shell, so it is enough to
         // assert the opt-out without seeding a page.
-        var response = await _factory.CreateClient().GetAsync("/bio/nobody");
+        var response = await Factory.CreateClient().GetAsync("/bio/nobody");
         var html = await response.Content.ReadAsStringAsync();
 
         Assert.Contains("data-color-scheme=\"light\"", html);

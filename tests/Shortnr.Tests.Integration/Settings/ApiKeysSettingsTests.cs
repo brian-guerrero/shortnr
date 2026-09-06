@@ -12,23 +12,14 @@ namespace Shortnr.Tests.Integration.Settings;
 /// Verifies the /settings/api-keys page: key creation (plaintext shown once),
 /// revocation, owner scoping and auth gating.
 /// </summary>
-public class ApiKeysSettingsTests : IAsyncLifetime
+public class ApiKeysSettingsTests : IntegrationTestBase
 {
-    private static readonly Regex AntiforgeryTokenRegex = new(
-        @"name=""__RequestVerificationToken""[^>]*value=""([^""]+)""",
-        RegexOptions.Compiled);
-
-    private readonly ShortnrWebAppFactory _factory = new(authEnabled: true);
-
-    public Task InitializeAsync() => Task.CompletedTask;
-
-    public Task DisposeAsync() => _factory.DisposeAsync().AsTask();
 
     [Fact]
     public async Task CreateKey_ShowsPlaintextOnce_AndStoresOnlyHash()
     {
-        _factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
-        using (var scope = _factory.Services.CreateScope())
+        Factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
+        using (var scope = Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             db.Users.Add(new User
@@ -41,7 +32,7 @@ public class ApiKeysSettingsTests : IAsyncLifetime
             db.SaveChanges();
         }
 
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         var token = await GetAntiforgeryTokenAsync(client);
 
         var response = await PostFormAsync(client, "/settings/api-keys", token,
@@ -58,7 +49,7 @@ public class ApiKeysSettingsTests : IAsyncLifetime
         var plaintext = match.Groups[1].Value;
         Assert.Contains("shown only once", body);
 
-        using var scope2 = _factory.Services.CreateScope();
+        using var scope2 = Factory.Services.CreateScope();
         var db2 = scope2.ServiceProvider.GetRequiredService<AppDbContext>();
         var key = await db2.ApiKeys.SingleAsync();
         Assert.Equal("CI pipeline", key.Label);
@@ -75,10 +66,10 @@ public class ApiKeysSettingsTests : IAsyncLifetime
     [Fact]
     public async Task RevokeKey_MarksItRevoked()
     {
-        _factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
+        Factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
         var ownerUserId = await SeedUserAndKeyAsync("alice", "snr_existingkey0000000000000000000000");
 
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         var token = await GetAntiforgeryTokenAsync(client);
 
         var response = await PostFormAsync(client, "/settings/api-keys?handler=Revoke", token,
@@ -88,7 +79,7 @@ public class ApiKeysSettingsTests : IAsyncLifetime
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("revoked", body);
 
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         Assert.NotNull((await db.ApiKeys.SingleAsync(k => k.OwnerUserId == ownerUserId)).RevokedAt);
     }
@@ -96,8 +87,8 @@ public class ApiKeysSettingsTests : IAsyncLifetime
     [Fact]
     public async Task ApiKeysAreScopedToOwner()
     {
-        _factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
-        using (var scope = _factory.Services.CreateScope())
+        Factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
+        using (var scope = Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var alice = new User { Issuer = ShortnrWebAppFactory.TestIssuer, Subject = "alice", CreatedAtUtc = DateTime.UtcNow, LastLoginAtUtc = DateTime.UtcNow };
@@ -116,7 +107,7 @@ public class ApiKeysSettingsTests : IAsyncLifetime
             db.SaveChanges();
         }
 
-        var response = await _factory.CreateClient().GetAsync("/settings/api-keys");
+        var response = await Factory.CreateClient().GetAsync("/settings/api-keys");
         var body = await response.Content.ReadAsStringAsync();
 
         Assert.DoesNotContain("bob key", body);
@@ -149,7 +140,7 @@ public class ApiKeysSettingsTests : IAsyncLifetime
 
     private async Task<long> SeedUserAndKeyAsync(string subject, string key)
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var user = new User
         {
@@ -175,26 +166,14 @@ public class ApiKeysSettingsTests : IAsyncLifetime
 
     private async Task<long> FindKeyIdAsync(long ownerUserId)
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         return (await db.ApiKeys.SingleAsync(k => k.OwnerUserId == ownerUserId)).Id;
     }
 
-    private static async Task<string> GetAntiforgeryTokenAsync(HttpClient client)
-    {
-        var page = await client.GetAsync("/settings/api-keys");
-        var html = await page.Content.ReadAsStringAsync();
-        var match = AntiforgeryTokenRegex.Match(html);
-        Assert.True(match.Success, "Antiforgery token not found in api-keys page.");
-        return match.Groups[1].Value;
-    }
+    private static Task<string> GetAntiforgeryTokenAsync(HttpClient client) =>
+        TestForms.GetAntiforgeryTokenAsync(client, "/settings/api-keys");
 
-    private static async Task<HttpResponseMessage> PostFormAsync(HttpClient client, string path, string token, params (string Name, string Value)[] fields)
-    {
-        var pairs = fields
-            .Select(f => new KeyValuePair<string, string>(f.Name, f.Value))
-            .ToList();
-        pairs.Add(new KeyValuePair<string, string>("__RequestVerificationToken", token));
-        return await client.PostAsync(path, new FormUrlEncodedContent(pairs));
-    }
+    private static Task<HttpResponseMessage> PostFormAsync(HttpClient client, string path, string token, params (string Name, string Value)[] fields) =>
+        TestForms.PostFormAsync(client, path, token, fields);
 }

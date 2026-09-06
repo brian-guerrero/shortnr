@@ -12,8 +12,10 @@ namespace Shortnr.Tests.Integration.Api;
 /// user agents are routed to their platform-specific target when configured,
 /// everyone else falls back to the original URL.
 /// </summary>
-public class DeepLinkRedirectTests : IAsyncLifetime
+public class DeepLinkRedirectTests : IntegrationTestBase
 {
+    protected override bool AuthEnabled => false;
+
     private const string IosUa =
         "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
     private const string AndroidUa =
@@ -21,20 +23,14 @@ public class DeepLinkRedirectTests : IAsyncLifetime
     private const string DesktopUa =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
-    private readonly ShortnrWebAppFactory _factory = new(authEnabled: false);
-
-    public Task InitializeAsync()
+    public override async Task InitializeAsync()
     {
-        using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        db.ClickEvents.RemoveRange(db.ClickEvents);
-        db.ShortenedUrls.RemoveRange(db.ShortenedUrls);
-        db.Domains.RemoveRange(db.Domains);
-        db.Users.RemoveRange(db.Users);
-        return db.SaveChangesAsync();
-    }
+        await base.InitializeAsync();
 
-    public Task DisposeAsync() => _factory.DisposeAsync().AsTask();
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await db.SaveChangesAsync();
+    }
 
     [Fact]
     public async Task Redirect_IosUa_SendsIosDeepLink()
@@ -83,7 +79,7 @@ public class DeepLinkRedirectTests : IAsyncLifetime
     [Fact]
     public async Task Redirect_PixelAndIosDeepLink_ServesInterstitialTargetingIosLink()
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.ShortenedUrls.Add(new ShortenedUrl
         {
@@ -111,7 +107,7 @@ public class DeepLinkRedirectTests : IAsyncLifetime
 
     private async Task SeedAsync(string code, string longUrl, string? ios, string? android)
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.ShortenedUrls.Add(new ShortenedUrl
         {
@@ -125,7 +121,7 @@ public class DeepLinkRedirectTests : IAsyncLifetime
 
     private async Task<HttpResponseMessage> GetAsync(string path, string userAgent)
     {
-        var client = _factory.CreateClientNoRedirect();
+        var client = Factory.CreateClientNoRedirect();
         client.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent);
         return await client.GetAsync(path);
     }

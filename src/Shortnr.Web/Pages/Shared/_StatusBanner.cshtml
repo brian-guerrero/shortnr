@@ -1,0 +1,13 @@
+@model IStatusMessageModel
+@if (Model.ErrorMessage is not null)
+{
+    <mark class="banner status-error">
+        <strong>@Model.ErrorMessage</strong>
+    </mark>
+}
+@if (Model.StatusMessage is not null)
+{
+    <mark class="banner status-success">
+        <strong>@Model.StatusMessage</strong>
+    </mark>
+}

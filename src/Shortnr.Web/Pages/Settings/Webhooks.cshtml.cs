@@ -1,27 +1,15 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
 using Shortnr.Data.Entities;
 
 namespace Shortnr.Web.Pages.Settings;
 
-public class WebhooksModel : PageModel
+public class WebhooksModel(AppDbContext db, UserIdentityService identity)
+    : AuthorizedPageModel(identity)
 {
-    private readonly AppDbContext _db;
-    private readonly UserIdentityService _identity;
-
     public List<Webhook> Webhooks { get; set; } = [];
-    public string? StatusMessage { get; set; }
-    public string? ErrorMessage { get; set; }
     public string? CreatedSecret { get; set; }
-    public bool IsHtmxRequest { get; set; }
-
-    public WebhooksModel(AppDbContext db, UserIdentityService identity)
-    {
-        _db = db;
-        _identity = identity;
-    }
 
     public async Task<IActionResult> OnGet()
     {
@@ -29,7 +17,6 @@ public class WebhooksModel : PageModel
         if (gate is not null)
             return gate;
 
-        IsHtmxRequest = Request.Headers["HX-Request"].Count > 0;
         Webhooks = await LoadWebhooksAsync();
         return Page();
     }
@@ -52,12 +39,12 @@ public class WebhooksModel : PageModel
         if (selectedEvents.Length == 0 || !selectedEvents.All(WebhookEventTypes.IsValid))
             return await ListPartialAsync(error: "Select at least one valid event type.");
 
-        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(User);
         if (ownerUserId is null)
             return await ListPartialAsync(error: "Unable to determine the webhook owner.");
 
         var secret = WebhookSigningService.GenerateSecret();
-        _db.Webhooks.Add(new Webhook
+        db.Webhooks.Add(new Webhook
         {
             OwnerUserId = ownerUserId.Value,
             Url = url,
@@ -66,7 +53,7 @@ public class WebhooksModel : PageModel
             IsActive = true,
             CreatedAtUtc = DateTime.UtcNow
         });
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
 
         return await ListPartialAsync(
             status: "Webhook created. Copy the secret now — it is shown only once.",
@@ -84,7 +71,7 @@ public class WebhooksModel : PageModel
             return await ListPartialAsync(error: "Webhook not found.");
 
         webhook.IsActive = false;
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
 
         return await ListPartialAsync(status: $"Webhook for '{webhook.Url}' disabled.");
     }
@@ -102,25 +89,16 @@ public class WebhooksModel : PageModel
         webhook.IsActive = true;
         webhook.FailureCount = 0;
         webhook.LastFailureAtUtc = null;
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
 
         return await ListPartialAsync(status: $"Webhook for '{webhook.Url}' re-enabled.");
     }
 
-    private IActionResult? EnforceAccess()
-    {
-        if (_identity.IsAuthEnabled && User.Identity?.IsAuthenticated != true)
-            return Request.Headers["HX-Request"].Count > 0
-                ? Unauthorized()
-                : RedirectToPage("/Index");
-
-        return null;
-    }
 
     private async Task<List<Webhook>> LoadWebhooksAsync()
     {
-        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
-        var query = _db.Webhooks.AsQueryable();
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(User);
+        var query = db.Webhooks.AsQueryable();
         if (ownerUserId is not null)
             query = query.Where(w => w.OwnerUserId == ownerUserId);
 
@@ -129,8 +107,8 @@ public class WebhooksModel : PageModel
 
     private async Task<Webhook?> FindOwnedWebhookAsync(long id)
     {
-        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
-        return await _db.Webhooks.FirstOrDefaultAsync(w => w.Id == id && w.OwnerUserId == ownerUserId);
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(User);
+        return await db.Webhooks.FirstOrDefaultAsync(w => w.Id == id && w.OwnerUserId == ownerUserId);
     }
 
     private async Task<IActionResult> ListPartialAsync(string? status = null, string? error = null, string? createdSecret = null)

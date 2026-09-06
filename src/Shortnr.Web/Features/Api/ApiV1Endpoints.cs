@@ -73,7 +73,7 @@ public static class ApiV1Endpoints
         UserIdentityService identity,
         WorkspaceService workspaceService,
         WorkspaceAuthorizationService workspaceAuth,
-        WebhookEventDispatcher webhookDispatcher,
+        ShortLinkService links,
         ClaimsPrincipal user,
         CancellationToken ct)
     {
@@ -91,8 +91,6 @@ public static class ApiV1Endpoints
         }
 
         var url = body.Url?.Trim() ?? "";
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || (uri.Scheme != "http" && uri.Scheme != "https"))
-            return TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["url"] = ["Must be an absolute http(s) URL."] });
 
         Domain? domain = null;
         var domainId = (long?)null;
@@ -112,43 +110,26 @@ public static class ApiV1Endpoints
             domainId = domain?.Id;
         }
 
-        var slug = body.Slug?.Trim() ?? "";
-        string shortCode;
-        if (slug.Length > 0)
-        {
-            if (!ShortLinkCodes.IsValidSlug(slug))
-                return TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["slug"] = ["Must be 1–64 chars: letters, digits, '-' or '_', starting with a letter or digit."] });
+        var outcome = await links.CreateAsync(
+            new NewLinkRequest(url, body.Slug, domainId, ownerUserId, workspaceId), ct);
 
-            var collides = await db.ShortenedUrls.AnyAsync(l => l.DomainId == domainId && l.ShortCode == slug, ct);
-            if (collides)
-                return TypedResults.Conflict();
-            shortCode = slug;
-        }
-        else
-        {
-            shortCode = await ShortLinkCodes.GenerateUniqueCodeAsync(
-                code => db.ShortenedUrls.AnyAsync(l => l.DomainId == domainId && l.ShortCode == code, ct));
-        }
+        if (outcome is not CreateLinkOutcome.Created created)
+            return outcome switch
+            {
+                CreateLinkOutcome.InvalidUrl =>
+                    TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["url"] = ["Must be an absolute http(s) URL."] }),
+                CreateLinkOutcome.InvalidSlug =>
+                    TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["slug"] = ["Must be 1–64 chars: letters, digits, '-' or '_', starting with a letter or digit."] }),
+                _ => TypedResults.Conflict()
+            };
 
-        var link = new ShortenedUrl
-        {
-            LongUrl = url,
-            ShortCode = shortCode,
-            DomainId = domainId,
-            OwnerUserId = workspaceId is not null ? null : ownerUserId,
-            WorkspaceId = workspaceId,
-            CreatedAtUtc = DateTime.UtcNow
-        };
-        db.ShortenedUrls.Add(link);
-        await db.SaveChangesAsync(ct);
-
-        await webhookDispatcher.DispatchLinkCreatedAsync(link, request.Scheme, request.Host.Host);
+        var link = created.Link;
 
         var workspaceSlug = workspaceId is not null
             ? (await db.Workspaces.Where(w => w.Id == workspaceId).Select(w => w.Slug).FirstOrDefaultAsync(ct))
             : null;
         return TypedResults.Created(
-            $"/api/v1/links/{shortCode}",
+            $"/api/v1/links/{link.ShortCode}",
             ToResponse(link, domain, request.Scheme, request.Host.Host, workspaceSlug));
     }
 
@@ -184,12 +165,7 @@ public static class ApiV1Endpoints
             query = query.Where(l => l.OwnerUserId == ownerUserId);
         }
 
-        if (!string.IsNullOrEmpty(domain))
-        {
-            query = domain == "default"
-                ? query.Where(l => l.DomainId == null)
-                : query.Where(l => l.Domain != null && l.Domain.Hostname == domain);
-        }
+        query = query.FilterByDomain(domain);
 
         var total = await query.CountAsync(ct);
         var links = await query
@@ -316,11 +292,10 @@ public static class ApiV1Endpoints
         string shortCode,
         string? domain,
         string? workspace,
-        HttpRequest request,
         AppDbContext db,
         UserIdentityService identity,
         WorkspaceService workspaceService,
-        WebhookEventDispatcher webhookDispatcher,
+        ShortLinkService links,
         ClaimsPrincipal user,
         CancellationToken ct)
     {
@@ -332,10 +307,7 @@ public static class ApiV1Endpoints
         if (link is null)
             return TypedResults.NotFound();
 
-        await webhookDispatcher.DispatchLinkDeletedAsync(link, request.Scheme, request.Host.Host);
-
-        db.ShortenedUrls.Remove(link);
-        await db.SaveChangesAsync(ct);
+        await links.DeleteAsync(link, ct);
         return TypedResults.NoContent();
     }
 
@@ -397,13 +369,8 @@ public static class ApiV1Endpoints
             query = query.Where(l => l.OwnerUserId == ownerUserId && l.ShortCode == shortCode);
         }
 
-        if (!string.IsNullOrEmpty(domain))
-        {
-            query = domain == "default"
-                ? query.Where(l => l.DomainId == null)
-                : query.Where(l => l.Domain != null && l.Domain.Hostname == domain);
-            return await query.FirstOrDefaultAsync(ct);
-        }
+        if (!string.IsNullOrWhiteSpace(domain))
+            return await query.FilterByDomain(domain).FirstOrDefaultAsync(ct);
 
         var matches = await query.ToListAsync(ct);
         if (matches.Count <= 1)

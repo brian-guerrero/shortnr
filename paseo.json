@@ -1,0 +1,18 @@
+{
+  "worktree": {
+    "setup": "dotnet restore",
+    "teardown": "rm -rf bin obj src/*/bin src/*/obj"
+  },
+  "scripts": {
+    "build": {
+      "command": "dotnet build"
+    },
+    "test": {
+      "command": "dotnet test"
+    },
+    "web": {
+      "type": "service",
+      "command": "dotnet run --project src/Shortnr.Web/Shortnr.Web.csproj --urls http://0.0.0.0:$PASEO_PORT\""
+    }
+  }
+}

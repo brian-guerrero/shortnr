@@ -38,8 +38,7 @@ public static class ApiEndpoints
                     osBreakdown = Array.Empty<object>()
                 });
 
-            var linkQuery = db.ShortenedUrls.AsQueryable();
-            linkQuery = ApplyMetricsScoping(linkQuery, ownerUserId, workspaceId);
+            var linkQuery = db.ShortenedUrls.ScopeToOwner(ownerUserId, workspaceId);
 
             var totalLinks = await linkQuery.CountAsync();
             var totalClicks = await linkQuery.SumAsync(l => (long?)l.ClickCount) ?? 0;
@@ -49,8 +48,7 @@ public static class ApiEndpoints
                 .Select(l => new { l.ShortCode, l.LongUrl, l.ClickCount })
                 .ToListAsync();
 
-            var clickQuery = db.ClickEvents.AsQueryable();
-            clickQuery = ApplyClickMetricsScoping(clickQuery, ownerUserId, workspaceId);
+            var clickQuery = db.ClickEvents.ScopeToOwner(ownerUserId, workspaceId);
 
             var totalCountries = await clickQuery
                 .Where(e => e.CountryCode != null && e.CountryCode != "")
@@ -216,23 +214,5 @@ public static class ApiEndpoints
         }).RequireRateLimiting("redirect-ip");
 
         return app;
-    }
-
-    private static IQueryable<ShortenedUrl> ApplyMetricsScoping(IQueryable<ShortenedUrl> query, long? ownerUserId, long? workspaceId)
-    {
-        if (workspaceId is not null)
-            return query.Where(l => l.WorkspaceId == workspaceId);
-        if (ownerUserId is not null)
-            return query.Where(l => l.OwnerUserId == ownerUserId);
-        return query;
-    }
-
-    private static IQueryable<ClickEvent> ApplyClickMetricsScoping(IQueryable<ClickEvent> query, long? ownerUserId, long? workspaceId)
-    {
-        if (workspaceId is not null)
-            return query.Where(e => e.ShortenedUrl.WorkspaceId == workspaceId);
-        if (ownerUserId is not null)
-            return query.Where(e => e.ShortenedUrl.OwnerUserId == ownerUserId);
-        return query;
     }
 }

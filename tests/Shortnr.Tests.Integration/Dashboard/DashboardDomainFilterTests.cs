@@ -8,23 +8,17 @@ namespace Shortnr.Tests.Integration.Dashboard;
 /// <summary>
 /// Verifies the dashboard link table's domain column and the domain filter.
 /// </summary>
-public class DashboardDomainFilterTests : IAsyncLifetime
+public class DashboardDomainFilterTests : IntegrationTestBase
 {
-    private readonly ShortnrWebAppFactory _factory = new(authEnabled: true);
 
     private User _alice = null!;
 
-    public async Task InitializeAsync()
+    public override async Task InitializeAsync()
     {
-        using var scope = _factory.Services.CreateScope();
+        await base.InitializeAsync();
+
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-        db.ClickEvents.RemoveRange(db.ClickEvents);
-        db.ShortenedUrls.RemoveRange(db.ShortenedUrls);
-        db.Domains.RemoveRange(db.Domains);
-        db.Users.RemoveRange(db.Users);
-        await db.SaveChangesAsync();
-
         _alice = new User
         {
             Issuer = ShortnrWebAppFactory.TestIssuer,
@@ -51,8 +45,6 @@ public class DashboardDomainFilterTests : IAsyncLifetime
             new ShortenedUrl { LongUrl = "https://example.com/custom", ShortCode = "xyz789", DomainId = domain.Id, OwnerUserId = _alice.Id, CreatedAtUtc = DateTime.UtcNow });
         await db.SaveChangesAsync();
     }
-
-    public async Task DisposeAsync() => await _factory.DisposeAsync();
 
     [Fact]
     public async Task SearchResults_ShowDomainColumn()
@@ -92,8 +84,8 @@ public class DashboardDomainFilterTests : IAsyncLifetime
 
     private HttpClient AuthenticatedClient()
     {
-        _factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
-        return _factory.CreateClient();
+        Factory.Services.GetRequiredService<TestAuthState>().SetAuthenticatedUser("alice", ShortnrWebAppFactory.TestIssuer);
+        return Factory.CreateClient();
     }
 
     private static HttpRequestMessage HtmxGet(string url, string target) =>

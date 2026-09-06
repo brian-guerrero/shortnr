@@ -1,27 +1,15 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Shortnr.Data;
 using Shortnr.Data.Entities;
 
 namespace Shortnr.Web.Pages.Settings;
 
-public class ApiKeysModel : PageModel
+public class ApiKeysModel(AppDbContext db, UserIdentityService identity)
+    : AuthorizedPageModel(identity)
 {
-    private readonly AppDbContext _db;
-    private readonly UserIdentityService _identity;
-
     public List<ApiKey> ApiKeys { get; set; } = [];
-    public string? StatusMessage { get; set; }
-    public string? ErrorMessage { get; set; }
     public string? CreatedKey { get; set; }
-    public bool IsHtmxRequest { get; set; }
-
-    public ApiKeysModel(AppDbContext db, UserIdentityService identity)
-    {
-        _db = db;
-        _identity = identity;
-    }
 
     public async Task<IActionResult> OnGet()
     {
@@ -29,7 +17,6 @@ public class ApiKeysModel : PageModel
         if (gate is not null)
             return gate;
 
-        IsHtmxRequest = Request.Headers["HX-Request"].Count > 0;
         ApiKeys = await LoadApiKeysAsync();
         return Page();
     }
@@ -48,12 +35,12 @@ public class ApiKeysModel : PageModel
         if (!ApiKeyScopes.IsValidSelection(selectedScopes))
             return await ListPartialAsync(error: "Select at least one valid scope.");
 
-        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(User);
         if (ownerUserId is null)
             return await ListPartialAsync(error: "Unable to determine the key owner.");
 
         var key = ApiKeyService.GenerateKey();
-        _db.ApiKeys.Add(new ApiKey
+        db.ApiKeys.Add(new ApiKey
         {
             OwnerUserId = ownerUserId.Value,
             KeyHash = ApiKeyService.HashKey(key),
@@ -62,7 +49,7 @@ public class ApiKeysModel : PageModel
             Scopes = ApiKeyScopes.Format(selectedScopes),
             CreatedAtUtc = DateTime.UtcNow
         });
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
 
         return await ListPartialAsync(
             status: "Key created. Copy it now — it is shown only once.",
@@ -80,25 +67,16 @@ public class ApiKeysModel : PageModel
             return await ListPartialAsync(error: "API key not found.");
 
         key.RevokedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
 
         return await ListPartialAsync(status: $"API key '{key.Label}' revoked. Requests using it now fail authentication.");
     }
 
-    private IActionResult? EnforceAccess()
-    {
-        if (_identity.IsAuthEnabled && User.Identity?.IsAuthenticated != true)
-            return Request.Headers["HX-Request"].Count > 0
-                ? Unauthorized()
-                : RedirectToPage("/Index");
-
-        return null;
-    }
 
     private async Task<List<ApiKey>> LoadApiKeysAsync()
     {
-        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
-        var query = _db.ApiKeys.AsQueryable();
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(User);
+        var query = db.ApiKeys.AsQueryable();
         if (ownerUserId is not null)
             query = query.Where(k => k.OwnerUserId == ownerUserId);
 
@@ -107,8 +85,8 @@ public class ApiKeysModel : PageModel
 
     private async Task<ApiKey?> FindOwnedApiKeyAsync(long id)
     {
-        var ownerUserId = await _identity.ResolveOwnerUserIdAsync(User);
-        return await _db.ApiKeys.FirstOrDefaultAsync(k => k.Id == id && k.OwnerUserId == ownerUserId);
+        var ownerUserId = await identity.ResolveOwnerUserIdAsync(User);
+        return await db.ApiKeys.FirstOrDefaultAsync(k => k.Id == id && k.OwnerUserId == ownerUserId);
     }
 
     private async Task<IActionResult> ListPartialAsync(string? status = null, string? error = null, string? createdKey = null)

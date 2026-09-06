@@ -10,19 +10,16 @@ namespace Shortnr.Tests.Integration.Dashboard;
 /// Verifies the dashboard's #recent-clicks table shows domain-scoped short URLs
 /// (hostname/code) for links on custom domains, consistent with the link list.
 /// </summary>
-public class DashboardRecentClicksDomainTests : IAsyncLifetime
+public class DashboardRecentClicksDomainTests : IntegrationTestBase
 {
-    private readonly ShortnrWebAppFactory _factory = new(authEnabled: false);
+    protected override bool AuthEnabled => false;
 
-    public Task InitializeAsync()
+    public override async Task InitializeAsync()
     {
-        using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await base.InitializeAsync();
 
-        db.ClickEvents.RemoveRange(db.ClickEvents);
-        db.ShortenedUrls.RemoveRange(db.ShortenedUrls);
-        db.Domains.RemoveRange(db.Domains);
-        db.Users.RemoveRange(db.Users);
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         var domain = new Domain
         {
@@ -55,11 +52,7 @@ public class DashboardRecentClicksDomainTests : IAsyncLifetime
             new ClickEvent { ShortenedUrlId = domainLink.Id, IpAddress = "1.1.1.1", ClickedAtUtc = DateTime.UtcNow },
             new ClickEvent { ShortenedUrlId = defaultLink.Id, IpAddress = "1.1.1.1", ClickedAtUtc = DateTime.UtcNow });
         db.SaveChanges();
-
-        return Task.CompletedTask;
     }
-
-    public Task DisposeAsync() => _factory.DisposeAsync().AsTask();
 
     private static HttpRequestMessage HtmxGet(string url, string target) =>
         new(HttpMethod.Get, url)
@@ -70,7 +63,7 @@ public class DashboardRecentClicksDomainTests : IAsyncLifetime
     [Fact]
     public async Task RecentClicks_CustomDomainLink_ShowsHostnameCode()
     {
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         var response = await client.SendAsync(HtmxGet("/dashboard", "recent-clicks"));
         var html = await response.Content.ReadAsStringAsync();
 
@@ -81,7 +74,7 @@ public class DashboardRecentClicksDomainTests : IAsyncLifetime
     [Fact]
     public async Task RecentClicks_DefaultHostLink_ShowsBareCode()
     {
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         var response = await client.SendAsync(HtmxGet("/dashboard", "recent-clicks"));
         var html = await response.Content.ReadAsStringAsync();
 

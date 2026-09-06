@@ -7,13 +7,8 @@ using Shortnr.Tests.Integration.Infrastructure;
 
 namespace Shortnr.Tests.Integration.Bio;
 
-public class BioSocialMetaTests : IAsyncLifetime
+public class BioSocialMetaTests : IntegrationTestBase
 {
-    private readonly ShortnrWebAppFactory _factory = new(authEnabled: true);
-
-    public Task InitializeAsync() => Task.CompletedTask;
-
-    public Task DisposeAsync() => _factory.DisposeAsync().AsTask();
 
     [Fact]
     public async Task PublicPage_RendersOgMetaTags()
@@ -24,7 +19,7 @@ public class BioSocialMetaTests : IAsyncLifetime
         var linkId = await SeedLinkAsync(ownerId, "abc123", "https://example.com/one");
         await SeedBioPageLinkAsync(pageId, linkId, "My Site", 0, true);
 
-        var body = await _factory.CreateClient().GetStringAsync("/bio/alicebio");
+        var body = await Factory.CreateClient().GetStringAsync("/bio/alicebio");
 
         Assert.Contains("property=\"og:title\" content=\"Alice Corner\"", body);
         Assert.Contains("property=\"og:description\" content=\"Creator, builder, dreamer.\"", body);
@@ -42,7 +37,7 @@ public class BioSocialMetaTests : IAsyncLifetime
         var linkId = await SeedLinkAsync(ownerId, "abc123", "https://example.com/one");
         await SeedBioPageLinkAsync(pageId, linkId, "Link", 0, true);
 
-        var body = await _factory.CreateClient().GetStringAsync("/bio/alicebio");
+        var body = await Factory.CreateClient().GetStringAsync("/bio/alicebio");
 
         Assert.Contains("name=\"twitter:card\" content=\"summary\"", body);
         Assert.Contains("name=\"twitter:title\" content=\"Alice\"", body);
@@ -57,7 +52,7 @@ public class BioSocialMetaTests : IAsyncLifetime
         var linkId = await SeedLinkAsync(ownerId, "abc123", "https://example.com/one");
         await SeedBioPageLinkAsync(pageId, linkId, "Link", 0, true);
 
-        var body = await _factory.CreateClient().GetStringAsync("/bio/alicebio");
+        var body = await Factory.CreateClient().GetStringAsync("/bio/alicebio");
 
         Assert.Contains("name=\"twitter:card\" content=\"summary_large_image\"", body);
         Assert.Contains("/img/bio-og-default.svg", body);
@@ -73,7 +68,7 @@ public class BioSocialMetaTests : IAsyncLifetime
         var linkId = await SeedLinkAsync(ownerId, "abc123", "https://example.com/one");
         await SeedBioPageLinkAsync(pageId, linkId, "Link", 0, true);
 
-        var body = await _factory.CreateClient().GetStringAsync("/bio/alicebio");
+        var body = await Factory.CreateClient().GetStringAsync("/bio/alicebio");
 
         var truncated = new string('A', 160) + "&#x2026;";
         Assert.Contains($"content=\"{truncated}\"", body);
@@ -87,7 +82,7 @@ public class BioSocialMetaTests : IAsyncLifetime
         var linkId = await SeedLinkAsync(ownerId, "abc123", "https://example.com/one");
         await SeedBioPageLinkAsync(pageId, linkId, "Link", 0, true);
 
-        var body = await _factory.CreateClient().GetStringAsync("/bio/alicebio");
+        var body = await Factory.CreateClient().GetStringAsync("/bio/alicebio");
 
         Assert.Contains("Alice Corner&#x27;s bio page on shortnr", body);
     }
@@ -100,7 +95,7 @@ public class BioSocialMetaTests : IAsyncLifetime
         var linkId = await SeedLinkAsync(ownerId, "abc123", "https://example.com/one");
         await SeedBioPageLinkAsync(pageId, linkId, "Link", 0, true);
 
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         client.DefaultRequestHeaders.Host = "go.example.com";
         var body = await client.GetStringAsync("/bio/alicebio");
 
@@ -109,7 +104,7 @@ public class BioSocialMetaTests : IAsyncLifetime
 
     private async Task<long> SeedUserAsync(string subject)
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var user = new User
         {
@@ -126,7 +121,7 @@ public class BioSocialMetaTests : IAsyncLifetime
     private async Task<long> SeedBioPageAsync(long ownerUserId, string slug, string displayName, string theme,
         string? bioText = null, string? avatarUrl = null)
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var page = new BioPage
         {
@@ -145,7 +140,7 @@ public class BioSocialMetaTests : IAsyncLifetime
 
     private async Task<long> SeedLinkAsync(long ownerUserId, string shortCode, string longUrl)
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var link = new ShortenedUrl
         {
@@ -161,7 +156,7 @@ public class BioSocialMetaTests : IAsyncLifetime
 
     private async Task SeedBioPageLinkAsync(long bioPageId, long shortUrlId, string title, int sortOrder, bool isVisible)
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.BioPageLinks.Add(new BioPageLink
         {

@@ -31,13 +31,9 @@ public static class McpLinkReadTools
 
         limit = Math.Clamp(limit, 1, 100);
 
-        var query = db.ShortenedUrls.Where(l => l.OwnerUserId == ownerUserId);
-        if (!string.IsNullOrWhiteSpace(domain))
-        {
-            query = domain.Trim().ToLowerInvariant() == "default"
-                ? query.Where(l => l.DomainId == null)
-                : query.Where(l => l.Domain != null && l.Domain.Hostname == domain.Trim().ToLowerInvariant());
-        }
+        var query = db.ShortenedUrls
+            .Where(l => l.OwnerUserId == ownerUserId)
+            .FilterByDomain(domain);
         if (!string.IsNullOrWhiteSpace(filter))
         {
             var f = filter.Trim();

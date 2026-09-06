@@ -18,21 +18,15 @@ namespace Shortnr.Tests.Integration.OAuth;
 /// <see cref="TestAuthHandler"/> (controlled via <see cref="TestAuthState"/>);
 /// OpenIddict itself still validates client, redirect URI, PKCE and scopes.
 /// </summary>
-public class OAuthFlowTests : IAsyncLifetime
+public class OAuthFlowTests : IntegrationTestBase
 {
     private const string LoopbackRedirectUri = "http://127.0.0.1:9999/callback";
     private const string Resource = "http://localhost:5156/mcp";
 
-    private readonly ShortnrWebAppFactory _factory = new(authEnabled: true);
-
-    public Task InitializeAsync() => Task.CompletedTask;
-
-    public Task DisposeAsync() => _factory.DisposeAsync().AsTask();
-
     [Fact]
     public async Task ProtectedResourceMetadata_ExposesMcpResource()
     {
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
 
         var response = await client.GetAsync("/.well-known/oauth-protected-resource/mcp");
 
@@ -51,7 +45,7 @@ public class OAuthFlowTests : IAsyncLifetime
     [Fact]
     public async Task AuthorizationServerMetadata_AdvertisesRegistrationEndpoint()
     {
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
 
         var response = await client.GetAsync("/.well-known/openid-configuration");
 
@@ -63,7 +57,7 @@ public class OAuthFlowTests : IAsyncLifetime
     [Fact]
     public async Task McpEndpoint_NoAuth_ChallengesWithProtectedResourceMetadata()
     {
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
 
         var response = await PostJsonRpcAsync(client, "tools/list", "{}");
 
@@ -75,7 +69,7 @@ public class OAuthFlowTests : IAsyncLifetime
     [Fact]
     public async Task RegisterClient_Returns201WithClientId()
     {
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
 
         var response = await client.PostAsJsonAsync("/connect/register", new
         {
@@ -92,7 +86,7 @@ public class OAuthFlowTests : IAsyncLifetime
     [Fact]
     public async Task RegisterClient_RejectsNonLoopbackHttpRedirect()
     {
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
 
         var response = await client.PostAsJsonAsync("/connect/register", new
         {
@@ -106,7 +100,7 @@ public class OAuthFlowTests : IAsyncLifetime
     [Fact]
     public async Task RegisterClient_RejectsUnknownGrantType()
     {
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
 
         var response = await client.PostAsJsonAsync("/connect/register", new
         {
@@ -125,13 +119,13 @@ public class OAuthFlowTests : IAsyncLifetime
         var (verifier, challenge) = CreatePkcePair();
 
         // Browser leg: the user is already signed in via Dex (here: TestAuthHandler).
-        var authState = _factory.Services.GetRequiredService<TestAuthState>();
+        var authState = Factory.Services.GetRequiredService<TestAuthState>();
         authState.SetAuthenticatedUser("oauth-user", ShortnrWebAppFactory.TestIssuer, name: "OAuth User");
 
         var code = await GetAuthorizationCodeAsync(clientId, challenge, ApiKeyScopes.McpRead);
         var accessToken = await ExchangeCodeAsync(clientId, code, verifier);
 
-        var mcpClient = _factory.CreateClient();
+        var mcpClient = Factory.CreateClient();
         mcpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
         var response = await PostJsonRpcAsync(mcpClient, "tools/list", "{}");
@@ -148,7 +142,7 @@ public class OAuthFlowTests : IAsyncLifetime
         var clientId = await RegisterClientAsync();
         var (verifier, challenge) = CreatePkcePair();
 
-        var authState = _factory.Services.GetRequiredService<TestAuthState>();
+        var authState = Factory.Services.GetRequiredService<TestAuthState>();
         authState.SetAuthenticatedUser("refresh-user", ShortnrWebAppFactory.TestIssuer, name: "Refresh User");
 
         var code = await GetAuthorizationCodeAsync(clientId, challenge, $"{ApiKeyScopes.McpRead} offline_access");
@@ -157,7 +151,7 @@ public class OAuthFlowTests : IAsyncLifetime
         var refreshToken = tokenJson.RootElement.GetProperty("refresh_token").GetString();
         Assert.False(string.IsNullOrEmpty(refreshToken));
 
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         var refresh = await client.PostAsync("/connect/token", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["grant_type"] = "refresh_token",
@@ -177,7 +171,7 @@ public class OAuthFlowTests : IAsyncLifetime
         var (_, challenge) = CreatePkcePair();
 
         // No TestAuthState set: the browser leg must redirect to Dex.
-        var client = _factory.CreateClientNoRedirect();
+        var client = Factory.CreateClientNoRedirect();
 
         var response = await client.GetAsync(AuthorizeUrl(clientId, challenge, ApiKeyScopes.McpRead));
 
@@ -187,7 +181,7 @@ public class OAuthFlowTests : IAsyncLifetime
 
     private async Task<long> SeedUserAsync(string subject)
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<Shortnr.Data.AppDbContext>();
         var user = new Shortnr.Data.Entities.User
         {
@@ -203,7 +197,7 @@ public class OAuthFlowTests : IAsyncLifetime
 
     private async Task<string> RegisterClientAsync()
     {
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         var response = await client.PostAsJsonAsync("/connect/register", new
         {
             client_name = "opencode-test",
@@ -224,7 +218,7 @@ public class OAuthFlowTests : IAsyncLifetime
 
     private async Task<string> GetAuthorizationCodeAsync(string clientId, string challenge, string scope)
     {
-        var client = _factory.CreateClientNoRedirect();
+        var client = Factory.CreateClientNoRedirect();
         var response = await client.GetAsync(AuthorizeUrl(clientId, challenge, scope));
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
@@ -246,7 +240,7 @@ public class OAuthFlowTests : IAsyncLifetime
 
     private async Task<HttpResponseMessage> ExchangeCodeFullAsync(string clientId, string code, string verifier)
     {
-        var client = _factory.CreateClient();
+        var client = Factory.CreateClient();
         return await client.PostAsync("/connect/token", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["grant_type"] = "authorization_code",
