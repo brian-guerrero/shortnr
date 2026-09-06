@@ -1,0 +1,76 @@
+@page "/bio/{slug}/social"
+@model Shortnr.Web.Pages.Bio.SocialSectionsModel
+@{
+    Layout = null;
+}
+
+@if (Model.LinkedAccounts.Count == 0)
+{
+    @* No social accounts linked — return empty so the HTMX swap is a no-op *@
+}
+else
+{
+    @foreach (var account in Model.LinkedAccounts)
+    {
+        var data = Model.SocialData.GetValueOrDefault(account.Id);
+        <div class="social-section">
+            <div class="social-header">
+                <img class="social-avatar" src="@(data?.AvatarUrl ?? account.AvatarUrl ?? "/img/default-avatar.svg")"
+                     alt="@account.Username" referrerpolicy="no-referrer">
+                <div class="social-info">
+                    <span class="social-platform">@account.Provider</span>
+                    <span class="social-username">@@account.Username</span>
+                    @if (data?.AudienceCount.HasValue == true)
+                    {
+                        <span class="social-count">@FormatCount(data.AudienceCount.Value)</span>
+                    }
+                </div>
+            </div>
+            @if (data?.Posts.Count > 0)
+            {
+                <div class="social-posts">
+                    @foreach (var post in data.Posts)
+                    {
+                        <a class="social-post" href="@post.Permalink" target="_blank" rel="noopener noreferrer">
+                            @if (post.MediaUrl is not null)
+                            {
+                                <img class="social-post-media" src="@post.MediaUrl" alt="" referrerpolicy="no-referrer">
+                            }
+                            <div class="social-post-content">
+                                @if (post.Title is not null)
+                                {
+                                    <span class="social-post-title">@post.Title</span>
+                                }
+                                @if (post.Text is not null && post.Text != post.Title)
+                                {
+                                    <span class="social-post-text">@(post.Text.Length > 120 ? post.Text[..120] + "…" : post.Text)</span>
+                                }
+                            </div>
+                        </a>
+                    }
+                </div>
+            }
+            else if (data?.Posts.Count == 0)
+            {
+                <p class="social-empty">No recent posts</p>
+            }
+            else if (account.LastError is not null)
+            {
+                <p class="social-error">Couldn't load latest posts</p>
+            }
+            else
+            {
+                <p class="social-loading">Loading…</p>
+            }
+        </div>
+    }
+}
+
+@functions {
+    string FormatCount(long count) => count switch
+    {
+        >= 1_000_000 => $"{count / 1_000_000.0:F1}M",
+        >= 1_000 => $"{count / 1_000.0:F1}K",
+        _ => count.ToString("N0")
+    };
+}

@@ -1,0 +1,85 @@
+@page "/bio/social"
+@model Shortnr.Web.Pages.Bio.SocialModel
+@{
+    Layout = Model.IsHtmxRequest ? null : "_Layout";
+}
+<partial name="Shared/_PageHeader" model="@(new PageHeaderViewModel { Title = "Social Accounts", Subtitle = "Link your social profiles to show latest posts on your bio page." })" />
+<div id="social-settings">
+    <partial name="Shared/_StatusMessages" model="Model" />
+    @if (!Model.IsAuthEnabled)
+    {
+        <p>Enable authentication to link social accounts.</p>
+    }
+    else
+    {
+        <p>Connect your social accounts to display your latest posts, clips, and follower counts on your bio page.</p>
+
+        @foreach (var provider in Model.Providers)
+        {
+            var linked = Model.LinkedAccounts.FirstOrDefault(a => a.Provider == provider);
+            var isLinked = linked is not null && linked.IsLinked;
+            var isConfigured = Model.IsProviderConfigured(provider);
+
+            <div class="social-provider-card" style="border: var(--sn-border-width) solid var(--sn-ink); padding: 1rem; margin-bottom: 1rem; background: var(--sn-surface);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong>@provider</strong>
+                        @if (isLinked)
+                        {
+                            <span class="badge badge-success">Linked as @linked!.Username</span>
+                        }
+                        else if (!isConfigured)
+                        {
+                            <span class="badge badge-neutral">Not configured</span>
+                        }
+                        else
+                        {
+                            <span class="badge badge-neutral">Not linked</span>
+                        }
+                    </div>
+                    <div>
+                        @if (isLinked)
+                        {
+                            <form hx-post="/bio/social?handler=Refresh" hx-target="#social-settings" hx-swap="innerHTML" style="display: inline;">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="provider" value="@provider">
+                                <button type="submit" class="secondary btn-sm">Refresh</button>
+                            </form>
+                            <form hx-post="/bio/social?handler=Unlink" hx-target="#social-settings" hx-swap="innerHTML"
+                                  hx-confirm="Unlink your @provider account? This will remove cached posts from your bio page." style="display: inline;">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="provider" value="@provider">
+                                <button type="submit" class="error btn-sm">Unlink</button>
+                            </form>
+                        }
+                        else if (isConfigured)
+                        {
+                            <a href="/bio/social?handler=Connect&provider=@provider" class="button">Connect</a>
+                        }
+                    </div>
+                </div>
+                @if (isLinked)
+                {
+                    <div style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--sn-mid-gray);">
+                        @if (linked!.FollowerCount.HasValue)
+                        {
+                            <span>@linked.FollowerCount.Value.ToString("N0") followers</span>
+                        }
+                        else if (linked.SubscriberCount.HasValue)
+                        {
+                            <span>@linked.SubscriberCount.Value.ToString("N0") subscribers</span>
+                        }
+                        @if (linked.LastSuccessUtc.HasValue)
+                        {
+                            <span> · Last refreshed @linked.LastSuccessUtc.Value.ToString("MMM d, h:mm tt")</span>
+                        }
+                        @if (linked.LastError is not null)
+                        {
+                            <span class="badge badge-error">Error: @linked.LastError</span>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>

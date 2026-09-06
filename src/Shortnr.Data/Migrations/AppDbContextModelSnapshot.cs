@@ -730,6 +730,21 @@ namespace Shortnr.Data.Migrations
                         .HasMaxLength(2048)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("OgDescription")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("OgFetchedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OgImage")
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OgTitle")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("PixelId")
                         .HasMaxLength(8192)
                         .HasColumnType("TEXT");
@@ -793,6 +808,133 @@ namespace Shortnr.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("ShortenedUrlTags");
+                });
+
+            modelBuilder.Entity("Shortnr.Data.Entities.SocialAccount", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AccessTokenEncrypted")
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AvatarUrl")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ExternalId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("FollowerCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsLinked")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LastSuccessUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("OwnerUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Provider")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("RefreshTokenEncrypted")
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("SubscriberCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("TokenExpiresUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("WorkspaceId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerUserId");
+
+                    b.HasIndex("WorkspaceId");
+
+                    b.HasIndex("Provider", "OwnerUserId")
+                        .IsUnique()
+                        .HasFilter("\"OwnerUserId\" IS NOT NULL");
+
+                    b.HasIndex("Provider", "WorkspaceId")
+                        .IsUnique()
+                        .HasFilter("\"OwnerUserId\" IS NULL");
+
+                    b.ToTable("SocialAccounts");
+                });
+
+            modelBuilder.Entity("Shortnr.Data.Entities.SocialPost", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ExternalPostId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FetchedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MediaUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Permalink")
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("PublishedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("SocialAccountId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Text")
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SocialAccountId", "ExternalPostId")
+                        .IsUnique();
+
+                    b.ToTable("SocialPosts");
                 });
 
             modelBuilder.Entity("Shortnr.Data.Entities.TagSuggestion", b =>
@@ -1173,6 +1315,34 @@ namespace Shortnr.Data.Migrations
                     b.Navigation("ShortenedUrl");
                 });
 
+            modelBuilder.Entity("Shortnr.Data.Entities.SocialAccount", b =>
+                {
+                    b.HasOne("Shortnr.Data.Entities.User", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Shortnr.Data.Entities.Workspace", "Workspace")
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Owner");
+
+                    b.Navigation("Workspace");
+                });
+
+            modelBuilder.Entity("Shortnr.Data.Entities.SocialPost", b =>
+                {
+                    b.HasOne("Shortnr.Data.Entities.SocialAccount", "Account")
+                        .WithMany("Posts")
+                        .HasForeignKey("SocialAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Account");
+                });
+
             modelBuilder.Entity("Shortnr.Data.Entities.TagSuggestion", b =>
                 {
                     b.HasOne("Shortnr.Data.Entities.ShortenedUrl", "ShortenedUrl")
@@ -1250,6 +1420,11 @@ namespace Shortnr.Data.Migrations
                     b.Navigation("TagSuggestions");
 
                     b.Navigation("Tags");
+                });
+
+            modelBuilder.Entity("Shortnr.Data.Entities.SocialAccount", b =>
+                {
+                    b.Navigation("Posts");
                 });
 
             modelBuilder.Entity("Shortnr.Data.Entities.User", b =>

@@ -18,6 +18,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="/css/site.css">
+    <script src="/lib/htmx.org/dist/htmx.min.js"></script>
     @* One shared palette per theme — the same file the redirect-preview
        layout links. Presets set --pv-* at :root under
        wwwroot/css/themes/preview-<id>.css; community themes set the same
@@ -116,6 +117,103 @@
         }
         .bio-404 {
             text-align: center;
+        }
+
+        /* PRD-021: Social sections */
+        .social-section {
+            border-top: var(--sn-border-width) solid var(--pv-muted);
+            padding-top: 1rem;
+            margin-top: 1rem;
+        }
+        .social-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+        .social-avatar {
+            width: 40px;
+            height: 40px;
+            border: var(--sn-border-width) solid var(--pv-fg);
+            border-radius: 0;
+            object-fit: cover;
+        }
+        .social-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.125rem;
+        }
+        .social-platform {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--pv-accent);
+        }
+        .social-username {
+            font-size: 0.875rem;
+            color: var(--pv-fg);
+        }
+        .social-count {
+            font-size: 0.75rem;
+            color: var(--pv-muted);
+        }
+        .social-posts {
+            display: grid;
+            gap: 0.5rem;
+        }
+        .social-post {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            border: var(--sn-border-width) solid var(--pv-muted);
+            border-radius: 0;
+            text-decoration: none;
+            color: var(--pv-fg);
+            transition: transform 0.1s;
+        }
+        .social-post:hover {
+            transform: translate(1px, 1px);
+            border-color: var(--pv-accent);
+        }
+        .social-post-media {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border: var(--sn-border-width) solid var(--pv-muted);
+            flex-shrink: 0;
+        }
+        .social-post-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            min-width: 0;
+            overflow: hidden;
+        }
+        .social-post-title {
+            font-weight: 700;
+            font-size: 0.875rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .social-post-text {
+            font-size: 0.75rem;
+            color: var(--pv-muted);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+        .social-empty, .social-error, .social-loading {
+            font-size: 0.875rem;
+            color: var(--pv-muted);
+            text-align: center;
+            padding: 0.5rem;
+        }
+        .social-error {
+            color: var(--sn-status-error-fg, #dc2626);
         }
     </style>
 </head>

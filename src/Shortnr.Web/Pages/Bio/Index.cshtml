@@ -50,6 +50,11 @@ else
                 </li>
             }
         </ul>
+        <div id="social-sections"
+             hx-get="/bio/@Model.BioPage.Slug/social"
+             hx-trigger="load"
+             hx-swap="innerHTML">
+        </div>
         @await Html.PartialAsync("Shared/_BrandFooter")
     </div>
 }
