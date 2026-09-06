@@ -95,7 +95,9 @@ public class SocialSettingsTests : IAsyncLifetime
         Assert.Contains("Instagram", html);
         Assert.Contains("YouTube", html);
         Assert.Contains("TikTok", html);
-        Assert.Contains("Not linked", html);
+        // Providers show "Not configured" in tests because no OAuth credentials are set.
+        // In production with credentials, unlinked providers show "Not linked" instead.
+        Assert.Contains("Not configured", html);
     }
 
     [Fact]
