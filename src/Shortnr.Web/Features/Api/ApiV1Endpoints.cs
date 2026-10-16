@@ -717,11 +717,14 @@ public static class ApiV1Endpoints
             return await query.FirstOrDefaultAsync(ct);
         }
 
-        var matches = await query.ToListAsync(ct);
-        if (matches.Count <= 1)
-            return matches.FirstOrDefault();
-
-        return matches.FirstOrDefault(l => l.DomainId == null) ?? matches[0];
+        // No domain filter: the same code can exist once per domain. Prefer the
+        // instance's own host (DomainId == null), then the lowest Id, and let the
+        // database pick the winner — this used to materialize every match (with
+        // its 4 Includes) and choose in memory.
+        return await query
+            .OrderBy(l => l.DomainId == null ? 0 : 1)
+            .ThenBy(l => l.Id)
+            .FirstOrDefaultAsync(ct);
     }
 
     private static LinkResponse ToResponse(ShortenedUrl link, Domain? domain, string scheme, string defaultHost,
