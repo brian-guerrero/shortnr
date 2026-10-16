@@ -79,9 +79,14 @@ public class DashboardModel : PageModel, IStatusMessages
             var linkQuery = ApplyScoping(_db.ShortenedUrls.AsQueryable(), ownerUserId, workspaceId);
 
             // Aggregate in SQL rather than pulling the whole link table into memory —
-            // this branch runs on every dashboard poll.
-            var totalLinks = await linkQuery.CountAsync();
-            var totalClicks = await linkQuery.SumAsync(l => (long?)l.ClickCount) ?? 0;
+            // this branch runs on every dashboard poll. COUNT and SUM share one
+            // grouped statement so the poll pays one round-trip, not two.
+            var totals = await linkQuery
+                .GroupBy(_ => 1)
+                .Select(g => new { Count = g.Count(), Clicks = g.Sum(l => (long?)l.ClickCount) })
+                .FirstOrDefaultAsync();
+            var totalLinks = totals?.Count ?? 0;
+            var totalClicks = totals?.Clicks ?? 0;
             var topLinks = await linkQuery
                 .OrderByDescending(l => l.ClickCount)
                 .Take(10)
@@ -762,21 +767,33 @@ public async Task<IActionResult> OnPostEdit(long code, string url, string slug, 
             .OrderByDescending(x => x.Count)
             .Take(10)
             .ToList();
-        if (referrers.Count == 0 && await clickQuery.CountAsync() > 0)
-            referrers.Add(new NameCountStat { Name = "Direct / unknown", Count = await clickQuery.LongCountAsync() });
+        if (referrers.Count == 0)
+        {
+            var directClicks = await clickQuery.LongCountAsync();
+            if (directClicks > 0)
+                referrers.Add(new NameCountStat { Name = "Direct / unknown", Count = directClicks });
+        }
 
         // Devices — roll UAParser's DeviceFamily/counts into the three-class
         // desktop/mobile/tablet split the PRD calls for, with an "Unknown" bucket
-        // for clicks whose device family was never persisted.
+        // for clicks whose device family was never persisted. One grouped query
+        // over the whole column (null and "" collapse to the empty key) feeds
+        // both buckets instead of running a group query plus a count query.
         var rawDevices = await clickQuery
-            .Where(e => e.DeviceFamily != null && e.DeviceFamily != "")
-            .GroupBy(e => e.DeviceFamily!)
+            .GroupBy(e => e.DeviceFamily ?? "")
             .Select(g => new { Device = g.Key, Count = g.LongCount() })
             .ToListAsync();
-        var noneDevice = await clickQuery
-            .Where(e => e.DeviceFamily == null || e.DeviceFamily == "")
-            .LongCountAsync();
-        var devices = rawDevices
+        var noneDevice = 0L;
+        var classifiedDevices = new List<(string Device, long Count)>(rawDevices.Count);
+        foreach (var row in rawDevices)
+        {
+            if (row.Device.Length == 0)
+                noneDevice += row.Count;
+            else
+                classifiedDevices.Add((row.Device, row.Count));
+        }
+
+        var devices = classifiedDevices
             .Select(d => new NameCountStat { Name = DeviceClass(d.Device), Count = d.Count })
             .GroupBy(x => x.Name)
             .Select(g => new NameCountStat { Name = g.Key, Count = g.Sum(x => x.Count) })
@@ -974,8 +991,9 @@ public async Task<IActionResult> OnPostEdit(long code, string url, string slug, 
         return await query.FirstOrDefaultAsync(l => l.Id == code);
     }
 
+    // Read-only: rendered into the edit form; mutations resolve snippets by id.
     private Task<List<PixelSnippet>> LoadPixelSnippetsAsync() =>
-        _db.PixelSnippets.OrderBy(p => p.Id).ToListAsync();
+        _db.PixelSnippets.AsNoTracking().OrderBy(p => p.Id).ToListAsync();
 
     /// <summary>
     /// Resolves the metadata's PixelId value: the pixel ID for template snippets,

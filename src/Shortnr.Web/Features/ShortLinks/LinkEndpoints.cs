@@ -41,8 +41,14 @@ public static class ApiEndpoints
             var linkQuery = db.ShortenedUrls.AsQueryable();
             linkQuery = ApplyMetricsScoping(linkQuery, ownerUserId, workspaceId);
 
-            var totalLinks = await linkQuery.CountAsync();
-            var totalClicks = await linkQuery.SumAsync(l => (long?)l.ClickCount) ?? 0;
+            // COUNT and SUM share one grouped statement so the 5-second metrics
+            // poll pays one round-trip for the link totals instead of two.
+            var linkTotals = await linkQuery
+                .GroupBy(_ => 1)
+                .Select(g => new { Count = g.Count(), Clicks = g.Sum(l => (long?)l.ClickCount) })
+                .FirstOrDefaultAsync();
+            var totalLinks = linkTotals?.Count ?? 0;
+            var totalClicks = linkTotals?.Clicks ?? 0;
             var topLinks = await linkQuery
                 .OrderByDescending(l => l.ClickCount)
                 .Take(10)
@@ -52,19 +58,24 @@ public static class ApiEndpoints
             var clickQuery = db.ClickEvents.AsQueryable();
             clickQuery = ApplyClickMetricsScoping(clickQuery, ownerUserId, workspaceId);
 
-            var totalCountries = await clickQuery
-                .Where(e => e.CountryCode != null && e.CountryCode != "")
-                .Select(e => e.CountryCode)
-                .Distinct()
-                .CountAsync();
-
-            var countryBreakdown = await clickQuery
+            // One grouped scan feeds both the distinct-country count and the top-10
+            // breakdown (a country has one code/name pair, so distinct codes over
+            // the group rows is the same number the old COUNT(DISTINCT) returned).
+            var countryRows = await clickQuery
                 .Where(e => e.CountryCode != null && e.CountryCode != "")
                 .GroupBy(e => new { e.CountryCode, e.CountryName })
                 .Select(g => new { countryCode = g.Key.CountryCode, countryName = g.Key.CountryName, count = g.Count() })
+                .ToListAsync();
+
+            var totalCountries = countryRows
+                .Select(x => x.countryCode)
+                .Distinct()
+                .Count();
+
+            var countryBreakdown = countryRows
                 .OrderByDescending(x => x.count)
                 .Take(10)
-                .ToListAsync();
+                .ToList();
 
             var deviceBreakdown = await clickQuery
                 .Where(e => e.DeviceFamily != null && e.DeviceFamily != "")
