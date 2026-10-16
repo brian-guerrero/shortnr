@@ -96,10 +96,15 @@ public sealed class ClickBatchProcessor : BackgroundService
                 var insertSql = BuildMultiRowInsert(events);
                 await db.Database.ExecuteSqlInterpolatedAsync(insertSql, stoppingToken);
 
-                foreach (var (urlId, delta) in clickCountDelta)
+                // One set-based UPDATE per distinct delta rather than one per link:
+                // a 100-record batch usually carries a handful of distinct deltas,
+                // so this collapses up to ~100 round-trips into a few.
+                foreach (var (delta, urlIds) in clickCountDelta
+                    .GroupBy(kvp => kvp.Value)
+                    .Select(g => (Delta: g.Key, UrlIds: g.Select(kvp => kvp.Key).ToList())))
                 {
                     await db.ShortenedUrls
-                        .Where(u => u.Id == urlId)
+                        .Where(u => urlIds.Contains(u.Id))
                         .ExecuteUpdateAsync(s => s.SetProperty(u => u.ClickCount, u => u.ClickCount + delta), stoppingToken);
                 }
 
