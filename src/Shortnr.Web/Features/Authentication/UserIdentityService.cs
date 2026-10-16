@@ -22,6 +22,13 @@ public sealed class UserIdentityService(
     private ClaimsPrincipal? _resolvedPrincipal;
     private long? _ownerUserId;
 
+    // Same memoization for the workspace context: several page handlers resolve
+    // it in both the entry handler and a follow-up partial loader, and each miss
+    // costs a Workspaces⋈WorkspaceMembers round-trip.
+    private bool _workspaceResolved;
+    private ClaimsPrincipal? _workspacePrincipal;
+    private ActiveWorkspaceContext? _workspaceContext;
+
     public bool IsAuthEnabled => config.GetValue<bool>("Authentication:Enabled", defaultValue: true);
 
     /// <summary>
@@ -69,16 +76,21 @@ public sealed class UserIdentityService(
     {
         if (!IsAuthEnabled) return null;
 
+        if (_workspaceResolved && ReferenceEquals(_workspacePrincipal, principal))
+            return _workspaceContext;
+
         var userId = await ResolveOwnerUserIdAsync(principal);
-        if (userId is null) return null;
+        if (userId is null)
+            return MemoizeWorkspace(principal, null);
 
         var httpContext = httpContextAccessor.HttpContext;
         var cookie = httpContext?.Request.Cookies["snr_workspace"];
-        if (string.IsNullOrWhiteSpace(cookie)) return null;
+        if (string.IsNullOrWhiteSpace(cookie))
+            return MemoizeWorkspace(principal, null);
 
         // One round-trip: the join only produces a row when the workspace exists
         // AND the user is an active member of it.
-        return await db.Workspaces
+        var context = await db.Workspaces
             .Where(w => w.Slug == cookie)
             .Join(
                 db.WorkspaceMembers.Where(m => m.UserId == userId.Value && m.JoinedAtUtc != null),
@@ -92,6 +104,16 @@ public sealed class UserIdentityService(
                     Role = m.Role
                 })
             .FirstOrDefaultAsync();
+
+        return MemoizeWorkspace(principal, context);
+    }
+
+    private ActiveWorkspaceContext? MemoizeWorkspace(ClaimsPrincipal principal, ActiveWorkspaceContext? context)
+    {
+        _workspacePrincipal = principal;
+        _workspaceContext = context;
+        _workspaceResolved = true;
+        return context;
     }
 
     /// <inheritdoc />
