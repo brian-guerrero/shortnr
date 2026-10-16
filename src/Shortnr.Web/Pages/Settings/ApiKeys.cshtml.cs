@@ -102,7 +102,8 @@ public class ApiKeysModel : PageModel, IStatusMessages
         if (ownerUserId is not null)
             query = query.Where(k => k.OwnerUserId == ownerUserId);
 
-        return await query.OrderByDescending(k => k.CreatedAtUtc).ToListAsync();
+        // Read-only list for rendering; revoke/delete resolve their own tracked entity.
+        return await query.AsNoTracking().OrderByDescending(k => k.CreatedAtUtc).ToListAsync();
     }
 
     private async Task<ApiKey?> FindOwnedApiKeyAsync(long id)

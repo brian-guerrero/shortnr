@@ -38,7 +38,7 @@ public class IndexModel : PageModel
         var defaultDomain = await ResolveDefaultDomainAsync(ownerUserId);
         DefaultHostname = defaultDomain?.Hostname;
         RecentLinks = await RecentLinksAsync(ownerUserId, Workspace?.WorkspaceId);
-        PixelSnippets = await _db.PixelSnippets.OrderBy(p => p.Id).ToListAsync();
+        PixelSnippets = await _db.PixelSnippets.AsNoTracking().OrderBy(p => p.Id).ToListAsync();
         AdvancedOptions = new LinkAdvancedOptionsViewModel
         {
             ShowCustomCode = true,
