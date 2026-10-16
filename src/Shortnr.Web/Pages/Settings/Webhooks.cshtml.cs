@@ -124,7 +124,8 @@ public class WebhooksModel : PageModel, IStatusMessages
         if (ownerUserId is not null)
             query = query.Where(w => w.OwnerUserId == ownerUserId);
 
-        return await query.OrderByDescending(w => w.CreatedAtUtc).ToListAsync();
+        // Read-only list for rendering; toggle/update/delete resolve their own tracked entity.
+        return await query.AsNoTracking().OrderByDescending(w => w.CreatedAtUtc).ToListAsync();
     }
 
     private async Task<Webhook?> FindOwnedWebhookAsync(long id)
